@@ -1,17 +1,13 @@
 package main
 
 import (
-	"tinyrdm-tui/service"
-
 	"log"
+	"tinyrdm-tui/service"
 
 	"github.com/jroimartin/gocui"
 )
 
-var ConnectionList any
-
 func main() {
-	// fmt.Println(r)
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	g.Mouse = true
@@ -19,8 +15,7 @@ func main() {
 		log.Panicln(err)
 	}
 	defer g.Close()
-
-	service.InitConnectionComponent(g).KeyBind().Layout()
+	service.NewMainApp(g)
 
 	// g.SetManagerFunc(service.Layout)
 

@@ -9,18 +9,16 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-var SPACE_STRING = "                                          "
-
 type LTRConnectionComponent struct {
 	ConnectionList                        types.Connections
 	ConnectionListSelectedGroupIndex      int
 	ConnectionListCurrentGroupIndex       int
-	gui                                   *gocui.Gui
 	ConnectionListSelectedConnectionIndex int
 	LayoutMaxY                            int
+	ConnectionListSelectedConnectionInfo  types.Connection
 }
 
-func InitConnectionComponent(g *gocui.Gui) *LTRConnectionComponent {
+func InitConnectionComponent() *LTRConnectionComponent {
 	connSvc := services.Connection()
 	browserSvc := services.Browser()
 	ctx := context.Background()
@@ -29,16 +27,22 @@ func InitConnectionComponent(g *gocui.Gui) *LTRConnectionComponent {
 	connectionListJson := connSvc.ListConnection()
 	c := LTRConnectionComponent{
 		ConnectionList:                        connectionListJson.Data.(types.Connections),
-		gui:                                   g,
 		ConnectionListCurrentGroupIndex:       -1,
 		ConnectionListSelectedConnectionIndex: -1,
 	}
+	// 兼容一级非目录的配置
+	for i, group := range c.ConnectionList {
+		if len(group.Connections) == 0 && group.Type != "group" {
+			c.ConnectionList[i].Connections = append(c.ConnectionList[i].Connections, group)
+		}
+	}
+
 	return &c
 }
 
 func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 
-	c.gui.SetKeybinding("connection_list", gocui.KeyArrowDown, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GlobalApp.gui.SetKeybinding("connection_list", gocui.KeyArrowDown, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.ConnectionListCurrentGroupIndex >= 0 {
 			c.ConnectionListSelectedConnectionIndex++
 			if c.ConnectionListSelectedConnectionIndex > len(c.ConnectionList[c.ConnectionListCurrentGroupIndex].Connections)-1 {
@@ -57,7 +61,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		return nil
 	})
 
-	c.gui.SetKeybinding("connection_list", gocui.KeyArrowUp, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GlobalApp.gui.SetKeybinding("connection_list", gocui.KeyArrowUp, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.ConnectionListCurrentGroupIndex >= 0 {
 			c.ConnectionListSelectedConnectionIndex--
 			if c.ConnectionListSelectedConnectionIndex < 0 {
@@ -76,8 +80,17 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		return nil
 	})
 
-	c.gui.SetKeybinding("connection_list", gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GlobalApp.gui.SetKeybinding("connection_list", gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.ConnectionListCurrentGroupIndex >= 0 {
+			// connection selected
+			c.ConnectionListSelectedConnectionInfo = c.ConnectionList[c.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex]
+			connectionInfo := services.Browser().OpenConnection(c.ConnectionListSelectedConnectionInfo.Name)
+			GlobalConnection.dbs = connectionInfo.Data.(map[string]any)["db"].([]types.ConnectionDB)
+			GlobalConnection.view = connectionInfo.Data.(map[string]any)["view"].(int)
+			GlobalConnection.lastDB = connectionInfo.Data.(map[string]any)["lastDB"].(int)
+			GlobalConnection.version = connectionInfo.Data.(map[string]any)["version"].(string)
+			v.Clear()
+			GlobalDBComponent.Layout()
 			return nil
 		} else {
 			c.ConnectionListCurrentGroupIndex = c.ConnectionListSelectedGroupIndex
@@ -87,7 +100,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		}
 		return nil
 	})
-	c.gui.SetKeybinding("connection_list", gocui.KeyArrowRight, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GlobalApp.gui.SetKeybinding("connection_list", gocui.KeyArrowRight, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.ConnectionListCurrentGroupIndex >= 0 {
 			return nil
 		} else {
@@ -99,14 +112,14 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		return nil
 	})
 
-	c.gui.SetKeybinding("connection_list", gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GlobalApp.gui.SetKeybinding("connection_list", gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.ConnectionListCurrentGroupIndex = -1
 		c.ConnectionListSelectedConnectionIndex = -1
 		v.Clear()
 		c.Layout()
 		return nil
 	})
-	c.gui.SetKeybinding("connection_list", gocui.KeyArrowLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GlobalApp.gui.SetKeybinding("connection_list", gocui.KeyArrowLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.ConnectionListCurrentGroupIndex = -1
 		c.ConnectionListSelectedConnectionIndex = -1
 		v.Clear()
@@ -114,15 +127,14 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		return nil
 	})
 
-	c.gui.SetKeybinding("connection_list", gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GlobalApp.gui.SetKeybinding("connection_list", gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		return nil
 	})
 	return c
 }
 
 func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
-	maxX, maxY := c.gui.Size()
-	v, err := c.gui.SetView("connection_list", 0, 0, maxX-1, maxY-2)
+	v, err := GlobalApp.gui.SetView("connection_list", 0, 0, GlobalApp.maxX-1, GlobalApp.maxY-2)
 	if err != nil {
 		if err != gocui.ErrUnknownView {
 			return c
@@ -132,9 +144,7 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		// v.Wrap = true
 		// v.Autoscroll = true
 		v.Frame = true
-		v.FgColor = gocui.ColorGreen
-		v.SelBgColor = gocui.ColorGreen
-		v.SelFgColor = gocui.ColorBlack
+		// v.FgColor = gocui.ColorGreen
 		_, c.LayoutMaxY = v.Size()
 	}
 
@@ -145,7 +155,7 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		theConnectionsLen := len(conn.Connections)
 		if c.ConnectionListSelectedGroupIndex == index {
 			if c.ConnectionListSelectedConnectionIndex == -1 {
-				printString += fmt.Sprintf("\x1b[1;30;47m%s\x1b[0m\n", "["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING) // 白底黑字
+				printString += fmt.Sprintf("\x1b[1;37;44m%s\x1b[0m\n", "["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING) // 白底黑字
 				totalLine++
 				currenLine = totalLine
 			} else {
@@ -154,14 +164,13 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 			}
 			for key, item := range conn.Connections {
 				if key == c.ConnectionListSelectedConnectionIndex {
-					printString += fmt.Sprintf(" - \x1b[1;30;47m%s\x1b[0m%s\n", item.Name, SPACE_STRING) // 白底黑字
+					printString += fmt.Sprintf(" - \x1b[1;37;44m%s\x1b[0m\n", item.Name+SPACE_STRING) // 白底黑字
 					totalLine++
 					currenLine = totalLine
 				} else {
 					printString += fmt.Sprintf(" - %s%s\n", item.Name, SPACE_STRING)
 					totalLine++
 				}
-
 			}
 		} else {
 			printString += fmt.Sprintf("%s\n", "["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING)
@@ -183,7 +192,7 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 	}
 	v.Clear()
 	v.Write([]byte(printString))
-	c.gui.SetCurrentView("connection_list")
+	GlobalApp.gui.SetCurrentView("connection_list")
 
 	return c
 }
