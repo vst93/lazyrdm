@@ -13,11 +13,13 @@ type LTRListDBComponent struct {
 }
 
 func InitDBComponent() *LTRListDBComponent {
-	return &LTRListDBComponent{
+	c := &LTRListDBComponent{
 		LayoutMaxY: 0,
 		SelectedDB: 0,
 		view:       nil,
 	}
+	c.Layout()
+	return c
 }
 
 func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
@@ -40,7 +42,7 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 	totalLine := 0
 	for index, db := range GlobalConnection.dbs {
 		if c.SelectedDB == index {
-			printString += fmt.Sprintf("\x1b[1;37;44m%s\x1b[0m\n", ""+db.Name+""+SPACE_STRING) // 白底黑字
+			printString += fmt.Sprintf("\x1b[1;37;44m%s\x1b[0m\n", ""+db.Name+""+SPACE_STRING)
 			totalLine++
 			currenLine = totalLine
 		} else {

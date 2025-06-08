@@ -36,7 +36,7 @@ func InitConnectionComponent() *LTRConnectionComponent {
 			c.ConnectionList[i].Connections = append(c.ConnectionList[i].Connections, group)
 		}
 	}
-
+	c.KeyBind().Layout()
 	return &c
 }
 
@@ -89,8 +89,9 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			GlobalConnection.view = connectionInfo.Data.(map[string]any)["view"].(int)
 			GlobalConnection.lastDB = connectionInfo.Data.(map[string]any)["lastDB"].(int)
 			GlobalConnection.version = connectionInfo.Data.(map[string]any)["version"].(string)
-			v.Clear()
-			GlobalDBComponent.Layout()
+			GlobalApp.gui.DeleteView("connection_list")
+			GlobalApp.gui.DeleteKeybindings("connection_list")
+			InitDBComponent()
 			return nil
 		} else {
 			c.ConnectionListCurrentGroupIndex = c.ConnectionListSelectedGroupIndex

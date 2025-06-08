@@ -30,6 +30,6 @@ func NewMainApp(g *gocui.Gui) {
 	}
 	GlobalApp = &mainApp
 	mainApp.maxX, mainApp.maxY = GlobalApp.gui.Size()
-	GlobalConnectionComponent = InitConnectionComponent().KeyBind().Layout()
-	GlobalDBComponent = InitDBComponent().Layout()
+	GlobalConnectionComponent = InitConnectionComponent()
+	// GlobalDBComponent = InitDBComponent().Layout()
 }
