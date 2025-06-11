@@ -1,21 +1,21 @@
 package service
 
 import (
-	"tinyrdm/backend/types"
-
 	"github.com/jroimartin/gocui"
 )
 
 var SPACE_STRING = "                                                                                                                             "
 var GlobalApp *MainApp
-var GlobalConnection struct {
-	dbs     []types.ConnectionDB
-	view    int
-	lastDB  int
-	version string
-}
+
+//	var GlobalConnection struct {
+//		dbs     []types.ConnectionDB
+//		view    int
+//		lastDB  int
+//		version string
+//	}
 var GlobalConnectionComponent *LTRConnectionComponent
 var GlobalDBComponent *LTRListDBComponent
+var GlobalKeyComponent *LTRListKeyComponent
 
 type MainApp struct {
 	gui        *gocui.Gui
@@ -28,8 +28,10 @@ func NewMainApp(g *gocui.Gui) {
 		maxX: 0,
 		maxY: 0,
 	}
+
 	GlobalApp = &mainApp
 	mainApp.maxX, mainApp.maxY = GlobalApp.gui.Size()
 	GlobalConnectionComponent = InitConnectionComponent()
-	// GlobalDBComponent = InitDBComponent().Layout()
+	GlobalApp.gui.SelFgColor = gocui.ColorGreen
+	GlobalApp.gui.Highlight = true
 }

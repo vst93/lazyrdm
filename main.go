@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"tinyrdm-tui/service"
+	"tinyrdm/backend/services"
 
 	"github.com/jroimartin/gocui"
 )
@@ -14,7 +15,11 @@ func main() {
 	if err != nil {
 		log.Panicln(err)
 	}
-	defer g.Close()
+	defer func() {
+		services.Browser().Stop()
+		g.Close()
+	}()
+
 	service.NewMainApp(g)
 
 	// g.SetManagerFunc(service.Layout)
