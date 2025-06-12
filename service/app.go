@@ -18,8 +18,10 @@ var GlobalDBComponent *LTRListDBComponent
 var GlobalKeyComponent *LTRListKeyComponent
 
 type MainApp struct {
-	gui        *gocui.Gui
-	maxX, maxY int
+	gui          *gocui.Gui
+	maxX, maxY   int
+	CurrentView  string
+	ViewNameList []string
 }
 
 func NewMainApp(g *gocui.Gui) {

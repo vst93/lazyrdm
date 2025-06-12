@@ -31,7 +31,7 @@ func InitConnectionComponent() *LTRConnectionComponent {
 	connSvc.Start(ctx)
 	browserSvc.Start(ctx)
 	connectionListJson := connSvc.ListConnection()
-	c := LTRConnectionComponent{
+	c := &LTRConnectionComponent{
 		name:                                  "connection_list",
 		title:                                 "Connection List",
 		ConnectionList:                        connectionListJson.Data.(types.Connections),
@@ -44,8 +44,9 @@ func InitConnectionComponent() *LTRConnectionComponent {
 			c.ConnectionList[i].Connections = append(c.ConnectionList[i].Connections, group)
 		}
 	}
-	c.KeyBind().Layout()
-	return &c
+	GlobalApp.ViewNameList = []string{c.name}
+	c.Layout().KeyBind()
+	return c
 }
 
 func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
@@ -99,7 +100,11 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			GlobalConnectionComponent.version = connectionInfo.Data.(map[string]any)["version"].(string)
 			GlobalApp.gui.DeleteView(c.name)
 			GlobalApp.gui.DeleteKeybindings(c.name)
+			GlobalApp.CurrentView = "db_list"
+			GlobalApp.ViewNameList = []string{} // 清空视图列表
 			GlobalDBComponent = InitDBComponent()
+			GlobalKeyComponent = InitKeyComponent()
+			GlobalApp.ViewNameList = []string{GlobalDBComponent.name, GlobalKeyComponent.name}
 			return nil
 		} else {
 			c.ConnectionListCurrentGroupIndex = c.ConnectionListSelectedGroupIndex
@@ -125,7 +130,15 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 }
 
 func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
-	v, err := GlobalApp.gui.SetView(c.name, 0, 0, GlobalApp.maxX-1, GlobalApp.maxY-2)
+	theX0 := 0
+	theY0 := 0
+	theX1 := GlobalApp.maxX - 1
+	theY1 := GlobalApp.maxY - 2
+	if GlobalApp.maxX > GlobalApp.maxY && (theY1*15/10) <= theX1 {
+		theX0 = (GlobalApp.maxX - GlobalApp.maxY) / 2
+		theX1 = theX0 + GlobalApp.maxY - 1
+	}
+	v, err := GlobalApp.gui.SetView(c.name, theX0, theY0, theX1, theY1)
 	if err != nil {
 		if err != gocui.ErrUnknownView {
 			return c
@@ -148,7 +161,6 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		theConnectionsLen := len(conn.Connections)
 		if c.ConnectionListSelectedGroupIndex == index {
 			if c.ConnectionListSelectedConnectionIndex == -1 {
-				// printString += fmt.Sprintf("\x1b[1;37;44m%s\x1b[0m\n", "["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING) // 白底黑字
 				printString += NewColorString("["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING+"\n", "white", "blue", "bold") // 白底黑字
 				totalLine++
 				currenLine = totalLine

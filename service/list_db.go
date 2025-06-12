@@ -21,11 +21,13 @@ func InitDBComponent() *LTRListDBComponent {
 		name:       "db_list",
 		title:      "DB",
 		LayoutMaxY: 0,
-		SelectedDB: 0,
+		SelectedDB: -1,
 		CurrenDB:   0,
 		view:       nil,
 	}
-	c.KeyBind().Layout()
+
+	// GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, c.name)
+	c.Layout().KeyBind()
 	return c
 }
 
@@ -39,12 +41,12 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 		if err != gocui.ErrUnknownView {
 			return c
 		}
-		v.Title = c.title
+		v.Title = " " + c.title + " "
 		v.Editable = false
 		v.Frame = true
 		_, c.LayoutMaxY = v.Size()
 
-		GlobalApp.gui.SetCurrentView(c.name)
+		// GlobalApp.gui.SetCurrentView(c.name)
 
 	}
 
@@ -54,7 +56,7 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 	for index, db := range GlobalConnectionComponent.dbs {
 		if c.CurrenDB == index {
 			// printString += fmt.Sprintf("\x1b[1;37;44m%s\x1b[0m\n", ""+db.Name+""+SPACE_STRING)
-			printString += NewColorString(db.Name+" ("+strconv.Itoa(db.MaxKeys)+")"+SPACE_STRING, "white", "blue")
+			printString += NewColorString(db.Name+" ("+strconv.Itoa(db.MaxKeys)+")"+SPACE_STRING+"\n", "white", "blue")
 			totalLine++
 			currenLine = totalLine
 		} else {
@@ -77,6 +79,15 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 	v.Clear()
 	v.Write([]byte(printString))
 	c.view = v
+
+	if GlobalApp.CurrentView == c.name {
+		// c.KeyBind()
+		GlobalApp.gui.SetCurrentView(c.name)
+
+	} else {
+		// GlobalApp.gui.DeleteKeybindings(c.name)
+	}
+
 	return c
 }
 
@@ -101,11 +112,10 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.gui, c.name, []any{gocui.KeyEnter, gocui.MouseRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.gui, c.name, []any{gocui.KeyEnter, gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.SelectedDB = c.CurrenDB
-		GlobalKeyComponent = InitKeyComponent().LoadKeys().Layout().KeyBind()
-		GlobalApp.gui.DeleteKeybindings(c.name)
-		GlobalApp.gui.SetCurrentView(GlobalKeyComponent.name)
+		GlobalApp.CurrentView = "key_list"
+		GlobalKeyComponent = InitKeyComponent()
 		return nil
 	})
 

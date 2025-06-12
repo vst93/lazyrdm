@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 )
 
 func NewColorString(text string, parameters ...string) string {
@@ -87,4 +88,34 @@ func NewColorString(text string, parameters ...string) string {
 	// fmt.Println(colorInt, bgColorInt, displayInt)
 
 	return fmt.Sprintf("\x1b[%d;%d;%dm%s\x1b[0m", displayInt, colorInt, bgColorInt, text)
+}
+
+func NewTypeWord(str string) string {
+	str = strings.ToLower(str)
+	ret := NewColorString("[Null]", "white", "red", "bold")
+	switch str {
+	case "string":
+		// ret = "🇸"
+		ret = NewColorString("[Str]", "white", "purple", "bold")
+	case "list":
+		// ret = "🇱"
+		ret = NewColorString("[List]", "white", "green", "bold")
+	case "set":
+		// ret = "🇪"
+		ret = NewColorString("[Set]", "white", "yellow", "bold")
+	case "zset":
+		// ret = "🇿"
+		ret = NewColorString("[ZSet]", "white", "red", "bold")
+	case "hash":
+		// ret = "🇭"
+		ret = NewColorString("[Hash]", "white", "cyan", "bold")
+	case "stream":
+		// ret = "🇽"
+		ret = NewColorString("[Stream]", "white", "red", "bold")
+	case "json":
+		// ret = "🇯"
+		ret = NewColorString("[JSON]", "white", "yellow", "bold")
+	default:
+	}
+	return ret
 }
