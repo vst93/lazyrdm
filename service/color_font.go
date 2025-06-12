@@ -90,25 +90,38 @@ func NewColorString(text string, parameters ...string) string {
 	return fmt.Sprintf("\x1b[%d;%d;%dm%s\x1b[0m", displayInt, colorInt, bgColorInt, text)
 }
 
-func NewTypeWord(str string) string {
+func NewTypeWord(str string, parameters ...string) string {
 	str = strings.ToLower(str)
+	isFull := false
+	for _, v := range parameters {
+		switch v {
+		case "full":
+			isFull = true
+		default:
+		}
+	}
+
 	ret := NewColorString("[Null]", "white", "red", "bold")
 	switch str {
 	case "string":
 		// ret = "🇸"
-		ret = NewColorString("[Str]", "white", "purple", "bold")
+		if isFull {
+			ret = NewColorString("[String]", "white", "purple", "bold")
+		} else {
+			ret = NewColorString("[Str]", "white", "purple", "bold")
+		}
 	case "list":
 		// ret = "🇱"
-		ret = NewColorString("[List]", "white", "green", "bold")
+		ret = NewColorString("[List]", "black", "green", "bold")
 	case "set":
 		// ret = "🇪"
-		ret = NewColorString("[Set]", "white", "yellow", "bold")
+		ret = NewColorString("[Set]", "black", "yellow", "bold")
 	case "zset":
 		// ret = "🇿"
 		ret = NewColorString("[ZSet]", "white", "red", "bold")
 	case "hash":
 		// ret = "🇭"
-		ret = NewColorString("[Hash]", "white", "cyan", "bold")
+		ret = NewColorString("[Hash]", "black", "cyan", "bold")
 	case "stream":
 		// ret = "🇽"
 		ret = NewColorString("[Stream]", "white", "red", "bold")

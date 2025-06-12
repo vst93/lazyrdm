@@ -10,23 +10,24 @@ import (
 type LTRListDBComponent struct {
 	name       string
 	title      string
-	LayoutMaxY int
+	LayoutMaxH int
 	SelectedDB int // 当前打开数据库
 	CurrenDB   int // 当前光标选中的据库
 	view       *gocui.View
+	minH       int
 }
 
 func InitDBComponent() *LTRListDBComponent {
 	c := &LTRListDBComponent{
 		name:       "db_list",
 		title:      "DB",
-		LayoutMaxY: 0,
+		LayoutMaxH: 0,
 		SelectedDB: -1,
 		CurrenDB:   0,
 		view:       nil,
+		minH:       2,
 	}
 
-	// GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, c.name)
 	c.Layout().KeyBind()
 	return c
 }
@@ -35,8 +36,11 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 	if len(GlobalConnectionComponent.dbs) == 0 {
 		return c
 	}
-	// maxX, maxY := GlobalApp.gui.Size()
-	v, err := GlobalApp.gui.SetView(c.name, 0, 0, GlobalApp.maxX*2/10, GlobalApp.maxY*2/10)
+	theY1 := GlobalApp.maxY * 2 / 10
+	if GlobalApp.CurrentView != c.name {
+		theY1 = c.minH
+	}
+	v, err := GlobalApp.gui.SetView(c.name, 0, 0, GlobalApp.maxX*2/10, theY1)
 	if err != nil {
 		if err != gocui.ErrUnknownView {
 			return c
@@ -44,10 +48,7 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 		v.Title = " " + c.title + " "
 		v.Editable = false
 		v.Frame = true
-		_, c.LayoutMaxY = v.Size()
-
-		// GlobalApp.gui.SetCurrentView(c.name)
-
+		_, c.LayoutMaxH = v.Size()
 	}
 
 	printString := ""
@@ -64,13 +65,15 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 			totalLine++
 		}
 	}
-	if currenLine > c.LayoutMaxY/2 {
-		originLine := currenLine - c.LayoutMaxY/2
+	if GlobalApp.CurrentView != c.name {
+		v.SetOrigin(0, c.SelectedDB)
+	} else if currenLine > c.LayoutMaxH/2 {
+		originLine := currenLine - c.LayoutMaxH/2
 		if originLine < 0 {
 			originLine = 0
 		}
-		if originLine > totalLine-c.LayoutMaxY {
-			originLine = totalLine - c.LayoutMaxY
+		if originLine > totalLine-c.LayoutMaxH {
+			originLine = totalLine - c.LayoutMaxH
 		}
 		v.SetOrigin(0, originLine)
 	} else {
@@ -115,7 +118,8 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 	GuiSetKeysbinding(GlobalApp.gui, c.name, []any{gocui.KeyEnter, gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.SelectedDB = c.CurrenDB
 		GlobalApp.CurrentView = "key_list"
-		GlobalKeyComponent = InitKeyComponent()
+		c.Layout()
+		GlobalKeyComponent.LoadKeys().Layout()
 		return nil
 	})
 

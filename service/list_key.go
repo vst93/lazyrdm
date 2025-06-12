@@ -13,7 +13,7 @@ import (
 type LTRListKeyComponent struct {
 	name       string
 	title      string
-	LayoutMaxY int
+	LayoutMaxH int
 	view       *gocui.View
 	Current    int
 	keys       []any
@@ -24,14 +24,11 @@ func InitKeyComponent() *LTRListKeyComponent {
 	c := &LTRListKeyComponent{
 		name:       "key_list",
 		title:      "Key List",
-		LayoutMaxY: 0,
+		LayoutMaxH: 0,
 		view:       nil,
 	}
 	// GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, c.name)
 	c.LoadKeys().Layout().KeyBind()
-	if GlobalApp.CurrentView == c.name {
-		GlobalApp.gui.SetCurrentView(c.name)
-	}
 	return c
 }
 
@@ -57,9 +54,9 @@ func (c *LTRListKeyComponent) LoadKeys() *LTRListKeyComponent {
 }
 
 func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
-
+	_, theDBComponentH := GlobalDBComponent.view.Size()
 	if c.view == nil {
-		v, err := GlobalApp.gui.SetView(c.name, 0, GlobalApp.maxY*2/10+1, GlobalApp.maxX*2/10, GlobalApp.maxY-1)
+		v, err := GlobalApp.gui.SetView(c.name, 0, theDBComponentH+2, GlobalApp.maxX*2/10, GlobalApp.maxY-2)
 		if err != nil && err != gocui.ErrUnknownView {
 			PrintLn(err.Error())
 			return c
@@ -72,15 +69,19 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 			v.Title = " [db" + strconv.Itoa(GlobalDBComponent.SelectedDB) + "]" + " [count:" + strconv.FormatInt(c.MaxKeys, 10) + "] "
 		}
 		c.view = v
+	} else {
+		GlobalApp.gui.SetView(c.name, 0, theDBComponentH+2, GlobalApp.maxX*2/10, GlobalApp.maxY-2)
 	}
-	_, c.LayoutMaxY = c.view.Size()
+	_, c.LayoutMaxH = c.view.Size()
 
 	printString := ""
 	currenLine := 0
 	totalLine := 0
 	if len(c.keys) > 0 {
 		for index, key := range c.keys {
+			totalLine++
 			if c.Current == index {
+				currenLine = totalLine
 				// get key info
 				keyType := services.Browser().GetKeyType(
 					types.KeySummaryParam{
@@ -100,13 +101,13 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 			}
 		}
 	}
-	if currenLine > c.LayoutMaxY/2 {
-		originLine := currenLine - c.LayoutMaxY/2
+	if currenLine > c.LayoutMaxH/2 {
+		originLine := currenLine - c.LayoutMaxH/2
 		if originLine < 0 {
 			originLine = 0
 		}
-		if originLine > totalLine-c.LayoutMaxY {
-			originLine = totalLine - c.LayoutMaxY
+		if originLine > totalLine-c.LayoutMaxH {
+			originLine = totalLine - c.LayoutMaxH
 		}
 		c.view.SetOrigin(0, originLine)
 	} else {
@@ -114,6 +115,9 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	}
 	c.view.Clear()
 	c.view.Write([]byte(printString))
+	if GlobalApp.CurrentView == c.name {
+		GlobalApp.gui.SetCurrentView(c.name)
+	}
 	return c
 }
 
@@ -135,6 +139,16 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		}
 		v.Clear()
 		c.Layout()
+		return nil
+	})
+
+	GuiSetKeysbinding(GlobalApp.gui, c.name, []any{gocui.KeyEnter, gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		// get key info
+		// PrintLn(GlobalKeyComponent.Current)
+		// PrintLn(GlobalKeyComponent.keys)
+		GlobalKeyInfoComponent.keyName = GlobalKeyComponent.keys[GlobalKeyComponent.Current].(string)
+		// PrintLn(GlobalKeyInfoComponent.keyName)
+		GlobalKeyInfoComponent.Layout()
 		return nil
 	})
 

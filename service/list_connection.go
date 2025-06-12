@@ -104,6 +104,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			GlobalApp.ViewNameList = []string{} // 清空视图列表
 			GlobalDBComponent = InitDBComponent()
 			GlobalKeyComponent = InitKeyComponent()
+			GlobalKeyInfoComponent = InitKeyInfoComponent()
 			GlobalApp.ViewNameList = []string{GlobalDBComponent.name, GlobalKeyComponent.name}
 			return nil
 		} else {

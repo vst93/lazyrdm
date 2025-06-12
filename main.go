@@ -57,6 +57,14 @@ func main() {
 		nextViewName := service.GlobalApp.ViewNameList[currentViewNameIndex]
 		if _, err := g.SetCurrentView(nextViewName); err == nil {
 			service.GlobalApp.CurrentView = nextViewName
+			switch nextViewName {
+			case "connection_list":
+				service.GlobalConnectionComponent.Layout()
+			default:
+				service.GlobalDBComponent.Layout()
+				service.GlobalKeyComponent.Layout()
+				service.GlobalKeyInfoComponent.Layout()
+			}
 		}
 		return nil
 	})
