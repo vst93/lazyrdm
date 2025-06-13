@@ -17,6 +17,7 @@ var GlobalConnectionComponent *LTRConnectionComponent
 var GlobalDBComponent *LTRListDBComponent
 var GlobalKeyComponent *LTRListKeyComponent
 var GlobalKeyInfoComponent *LTRKeyInfoComponent
+var GlobalKeyInfoDetailComponent *LTRKeyInfoDetailComponent
 
 type MainApp struct {
 	gui          *gocui.Gui

@@ -20,16 +20,15 @@ type LTRListKeyComponent struct {
 	MaxKeys    int64
 }
 
-func InitKeyComponent() *LTRListKeyComponent {
-	c := &LTRListKeyComponent{
+func InitKeyComponent() {
+	GlobalKeyComponent = &LTRListKeyComponent{
 		name:       "key_list",
 		title:      "Key List",
 		LayoutMaxH: 0,
 		view:       nil,
 	}
-	// GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, c.name)
-	c.LoadKeys().Layout().KeyBind()
-	return c
+	GlobalKeyComponent.LoadKeys().Layout().KeyBind()
+	GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, GlobalKeyComponent.name)
 }
 
 func (c *LTRListKeyComponent) LoadKeys() *LTRListKeyComponent {
@@ -149,6 +148,7 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		GlobalKeyInfoComponent.keyName = GlobalKeyComponent.keys[GlobalKeyComponent.Current].(string)
 		// PrintLn(GlobalKeyInfoComponent.keyName)
 		GlobalKeyInfoComponent.Layout()
+		GlobalKeyInfoDetailComponent.Layout()
 		return nil
 	})
 

@@ -17,8 +17,8 @@ type LTRListDBComponent struct {
 	minH       int
 }
 
-func InitDBComponent() *LTRListDBComponent {
-	c := &LTRListDBComponent{
+func InitDBComponent() {
+	GlobalDBComponent = &LTRListDBComponent{
 		name:       "db_list",
 		title:      "DB",
 		LayoutMaxH: 0,
@@ -28,8 +28,11 @@ func InitDBComponent() *LTRListDBComponent {
 		minH:       2,
 	}
 
-	c.Layout().KeyBind()
-	return c
+	GlobalDBComponent.Layout().KeyBind()
+	InitKeyComponent()
+	InitKeyInfoComponent()
+	InitKeyInfoDetailComponent()
+	GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, GlobalDBComponent.name)
 }
 
 func (c *LTRListDBComponent) Layout() *LTRListDBComponent {

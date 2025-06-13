@@ -102,10 +102,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			GlobalApp.gui.DeleteKeybindings(c.name)
 			GlobalApp.CurrentView = "db_list"
 			GlobalApp.ViewNameList = []string{} // 清空视图列表
-			GlobalDBComponent = InitDBComponent()
-			GlobalKeyComponent = InitKeyComponent()
-			GlobalKeyInfoComponent = InitKeyInfoComponent()
-			GlobalApp.ViewNameList = []string{GlobalDBComponent.name, GlobalKeyComponent.name}
+			InitDBComponent()
 			return nil
 		} else {
 			c.ConnectionListCurrentGroupIndex = c.ConnectionListSelectedGroupIndex

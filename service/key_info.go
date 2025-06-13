@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"strconv"
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
@@ -16,21 +15,16 @@ type LTRKeyInfoComponent struct {
 	LayoutMaxY int
 	keyView    *gocui.View
 	keyViewTTL *gocui.View
-	keyDetail  *gocui.View
 }
 
-func InitKeyInfoComponent() *LTRKeyInfoComponent {
-	c := &LTRKeyInfoComponent{
+func InitKeyInfoComponent() {
+	GlobalKeyInfoComponent = &LTRKeyInfoComponent{
 		name:       "key_info",
 		title:      "Key Info",
 		LayoutMaxY: 0,
 	}
-	c.Layout()
-	// c.KeyBind()
-	if GlobalApp.CurrentView == c.name {
-		GlobalApp.gui.SetCurrentView(c.name)
-	}
-	return c
+	GlobalKeyInfoComponent.Layout()
+	GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, GlobalKeyInfoComponent.name)
 }
 
 func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
@@ -39,7 +33,7 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	var err error
 	var theTTL int64
 	// show key info
-	c.keyView, err = GlobalApp.gui.SetView(c.name+"_key", theX0, 0, GlobalApp.maxX-25, 2)
+	c.keyView, err = GlobalApp.gui.SetView(c.name, theX0, 0, GlobalApp.maxX-25, 2)
 	if err == nil || err != gocui.ErrUnknownView {
 		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
 			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
@@ -68,19 +62,9 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	}
 
 	// show key detail
-	c.keyDetail, err = GlobalApp.gui.SetView(c.name+"_detail", theX0, 3, GlobalApp.maxX-1, GlobalApp.maxY-2)
-	if err == nil || err != gocui.ErrUnknownView {
-		c.keyDetail.Wrap = true
-		keyDetail := services.Browser().GetKeyDetail(types.KeyDetailParam{
-			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
-			DB:     GlobalDBComponent.SelectedDB,
-			Key:    c.keyName,
-		})
-		if keyDetail.Success {
-			keyDetailData := keyDetail.Data.(types.KeyDetail)
-			c.keyDetail.Clear()
-			c.keyDetail.Write([]byte(fmt.Sprintln(keyDetailData.Value)))
-		}
+
+	if GlobalApp.CurrentView == GlobalKeyInfoComponent.name {
+		GlobalApp.gui.SetCurrentView(GlobalKeyInfoComponent.name)
 	}
 
 	return c
