@@ -94,15 +94,17 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			// connection selected
 			c.ConnectionListSelectedConnectionInfo = c.ConnectionList[c.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex]
 			connectionInfo := services.Browser().OpenConnection(c.ConnectionListSelectedConnectionInfo.Name)
-			GlobalConnectionComponent.dbs = connectionInfo.Data.(map[string]any)["db"].([]types.ConnectionDB)
-			GlobalConnectionComponent.view = connectionInfo.Data.(map[string]any)["view"].(int)
-			GlobalConnectionComponent.lastDB = connectionInfo.Data.(map[string]any)["lastDB"].(int)
-			GlobalConnectionComponent.version = connectionInfo.Data.(map[string]any)["version"].(string)
-			GlobalApp.gui.DeleteView(c.name)
-			GlobalApp.gui.DeleteKeybindings(c.name)
-			GlobalApp.CurrentView = "db_list"
-			GlobalApp.ViewNameList = []string{} // 清空视图列表
-			InitDBComponent()
+			if connectionInfo.Success {
+				GlobalConnectionComponent.dbs = connectionInfo.Data.(map[string]any)["db"].([]types.ConnectionDB)
+				GlobalConnectionComponent.view = connectionInfo.Data.(map[string]any)["view"].(int)
+				GlobalConnectionComponent.lastDB = connectionInfo.Data.(map[string]any)["lastDB"].(int)
+				GlobalConnectionComponent.version = connectionInfo.Data.(map[string]any)["version"].(string)
+				GlobalApp.gui.DeleteView(c.name)
+				GlobalApp.gui.DeleteKeybindings(c.name)
+				GlobalApp.CurrentView = "db_list"
+				GlobalApp.ViewNameList = []string{} // 清空视图列表
+				InitDBComponent()
+			}
 			return nil
 		} else {
 			c.ConnectionListCurrentGroupIndex = c.ConnectionListSelectedGroupIndex

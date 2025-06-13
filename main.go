@@ -64,6 +64,7 @@ func main() {
 				service.GlobalDBComponent.Layout()
 				service.GlobalKeyComponent.Layout()
 				service.GlobalKeyInfoComponent.Layout()
+				service.GlobalKeyInfoDetailComponent.Layout()
 			}
 		}
 		return nil

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
 
@@ -15,6 +16,8 @@ type LTRKeyInfoDetailComponent struct {
 	LayoutMaxY     int
 	view           *gocui.View
 	keyValueFormat string
+	viewOriginY    int
+	keyValueMaxY   int
 }
 
 var keyValueFormatList = []string{"Raw", "JSON"}
@@ -38,6 +41,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	// show key detail
 	c.view, err = GlobalApp.gui.SetView(c.name, theX0, 3, GlobalApp.maxX-1, GlobalApp.maxY-2)
 	if err == nil || err != gocui.ErrUnknownView {
+		c.keyValueMaxY = 0
 		c.view.Wrap = true
 		keyDetail := services.Browser().GetKeyDetail(types.KeyDetailParam{
 			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
@@ -51,7 +55,22 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 			// format json data
 			if c.keyValueFormat == "JSON" && validator.IsJSON(theVal) {
 				theVal, _ = PrettyString(theVal)
+				// c.view.Wrap = false
 			}
+			theValSlice := strings.Split(theVal, "\n")
+			theViewX, _ := c.view.Size()
+			for _, line := range theValSlice {
+				lineLen := len(line)
+				if lineLen > theViewX {
+					c.keyValueMaxY += lineLen / theViewX
+					if lineLen%theViewX > 0 {
+						c.keyValueMaxY++
+					}
+				} else {
+					c.keyValueMaxY++
+				}
+			}
+			PrintLn(c.keyValueMaxY)
 			c.view.Write([]byte(theVal))
 		}
 	}
@@ -63,10 +82,12 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 		formatSelectView.Clear()
 		formatSelectView.Write([]byte("Format: " + c.keyValueFormat))
 	}
+	c.view.SetOrigin(0, c.viewOriginY)
 
 	if GlobalApp.CurrentView == c.name {
 		GlobalApp.gui.SetCurrentView(c.name)
 	}
+
 	return c
 }
 
@@ -87,4 +108,24 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		GlobalKeyInfoDetailComponent.Layout()
 		return nil
 	})
+
+	GuiSetKeysbinding(GlobalApp.gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		c.viewOriginY--
+		if c.viewOriginY < 0 {
+			c.viewOriginY = 0
+		}
+		c.view.SetOrigin(0, c.viewOriginY)
+		return nil
+	})
+
+	GuiSetKeysbinding(GlobalApp.gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		_, theViewY := c.view.Size()
+		if c.viewOriginY+1 >= c.keyValueMaxY-theViewY {
+			return nil
+		}
+		c.viewOriginY++
+		c.view.SetOrigin(0, c.viewOriginY)
+		return nil
+	})
+
 }
