@@ -39,7 +39,7 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 	if len(GlobalConnectionComponent.dbs) == 0 {
 		return c
 	}
-	theY1 := GlobalApp.maxY * 2 / 10
+	theY1 := GlobalApp.maxY * 3 / 10
 	if GlobalApp.CurrentView != c.name {
 		theY1 = c.minH
 	}

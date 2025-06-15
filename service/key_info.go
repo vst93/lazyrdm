@@ -20,7 +20,7 @@ type LTRKeyInfoComponent struct {
 func InitKeyInfoComponent() {
 	GlobalKeyInfoComponent = &LTRKeyInfoComponent{
 		name:       "key_info",
-		title:      "Key Info",
+		title:      "Info",
 		LayoutMaxY: 0,
 	}
 	GlobalKeyInfoComponent.Layout()
@@ -40,6 +40,7 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 			DB:     GlobalDBComponent.SelectedDB,
 			Key:    c.keyName,
 		})
+		c.keyView.Title = " " + c.title + " "
 		printString := ""
 		if keySummary.Success {
 			keySummaryData := keySummary.Data.(types.KeySummary)

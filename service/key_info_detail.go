@@ -25,7 +25,7 @@ var keyValueFormatList = []string{"Raw", "JSON"}
 func InitKeyInfoDetailComponent() {
 	GlobalKeyInfoDetailComponent = &LTRKeyInfoDetailComponent{
 		name:           "key_info_detail",
-		title:          "Key Value",
+		title:          "Detail",
 		LayoutMaxY:     0,
 		keyValueFormat: "Raw",
 	}
@@ -43,6 +43,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyValueMaxY = 0
 		c.view.Wrap = true
+		c.view.Title = " " + c.title + " "
 		keyDetail := services.Browser().GetKeyDetail(types.KeyDetailParam{
 			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
 			DB:     GlobalDBComponent.SelectedDB,
@@ -104,6 +105,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			nextIndex = 0
 		}
 		c.keyValueFormat = keyValueFormatList[nextIndex]
+		c.viewOriginY = 0
 		c.Layout()
 		GlobalKeyInfoDetailComponent.Layout()
 		return nil
@@ -120,7 +122,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 
 	GuiSetKeysbinding(GlobalApp.gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		_, theViewY := c.view.Size()
-		if c.viewOriginY+1 >= c.keyValueMaxY-theViewY {
+		if c.viewOriginY-1 >= c.keyValueMaxY-theViewY {
 			return nil
 		}
 		c.viewOriginY++
