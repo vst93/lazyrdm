@@ -75,6 +75,11 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	if len(c.keys) > 0 {
 		for index, key := range c.keys {
 			totalLine++
+			// keyStr, ok := key.(string)
+			// if !ok {
+			// 	continue
+			// }
+			keyStr := fmt.Sprintf("%s", key)
 			if c.Current == index {
 				currenLine = totalLine
 				// get key info
@@ -91,9 +96,9 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 				// 	theKeyTypeStr = keyTypeData.Type
 				// }
 				// printString += NewTypeWord(theKeyTypeStr) + NewColorString(" "+key.(string)+""+SPACE_STRING+"\n", "white", "blue", "bold")
-				printString += NewColorString(strconv.Itoa(totalLine)+"-"+key.(string)+""+SPACE_STRING+"\n", "white", "blue", "bold")
+				printString += NewColorString(strconv.Itoa(totalLine)+"-"+keyStr+""+SPACE_STRING+"\n", "white", "blue", "bold")
 			} else {
-				printString += fmt.Sprintf("%s\n", strconv.Itoa(totalLine)+"-"+key.(string)+""+SPACE_STRING)
+				printString += fmt.Sprintf("%s\n", strconv.Itoa(totalLine)+"-"+keyStr+""+SPACE_STRING)
 			}
 		}
 	}
@@ -168,7 +173,7 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		// get key info
 		// PrintLn(GlobalKeyComponent.Current)
 		// PrintLn(GlobalKeyComponent.keys)
-		GlobalKeyInfoComponent.keyName = GlobalKeyComponent.keys[GlobalKeyComponent.Current].(string)
+		GlobalKeyInfoComponent.keyName = fmt.Sprintf("%s", GlobalKeyComponent.keys[GlobalKeyComponent.Current])
 		// PrintLn(GlobalKeyInfoComponent.keyName)
 		GlobalKeyInfoComponent.Layout()
 		GlobalKeyInfoDetailComponent.viewOriginY = 0

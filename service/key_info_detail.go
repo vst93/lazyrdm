@@ -38,6 +38,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	theX0, _ := GlobalDBComponent.view.Size()
 	theX0 = theX0 + 2
 	var err error
+	theVal := ""
 	// show key detail
 	c.view, err = GlobalApp.gui.SetView(c.name, theX0, 3, GlobalApp.maxX-1, GlobalApp.maxY-2)
 	if err == nil || err != gocui.ErrUnknownView {
@@ -51,8 +52,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 		})
 		if keyDetail.Success {
 			keyDetailData := keyDetail.Data.(types.KeyDetail)
-			c.view.Clear()
-			theVal := fmt.Sprintln(keyDetailData.Value)
+			theVal = fmt.Sprintln(keyDetailData.Value)
 			// format json data
 			if c.keyValueFormat == "JSON" && validator.IsJSON(theVal) {
 				theVal, _ = PrettyString(theVal)
@@ -71,10 +71,13 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 					c.keyValueMaxY++
 				}
 			}
-			PrintLn(c.keyValueMaxY)
-			c.view.Write([]byte(theVal))
+			// PrintLn(c.keyValueMaxY)
+		} else {
+			theVal = fmt.Sprintln("")
 		}
 	}
+	c.view.Clear()
+	c.view.Write([]byte(theVal))
 
 	// show format select
 	formatSelectView, err := GlobalApp.gui.SetView("key_value_format", GlobalApp.maxX-15, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2)
