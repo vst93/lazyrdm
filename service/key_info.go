@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"strconv"
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
@@ -33,7 +34,7 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	var err error
 	var theTTL int64
 	// show key info
-	c.keyView, err = GlobalApp.gui.SetView(c.name, theX0, 0, GlobalApp.maxX-25, 2)
+	c.keyView, err = GlobalApp.Gui.SetView(c.name, theX0, 0, GlobalApp.maxX-25, 2)
 	if err == nil || err != gocui.ErrUnknownView {
 		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
 			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
@@ -52,7 +53,7 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	}
 
 	// show key ttl
-	c.keyViewTTL, err = GlobalApp.gui.SetView(c.name+"_ttl", GlobalApp.maxX-24, 0, GlobalApp.maxX-1, 2)
+	c.keyViewTTL, err = GlobalApp.Gui.SetView(c.name+"_ttl", GlobalApp.maxX-24, 0, GlobalApp.maxX-1, 2)
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyViewTTL.Clear()
 		if theTTL >= 0 {
@@ -64,9 +65,25 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 
 	// show key detail
 
-	if GlobalApp.CurrentView == GlobalKeyInfoComponent.name {
-		GlobalApp.gui.SetCurrentView(GlobalKeyInfoComponent.name)
+	if GlobalApp.Gui.CurrentView().Name() == GlobalKeyInfoComponent.name {
+		// GlobalApp.Gui.SetCurrentView(GlobalKeyInfoComponent.name)
+		GlobalTipComponent.Layout()
 	}
 
 	return c
+}
+
+func (c *LTRKeyInfoComponent) KeyMapTip() string {
+	keyMap := []KeyMapStruct{
+		{"Switch", "<Tab>"},
+	}
+	ret := ""
+	for i, v := range keyMap {
+		if i > 0 {
+			ret += " | "
+		}
+		ret += fmt.Sprintf("%s: %s", v.Description, v.Key)
+	}
+	// return "key_info: " + ret
+	return ret
 }

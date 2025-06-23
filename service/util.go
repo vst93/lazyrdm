@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"unicode"
 )
 
 func PrintLn(str any) {
@@ -15,10 +16,24 @@ func PrintLn(str any) {
 	f.WriteString(fmt.Sprintln(str))
 }
 
-func 						PrettyString(str string) (string, error) {
+func PrettyString(str string) (string, error) {
 	var prettyJSON bytes.Buffer
 	if err := json.Indent(&prettyJSON, []byte(str), "", " "); err != nil {
 		return str, err
 	}
 	return prettyJSON.String(), nil
+}
+
+func IsNormalChar(r rune) bool {
+	const allowedSymbols = " _-.@,'[]{}()【】，？！:："
+	if unicode.IsLetter(r) || unicode.IsNumber(r) {
+		return true
+	}
+	// 检查字符是否在允许的符号字符串中
+	for _, s := range allowedSymbols {
+		if r == s {
+			return true
+		}
+	}
+	return false
 }

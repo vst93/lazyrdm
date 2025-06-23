@@ -30,7 +30,6 @@ func InitKeyInfoDetailComponent() {
 		keyValueFormat: "Raw",
 	}
 	GlobalKeyInfoDetailComponent.Layout().KeyBind()
-	// c.KeyBind()
 	GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, GlobalKeyInfoDetailComponent.name)
 }
 
@@ -40,7 +39,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	var err error
 	theVal := ""
 	// show key detail
-	c.view, err = GlobalApp.gui.SetView(c.name, theX0, 3, GlobalApp.maxX-1, GlobalApp.maxY-2)
+	c.view, err = GlobalApp.Gui.SetView(c.name, theX0, 3, GlobalApp.maxX-1, GlobalApp.maxY-2)
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyValueMaxY = 0
 		c.view.Wrap = true
@@ -80,7 +79,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	c.view.Write([]byte(theVal))
 
 	// show format select
-	formatSelectView, err := GlobalApp.gui.SetView("key_value_format", GlobalApp.maxX-15, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2)
+	formatSelectView, err := GlobalApp.Gui.SetView("key_value_format", GlobalApp.maxX-15, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2)
 	if err == nil {
 		formatSelectView.Frame = true
 		formatSelectView.Clear()
@@ -88,15 +87,16 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	}
 	c.view.SetOrigin(0, c.viewOriginY)
 
-	if GlobalApp.CurrentView == c.name {
-		GlobalApp.gui.SetCurrentView(c.name)
+	if GlobalApp.Gui.CurrentView().Name() == c.name {
+		// GlobalApp.Gui.SetCurrentView(c.name)
+		GlobalTipComponent.Layout()
 	}
 
 	return c
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyBind() {
-	GuiSetKeysbinding(GlobalApp.gui, c.name, []any{gocui.KeyCtrlF}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyCtrlF}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		nextIndex := 0
 		for i, format := range keyValueFormatList {
 			if format == c.keyValueFormat {
@@ -114,7 +114,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.viewOriginY--
 		if c.viewOriginY < 0 {
 			c.viewOriginY = 0
@@ -123,7 +123,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		_, theViewY := c.view.Size()
 		if c.viewOriginY-1 >= c.keyValueMaxY-theViewY {
 			return nil
@@ -133,4 +133,22 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 
+}
+
+func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
+	keyMap := []KeyMapStruct{
+		{"Switch", "<Tab>"},
+		{"Switch Format", "<Ctrl-F>"},
+		{"Scroll", "↑↓"},
+	}
+	ret := ""
+	for i, v := range keyMap {
+		if i > 0 {
+			ret += " | "
+		}
+		ret += fmt.Sprintf("%s: %s", v.Description, v.Key)
+		i++
+	}
+	// return "key_detail: " + ret
+	return ret
 }

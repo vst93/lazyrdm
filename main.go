@@ -34,18 +34,25 @@ func main() {
 		log.Panicln(err)
 	}
 
+	// service.GuiSetKeysbinding(g, "", []any{gocui.KeyCtrlQ}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 	if service.GlobalApp.Gui.CurrentView().Name() == "connection_list" {
+	// 		return nil
+	// 	}
+	// 	service.GlobalApp.Gui.SetCurrentView(service.GlobalConnectionComponent.Name)
+	// 	service.GlobalApp.ViewNameList = []string{} // 清空视图列表
+	// 	service.InitConnectionComponent()
+	// 	return nil
+	// })
+
 	// 切换视图（板块）
 	g.SetKeybinding("", gocui.KeyTab, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		// 切换视图（板块）
 		if len(service.GlobalApp.ViewNameList) < 2 {
 			return nil
 		}
-		// service.PrintLn(service.GlobalApp.ViewNameList)
-		// service.PrintLn(service.GlobalApp.CurrentView)
-
 		currentViewNameIndex := -1
 		for i, name := range service.GlobalApp.ViewNameList {
-			if name == service.GlobalApp.CurrentView {
+			if name == service.GlobalApp.Gui.CurrentView().Name() {
 				currentViewNameIndex = i
 				break
 			}
@@ -56,7 +63,7 @@ func main() {
 		}
 		nextViewName := service.GlobalApp.ViewNameList[currentViewNameIndex]
 		if _, err := g.SetCurrentView(nextViewName); err == nil {
-			service.GlobalApp.CurrentView = nextViewName
+			service.GlobalApp.Gui.SetCurrentView(nextViewName)
 			switch nextViewName {
 			case "connection_list":
 				service.GlobalConnectionComponent.Layout()
@@ -67,6 +74,7 @@ func main() {
 				service.GlobalKeyInfoDetailComponent.Layout()
 			}
 		}
+		service.GlobalTipComponent.Layout()
 		return nil
 	})
 

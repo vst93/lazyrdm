@@ -18,24 +18,28 @@ var GlobalDBComponent *LTRListDBComponent
 var GlobalKeyComponent *LTRListKeyComponent
 var GlobalKeyInfoComponent *LTRKeyInfoComponent
 var GlobalKeyInfoDetailComponent *LTRKeyInfoDetailComponent
+var GlobalTipComponent *LTRTipComponent
 
 type MainApp struct {
-	gui          *gocui.Gui
-	maxX, maxY   int
-	CurrentView  string
+	Gui        *gocui.Gui
+	maxX, maxY int
+	// CurrentView  string
 	ViewNameList []string
 }
 
 func NewMainApp(g *gocui.Gui) {
-	mainApp := MainApp{
-		gui:  g,
-		maxX: 0,
-		maxY: 0,
+	GlobalApp = &MainApp{
+		Gui:          g,
+		maxX:         0,
+		maxY:         0,
+		ViewNameList: []string{},
 	}
 
-	GlobalApp = &mainApp
-	mainApp.maxX, mainApp.maxY = GlobalApp.gui.Size()
-	GlobalConnectionComponent = InitConnectionComponent()
-	GlobalApp.gui.SelFgColor = gocui.ColorGreen
-	GlobalApp.gui.Highlight = true
+	// GlobalApp = &mainApp
+	GlobalApp.maxX, GlobalApp.maxY = GlobalApp.Gui.Size()
+	GlobalApp.Gui.SelFgColor = gocui.ColorGreen
+	GlobalApp.Gui.Highlight = true
+	GlobalApp.Gui.Cursor = true
+	InitTipComponent()
+	InitConnectionComponent()
 }
