@@ -38,7 +38,7 @@ func InitConnectionEditComponent() *LTRConnectionEditComponent {
 	return connectionEditComponent
 }
 
-func (c *LTRConnectionEditComponent) Layout() *gocui.View {
+func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 	theX0 := 0
 	theY0 := 0
 	theX1 := GlobalApp.maxX - 1
@@ -53,6 +53,7 @@ func (c *LTRConnectionEditComponent) Layout() *gocui.View {
 	v.Editable = true
 	v.Wrap = true
 	c.viewNowLine = 0
+	c.viewList = []string{}
 
 	// json, _ := json.Marshal(c.ConnectionConfig)
 	// PrintLn(string(json))
@@ -130,7 +131,26 @@ func (c *LTRConnectionEditComponent) Layout() *gocui.View {
 	v.Clear()
 	// GlobalApp.Gui.SetCurrentView(c.name)
 	// v.Write(c.ConnectionConfig.ToJSON())
-	return v
+	// GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 	if len(c.viewList) > 1 {
+	// 		if c.viewNowCurrent == c.viewList[len(c.viewList)-1] {
+	// 			c.viewNowCurrent = c.viewList[0]
+	// 		} else {
+	// 			for i, viewName := range c.viewList {
+	// 				if viewName == c.viewNowCurrent {
+	// 					c.viewNowCurrent = c.viewList[i+1]
+	// 					break
+	// 				}
+	// 			}
+	// 		}
+	// 		c.Layout()
+	// 	}
+	// 	return nil
+	// })
+	PrintLn(c.viewList)
+	c.KeyBind()
+
+	return c
 }
 
 func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentFormViewConfig) {
@@ -170,26 +190,10 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 	}
 	view.Write([]byte(value))
 	GlobalApp.Gui.DeleteKeybindings(name)
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if len(c.viewList) > 1 {
-			if c.viewNowCurrent == c.viewList[len(c.viewList)-1] {
-				c.viewNowCurrent = c.viewList[0]
-			} else {
-				for i, viewName := range c.viewList {
-					if viewName == c.viewNowCurrent {
-						c.viewNowCurrent = c.viewList[i+1]
-						break
-					}
-				}
-			}
-			c.Layout()
-		}
-		return nil
-	})
 }
 
 func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if len(c.viewList) > 1 {
 			if c.viewNowCurrent == c.viewList[len(c.viewList)-1] {
 				c.viewNowCurrent = c.viewList[0]
@@ -216,4 +220,9 @@ func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 	})
 
 	return c
+}
+
+func (c *LTRConnectionEditComponent) enterFormView(viewName string, value string) {
+	
+
 }

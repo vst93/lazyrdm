@@ -201,7 +201,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	// 编辑连接信息
 	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []interface{}{gocui.KeyCtrlE}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if GlobalConnectionComponent.ConnectionListCurrentGroupIndex >= 0 {
-			connectionComponent := InitConnectionEditComponent().KeyBind()
+			connectionComponent := InitConnectionEditComponent()
 			connectionComponent.ConnectionConfig = GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex]
 			connectionComponent.Layout()
 			return nil

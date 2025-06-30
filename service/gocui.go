@@ -5,9 +5,24 @@ import (
 )
 
 // GuiSetKeysbinding set keysbinding for a view
-func GuiSetKeysbinding(g *gocui.Gui, viewname string, keys []any, mod gocui.Modifier, handler func(*gocui.Gui, *gocui.View) error) error {
+func GuiSetKeysbinding(g *gocui.Gui, viewname interface{}, keys []any, mod gocui.Modifier, handler func(*gocui.Gui, *gocui.View) error) error {
+	// 如果 viewname 是数组,断言
+	viewnameArr, ok := viewname.([]string)
+	if ok {
+		for _, viewname := range viewnameArr {
+			err2 := GuiSetKeysbinding(g, viewname, keys, mod, handler)
+			if err2 != nil {
+				return err2
+			}
+		}
+		return nil
+	}
+	viewnameStr, ok := viewname.(string)
+	if !ok {
+		return nil
+	}
 	for _, key := range keys {
-		if err := g.SetKeybinding(viewname, key, mod, handler); err != nil {
+		if err := g.SetKeybinding(viewnameStr, key, mod, handler); err != nil {
 			return err
 		}
 	}
