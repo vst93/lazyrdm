@@ -74,7 +74,7 @@ func main() {
 				service.GlobalKeyInfoDetailComponent.Layout()
 			}
 		}
-		service.GlobalTipComponent.Layout()
+		service.GlobalTipComponent.Layout("")
 		return nil
 	})
 

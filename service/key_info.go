@@ -67,7 +67,7 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 
 	if GlobalApp.Gui.CurrentView().Name() == GlobalKeyInfoComponent.name {
 		// GlobalApp.Gui.SetCurrentView(GlobalKeyInfoComponent.name)
-		GlobalTipComponent.Layout()
+		GlobalTipComponent.Layout(c.KeyMapTip())
 	}
 
 	return c

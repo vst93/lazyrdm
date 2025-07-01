@@ -118,7 +118,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	c.view.Write([]byte(printString))
 	if GlobalApp.Gui.CurrentView().Name() == c.name {
 		// GlobalApp.Gui.SetCurrentView(c.name)
-		GlobalTipComponent.Layout()
+		GlobalTipComponent.Layout(c.KeyMapTip())
 	}
 	return c
 }

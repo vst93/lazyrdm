@@ -141,27 +141,9 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 
 	v.SetCursor(0, 0)
 	v.Clear()
-	// GlobalApp.Gui.SetCurrentView(c.name)
-	// v.Write(c.ConnectionConfig.ToJSON())
-	// GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-	// 	if len(c.viewList) > 1 {
-	// 		if c.viewNowCurrent == c.viewList[len(c.viewList)-1] {
-	// 			c.viewNowCurrent = c.viewList[0]
-	// 		} else {
-	// 			for i, viewName := range c.viewList {
-	// 				if viewName == c.viewNowCurrent {
-	// 					c.viewNowCurrent = c.viewList[i+1]
-	// 					break
-	// 				}
-	// 			}
-	// 		}
-	// 		c.Layout()
-	// 	}
-	// 	return nil
-	// })
-	PrintLn(c.viewList)
 	c.KeyBind()
 
+	GlobalTipComponent.Layout(c.KeyMapTip())
 	return c
 }
 
@@ -219,7 +201,7 @@ func (c *LTRConnectionEditComponent) formBtn(name string, title string, xBeing i
 	if xBeing == 0 {
 		xBeing = c.viewBeginX
 	}
-	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xBeing+width, c.viewBeginY+c.viewNowLine*3+5)
+	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xBeing+width, c.viewBeginY+c.viewNowLine*3+3)
 	view.Frame = false
 	view.FgColor = gocui.ColorWhite
 	view.Clear()
@@ -231,7 +213,8 @@ func (c *LTRConnectionEditComponent) formBtn(name string, title string, xBeing i
 		view.BgColor = gocui.Attribute(termbox.ColorDarkGray)
 	}
 	leftSpace := (width - len(title)) / 2
-	theTitle := " \n"
+	// theTitle := " \n"
+	theTitle := ""
 	for i := 0; i < leftSpace; i++ {
 		theTitle += " "
 	}
@@ -242,7 +225,7 @@ func (c *LTRConnectionEditComponent) formBtn(name string, title string, xBeing i
 
 func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		c.keyBindTab()
+		c.keyBindTab(1)
 		return nil
 	})
 
@@ -254,25 +237,55 @@ func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 			c.ConnectionConfig = c.ConnectionConfigBak
 			c.Layout()
 		default:
-			c.keyBindTab()
+			c.keyBindTab(1)
 		}
 		return nil
 	})
 	return c
 }
 
-func (c *LTRConnectionEditComponent) keyBindTab() {
+func (c *LTRConnectionEditComponent) keyBindTab(mod int) {
 	if len(c.viewList) > 1 {
-		if c.viewNowCurrent == c.viewList[len(c.viewList)-1] {
-			c.viewNowCurrent = c.viewList[0]
+		if mod >= 0 {
+			if c.viewNowCurrent == c.viewList[len(c.viewList)-1] {
+				c.viewNowCurrent = c.viewList[0]
+			} else {
+				for i, viewName := range c.viewList {
+					if viewName == c.viewNowCurrent {
+						c.viewNowCurrent = c.viewList[i+1]
+						break
+					}
+				}
+			}
 		} else {
-			for i, viewName := range c.viewList {
-				if viewName == c.viewNowCurrent {
-					c.viewNowCurrent = c.viewList[i+1]
-					break
+			if c.viewNowCurrent == c.viewList[0] {
+				c.viewNowCurrent = c.viewList[len(c.viewList)-1]
+			} else {
+				for i, viewName := range c.viewList {
+					if viewName == c.viewNowCurrent {
+						c.viewNowCurrent = c.viewList[i-1]
+						break
+					}
 				}
 			}
 		}
+
 		c.Layout()
 	}
+}
+
+func (c *LTRConnectionEditComponent) KeyMapTip() string {
+	keyMap := []KeyMapStruct{
+		{"Switch", "<Tab>/<Enter>"},
+		{"Submit", "<Enter>"},
+	}
+	ret := ""
+	for i, v := range keyMap {
+		if i > 0 {
+			ret += " | "
+		}
+		ret += fmt.Sprintf("%s: %s", v.Description, v.Key)
+		i++
+	}
+	return ret
 }
