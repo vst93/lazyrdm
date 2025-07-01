@@ -1,44 +1,49 @@
 package service
 
 import (
-	"strconv"
+	"fmt"
 	"tinyrdm/backend/types"
 
 	"github.com/jroimartin/gocui"
+	"github.com/nsf/termbox-go"
 )
 
 type LTRConnectionEditComponent struct {
-	name             string
-	title            string
-	ConnectionConfig types.Connection
-	viewList         []string
-	viewBeginX       int
-	viewBeginY       int
-	viewEndX         int
-	viewEndY         int
-	viewNowLine      int
-	viewNowCurrent   string
+	name                string
+	title               string
+	ConnectionConfig    types.Connection
+	ConnectionConfigBak types.Connection
+	viewList            []string
+	viewBeginX          int
+	viewBeginY          int
+	viewEndX            int
+	viewEndY            int
+	viewNowLine         int
+	viewNowCurrent      string
 }
 
 type LTRConnectionEditComponentFormViewConfig struct {
 	name      string
 	title     string
-	value     string
+	value     EditorInput
 	isNewLine bool
 	viewType  string
 	xBeing    int
 	xEnd      int
 }
 
-func InitConnectionEditComponent() *LTRConnectionEditComponent {
+func InitConnectionEditComponent(con types.Connection) *LTRConnectionEditComponent {
 	connectionEditComponent := &LTRConnectionEditComponent{
-		name:  "connection_edit",
-		title: " Connection Edit ",
+		name:                "connection_edit",
+		title:               " Connection Edit ",
+		ConnectionConfig:    con,
+		ConnectionConfigBak: con,
 	}
 	return connectionEditComponent
 }
 
 func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
+	GlobalApp.Gui.Cursor = false
 	theX0 := 0
 	theY0 := 0
 	theX1 := GlobalApp.maxX - 1
@@ -54,6 +59,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 	v.Wrap = true
 	c.viewNowLine = 0
 	c.viewList = []string{}
+	c.viewBeginY = 1
 
 	// json, _ := json.Marshal(c.ConnectionConfig)
 	// PrintLn(string(json))
@@ -62,14 +68,14 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 	c.formView(LTRConnectionEditComponentFormViewConfig{
 		name:  c.name + "_name",
 		title: "Name",
-		value: c.ConnectionConfig.Name,
+		value: EditorInput{BindValString: &c.ConnectionConfig.Name},
 	})
 	// group
 	if c.ConnectionConfig.Name == "" {
 		c.formView(LTRConnectionEditComponentFormViewConfig{
 			name:      c.name + "_group",
 			title:     "Group",
-			value:     c.ConnectionConfig.Group,
+			value:     EditorInput{BindValString: &c.ConnectionConfig.Group},
 			isNewLine: true,
 		})
 	}
@@ -77,7 +83,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 	c.formView(LTRConnectionEditComponentFormViewConfig{
 		name:      c.name + "_network",
 		title:     "Network",
-		value:     c.ConnectionConfig.Network,
+		value:     EditorInput{BindValString: &c.ConnectionConfig.Network},
 		isNewLine: true,
 	})
 	if c.ConnectionConfig.Network == "unix" {
@@ -85,7 +91,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 		c.formView(LTRConnectionEditComponentFormViewConfig{
 			name:      c.name + "_sock",
 			title:     "Sock",
-			value:     c.ConnectionConfig.Sock,
+			value:     EditorInput{BindValString: &c.ConnectionConfig.Sock},
 			isNewLine: true,
 		})
 	} else {
@@ -93,7 +99,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 		c.formView(LTRConnectionEditComponentFormViewConfig{
 			name:      c.name + "_host",
 			title:     "Host",
-			value:     c.ConnectionConfig.Addr,
+			value:     EditorInput{BindValString: &c.ConnectionConfig.Addr},
 			isNewLine: true,
 			xEnd:      c.viewEndX - 21,
 		})
@@ -101,7 +107,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 		c.formView(LTRConnectionEditComponentFormViewConfig{
 			name:      c.name + "_port",
 			title:     "Port",
-			value:     strconv.Itoa(c.ConnectionConfig.Port),
+			value:     EditorInput{BindValInt: &c.ConnectionConfig.Port},
 			isNewLine: false,
 			xBeing:    c.viewEndX - 20,
 		})
@@ -111,16 +117,22 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 	c.formView(LTRConnectionEditComponentFormViewConfig{
 		name:      c.name + "_username",
 		title:     "Username",
-		value:     c.ConnectionConfig.Username,
+		value:     EditorInput{BindValString: &c.ConnectionConfig.Username},
 		isNewLine: true,
 	})
 	// password
 	c.formView(LTRConnectionEditComponentFormViewConfig{
 		name:      c.name + "_password",
 		title:     "Password",
-		value:     c.ConnectionConfig.Password,
+		value:     EditorInput{BindValString: &c.ConnectionConfig.Password},
 		isNewLine: true,
 	})
+
+	lineWitdh := (c.viewEndX - c.viewBeginX) / 3
+	// reset
+	c.formBtn(c.name+"_enter", "Save", 0, lineWitdh, true)
+	c.formBtn(c.name+"_cancel", "Cancel", c.viewBeginX+lineWitdh, lineWitdh, false)
+	c.formBtn(c.name+"_reset", "Reset", c.viewBeginX+lineWitdh*2, lineWitdh, false)
 
 	//表单选项选中
 	if c.viewNowCurrent == "" {
@@ -158,7 +170,7 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 	title := config.title
 	isNewLine := config.isNewLine
 	// viewType := config.viewType
-	value := config.value
+	valueEditor := config.value
 	xBeing := config.xBeing
 	xEnd := config.xEnd
 	c.viewList = append(c.viewList, name)
@@ -182,47 +194,85 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 		// view.FgColor = gocui.ColorWhite
 		view.BgColor = gocui.ColorBlue
 		view.Editable = true
-		view.Editor = &EditorInput{}
+		view.Editor = &valueEditor
 		// view.SetCursor(0, 0)
 		GlobalApp.Gui.SetCurrentView(name)
+		GlobalApp.Gui.Cursor = true
 	} else {
 		view.BgColor = gocui.ColorBlack
 	}
-	view.Write([]byte(value))
+	theValue := ""
+	if valueEditor.BindValString != nil {
+		theValue = *valueEditor.BindValString
+	} else if valueEditor.BindValInt != nil {
+		theValue = fmt.Sprintf("%d", *valueEditor.BindValInt)
+	}
+	view.Write([]byte(theValue))
+	GlobalApp.Gui.DeleteKeybindings(name)
+}
+
+func (c *LTRConnectionEditComponent) formBtn(name string, title string, xBeing int, width int, isNewLine bool) {
+	c.viewList = append(c.viewList, name)
+	if isNewLine {
+		c.viewNowLine = c.viewNowLine + 1
+	}
+	if xBeing == 0 {
+		xBeing = c.viewBeginX
+	}
+	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xBeing+width, c.viewBeginY+c.viewNowLine*3+5)
+	view.Frame = false
+	view.FgColor = gocui.ColorWhite
+	view.Clear()
+	if c.viewNowCurrent == name || (c.viewNowCurrent == "" && len(c.viewList) == 1) {
+		// view.FgColor = gocui.ColorWhite
+		view.BgColor = gocui.ColorBlue
+		GlobalApp.Gui.SetCurrentView(name)
+	} else {
+		view.BgColor = gocui.Attribute(termbox.ColorDarkGray)
+	}
+	leftSpace := (width - len(title)) / 2
+	theTitle := " \n"
+	for i := 0; i < leftSpace; i++ {
+		theTitle += " "
+	}
+	theTitle += title
+	view.Write([]byte(theTitle))
 	GlobalApp.Gui.DeleteKeybindings(name)
 }
 
 func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if len(c.viewList) > 1 {
-			if c.viewNowCurrent == c.viewList[len(c.viewList)-1] {
-				c.viewNowCurrent = c.viewList[0]
-			} else {
-				for i, viewName := range c.viewList {
-					if viewName == c.viewNowCurrent {
-						c.viewNowCurrent = c.viewList[i+1]
-						break
-					}
-				}
-			}
+		c.keyBindTab()
+		return nil
+	})
+
+	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		switch c.viewNowCurrent {
+		case c.name + "_enter":
+		case c.name + "_cancel":
+		case c.name + "_reset":
+			c.ConnectionConfig = c.ConnectionConfigBak
 			c.Layout()
+		default:
+			c.keyBindTab()
 		}
 		return nil
 	})
-
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if len(c.viewList) == 0 {
-			return nil
-		}
-
-		c.Layout()
-		return nil
-	})
-
 	return c
 }
 
-func (c *LTRConnectionEditComponent) enterFormView(viewName string, value string) {
-	
-
+func (c *LTRConnectionEditComponent) keyBindTab() {
+	if len(c.viewList) > 1 {
+		if c.viewNowCurrent == c.viewList[len(c.viewList)-1] {
+			c.viewNowCurrent = c.viewList[0]
+		} else {
+			for i, viewName := range c.viewList {
+				if viewName == c.viewNowCurrent {
+					c.viewNowCurrent = c.viewList[i+1]
+					break
+				}
+			}
+		}
+		c.Layout()
+	}
 }

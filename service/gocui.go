@@ -48,7 +48,10 @@ func (e *EditorPassword) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.M
 }
 
 // 输入编辑器
-type EditorInput struct{}
+type EditorInput struct {
+	BindValString *string
+	BindValInt    *int
+}
 
 func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	if mod != gocui.ModNone {
@@ -66,10 +69,22 @@ func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		v.MoveCursor(1, 0, false)
 	case key == gocui.KeyTab:
 		v.EditWrite(ch)
+		if e.BindValString != nil {
+			*e.BindValString = v.Buffer()
+		}
+		if e.BindValInt != nil {
+			*e.BindValInt = int(ch)
+		}
 	default:
 		if IsNormalChar(ch) {
 			// 输入字符
 			v.EditWrite(ch)
+			if e.BindValString != nil {
+				*e.BindValString = v.Buffer()
+			}
+			if e.BindValInt != nil {
+				*e.BindValInt = int(ch)
+			}
 		}
 		// keyOut = key
 	}

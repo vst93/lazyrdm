@@ -49,6 +49,7 @@ func InitConnectionComponent() {
 }
 
 func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
+	GlobalApp.Gui.Cursor = false
 	theX0 := 0
 	theY0 := 0
 	theX1 := GlobalApp.maxX - 1
@@ -199,17 +200,16 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	// 编辑连接信息
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []interface{}{gocui.KeyCtrlE}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyCtrlE}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if GlobalConnectionComponent.ConnectionListCurrentGroupIndex >= 0 {
-			connectionComponent := InitConnectionEditComponent()
-			connectionComponent.ConnectionConfig = GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex]
+			connectionComponent := InitConnectionEditComponent(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex])
 			connectionComponent.Layout()
 			return nil
 		}
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []interface{}{gocui.KeyArrowLeft, gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowLeft, gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.ConnectionListCurrentGroupIndex = -1
 		c.ConnectionListSelectedConnectionIndex = -1
 		v.Clear()

@@ -39,7 +39,7 @@ func NewMainApp(g *gocui.Gui) {
 	GlobalApp.maxX, GlobalApp.maxY = GlobalApp.Gui.Size()
 	GlobalApp.Gui.SelFgColor = gocui.ColorGreen
 	GlobalApp.Gui.Highlight = true
-	GlobalApp.Gui.Cursor = true
+	// GlobalApp.Gui.Cursor = true
 	InitTipComponent()
 	InitConnectionComponent()
 }
