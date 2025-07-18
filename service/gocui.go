@@ -1,6 +1,8 @@
 package service
 
 import (
+	"strings"
+
 	"github.com/jroimartin/gocui"
 )
 
@@ -87,6 +89,9 @@ func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 			}
 		}
 		// keyOut = key
+	}
+	if e.BindValString != nil {
+		*e.BindValString = strings.TrimSpace(*e.BindValString)
 	}
 	// return
 }

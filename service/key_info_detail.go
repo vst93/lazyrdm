@@ -6,7 +6,9 @@ import (
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
 
+	"github.com/atotto/clipboard"
 	"github.com/duke-git/lancet/v2/validator"
+
 	"github.com/jroimartin/gocui"
 )
 
@@ -76,7 +78,10 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 		}
 	}
 	c.view.Clear()
-	c.view.Write([]byte(theVal))
+	// theValRune = theValRune[:GlobalApp.maxX-theX0-2]
+	// theVal = string(theValRune)
+	// theVal = text.TrimSpace(theVal)
+	c.view.Write([]byte(DisposeChinese(theVal)))
 
 	// show format select
 	formatSelectView, err := GlobalApp.Gui.SetView("key_value_format", GlobalApp.maxX-15, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2)
@@ -96,7 +101,8 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyBind() {
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyCtrlF}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// format switch
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'f', 'F'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		nextIndex := 0
 		for i, format := range keyValueFormatList {
 			if format == c.keyValueFormat {
@@ -111,6 +117,17 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.viewOriginY = 0
 		c.Layout()
 		GlobalKeyInfoDetailComponent.Layout()
+		return nil
+	})
+
+	//copy
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'c', 'C'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		theVal := c.view.ViewBuffer()
+		if theVal == "" {
+			return nil
+		}
+		clipboard.WriteAll(theVal)
+		GlobalTipComponent.LayoutTemporary("Copied to clipboard", 2)
 		return nil
 	})
 
@@ -138,7 +155,8 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Switch", "<Tab>"},
-		{"Switch Format", "<Ctrl-F>"},
+		{"Switch Format", "<F>"},
+		{"Copy", "<C>"},
 		{"Scroll", "↑↓"},
 	}
 	ret := ""

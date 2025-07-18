@@ -37,3 +37,21 @@ func IsNormalChar(r rune) bool {
 	}
 	return false
 }
+
+// 处理中文
+func DisposeChinese(text string) string {
+	if len(text) == 0 {
+		return ""
+	}
+	var result string
+	for _, r := range text {
+		rl, _ := fmt.Printf("%d", r)
+		rbl, _ := fmt.Printf("%d", byte(r))
+		if rl != rbl {
+			result = result +
+		} else {
+			result = append(result, r)
+		}
+	}
+	return string(result)
+}

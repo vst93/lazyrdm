@@ -10,6 +10,7 @@ import (
 )
 
 func main() {
+
 	// 设置三方包的日志输出为 /dev/null
 	devNull, _ := os.OpenFile(os.DevNull, os.O_WRONLY, 0666)
 	defer devNull.Close()
@@ -30,7 +31,7 @@ func main() {
 	// g.SetManagerFunc(service.Layout)
 
 	// 退出程序
-	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyCtrlQ, gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
 	}
 

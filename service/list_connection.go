@@ -46,6 +46,7 @@ func InitConnectionComponent() {
 	}
 	GlobalApp.ViewNameList = []string{GlobalConnectionComponent.Name}
 	GlobalConnectionComponent.Layout().KeyBind()
+	GlobalApp.Gui.SetCurrentView(GlobalConnectionComponent.Name)
 }
 
 func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
@@ -187,6 +188,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 				GlobalApp.Gui.DeleteView(c.Name)
 				GlobalApp.Gui.DeleteKeybindings(c.Name)
 				GlobalApp.ViewNameList = []string{} // 清空视图列表
+				c.closeView()
 				InitDBComponent()
 			}
 			return nil
@@ -200,8 +202,9 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	// 编辑连接信息
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyCtrlE}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'e', 'E'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if GlobalConnectionComponent.ConnectionListCurrentGroupIndex >= 0 {
+			c.closeView()
 			connectionComponent := InitConnectionEditComponent(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex])
 			connectionComponent.Layout()
 			return nil
@@ -228,6 +231,7 @@ func (c *LTRConnectionComponent) KeyMapTip() string {
 		{"Select", "↑↓"},
 		{"Up", "←"},
 		{"Enter", "<Enter>/→"},
+		{"Edit", "<E>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
@@ -239,4 +243,10 @@ func (c *LTRConnectionComponent) KeyMapTip() string {
 	}
 	// return "connection_list: " + ret
 	return ret
+}
+
+func (c *LTRConnectionComponent) closeView() {
+	GlobalApp.Gui.DeleteView(c.Name)
+	GlobalApp.Gui.DeleteKeybindings(c.Name)
+	GlobalApp.ViewNameList = []string{} // 清空视图列表
 }

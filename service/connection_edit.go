@@ -233,6 +233,9 @@ func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 		switch c.viewNowCurrent {
 		case c.name + "_enter":
 		case c.name + "_cancel":
+			c.closeView()
+			InitConnectionComponent()
+			return nil
 		case c.name + "_reset":
 			c.ConnectionConfig = c.ConnectionConfigBak
 			c.Layout()
@@ -288,4 +291,13 @@ func (c *LTRConnectionEditComponent) KeyMapTip() string {
 		i++
 	}
 	return ret
+}
+
+func (c *LTRConnectionEditComponent) closeView() {
+	for _, viewName := range c.viewList {
+		GlobalApp.Gui.DeleteView(viewName)
+		GlobalApp.Gui.DeleteKeybindings(viewName)
+	}
+	GlobalApp.Gui.DeleteView(c.name)
+	GlobalApp.Gui.DeleteKeybindings(c.name)
 }
