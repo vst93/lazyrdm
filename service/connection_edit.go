@@ -2,6 +2,8 @@ package service
 
 import (
 	"fmt"
+	"strings"
+	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
 
 	"github.com/jroimartin/gocui"
@@ -20,6 +22,7 @@ type LTRConnectionEditComponent struct {
 	viewEndY            int
 	viewNowLine         int
 	viewNowCurrent      string
+	KeyMapTipExtend     []KeyMapStruct
 }
 
 type LTRConnectionEditComponentFormViewConfig struct {
@@ -30,6 +33,7 @@ type LTRConnectionEditComponentFormViewConfig struct {
 	viewType  string
 	xBeing    int
 	xEnd      int
+	radioMap  []string
 }
 
 func InitConnectionEditComponent(con types.Connection) *LTRConnectionEditComponent {
@@ -55,7 +59,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 	c.viewBeginX, c.viewBeginY, c.viewEndX, c.viewEndY = theX0, theY0, theX1, theY1
 	v, _ := GlobalApp.Gui.SetView(c.name, c.viewBeginX, c.viewBeginY, c.viewEndX, c.viewEndY)
 	v.Title = c.title
-	v.Editable = true
+	// v.Editable = true
 	v.Wrap = true
 	c.viewNowLine = 0
 	c.viewList = []string{}
@@ -85,8 +89,16 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 		title:     "Network",
 		value:     EditorInput{BindValString: &c.ConnectionConfig.Network},
 		isNewLine: true,
+		viewType:  "radio",
+		radioMap: []string{
+			"tcp",
+			"unix",
+		},
 	})
+
 	if c.ConnectionConfig.Network == "unix" {
+		GlobalApp.Gui.DeleteView(c.name + "_host")
+		GlobalApp.Gui.DeleteView(c.name + "_port")
 		// Sock
 		c.formView(LTRConnectionEditComponentFormViewConfig{
 			name:      c.name + "_sock",
@@ -95,6 +107,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 			isNewLine: true,
 		})
 	} else {
+		GlobalApp.Gui.DeleteView(c.name + "_sock")
 		// host
 		c.formView(LTRConnectionEditComponentFormViewConfig{
 			name:      c.name + "_host",
@@ -113,7 +126,6 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 		})
 	}
 	// username
-
 	c.formView(LTRConnectionEditComponentFormViewConfig{
 		name:      c.name + "_username",
 		title:     "Username",
@@ -129,7 +141,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 	})
 
 	lineWitdh := (c.viewEndX - c.viewBeginX) / 3
-	// reset
+	// btn
 	c.formBtn(c.name+"_enter", "Save", 0, lineWitdh, true)
 	c.formBtn(c.name+"_cancel", "Cancel", c.viewBeginX+lineWitdh, lineWitdh, false)
 	c.formBtn(c.name+"_reset", "Reset", c.viewBeginX+lineWitdh*2, lineWitdh, false)
@@ -148,6 +160,10 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 }
 
 func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentFormViewConfig) {
+	if config.viewType == "radio" {
+		c.formViewRadio(config)
+		return
+	}
 	name := config.name
 	title := config.title
 	isNewLine := config.isNewLine
@@ -167,17 +183,16 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 		xEnd = c.viewEndX - 1
 	}
 	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3)
+	view.Clear()
 	view.Title = " " + title + " "
 	view.Frame = true
 	// view.Wrap = true
 	view.FgColor = gocui.ColorWhite
 	view.Clear()
 	if c.viewNowCurrent == name || (c.viewNowCurrent == "" && len(c.viewList) == 1) {
-		// view.FgColor = gocui.ColorWhite
 		view.BgColor = gocui.ColorBlue
 		view.Editable = true
 		view.Editor = &valueEditor
-		// view.SetCursor(0, 0)
 		GlobalApp.Gui.SetCurrentView(name)
 		GlobalApp.Gui.Cursor = true
 	} else {
@@ -191,6 +206,87 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 	}
 	view.Write([]byte(theValue))
 	GlobalApp.Gui.DeleteKeybindings(name)
+}
+func (c *LTRConnectionEditComponent) formViewRadio(config LTRConnectionEditComponentFormViewConfig) {
+	name := config.name
+	title := config.title
+	isNewLine := config.isNewLine
+	// viewType := config.viewType
+	// valueEditor := config.value
+	xBeing := config.xBeing
+	xEnd := config.xEnd
+	c.viewList = append(c.viewList, name)
+	// (*line)++
+	if isNewLine {
+		c.viewNowLine = c.viewNowLine + 1
+	}
+	if xBeing == 0 {
+		xBeing = c.viewBeginX + 1
+	}
+	if xEnd == 0 {
+		xEnd = c.viewEndX - 1
+	}
+
+	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3)
+	view.Title = " " + title + " "
+	view.Frame = true
+	view.FgColor = gocui.ColorWhite
+	view.Clear()
+	if c.viewNowCurrent == name || (c.viewNowCurrent == "" && len(c.viewList) == 1) {
+		view.BgColor = gocui.ColorBlue
+		GlobalApp.Gui.SetCurrentView(name)
+		GlobalApp.Gui.Cursor = false
+		// 增加额外的快捷键提示
+		c.KeyMapTipExtend = []KeyMapStruct{
+			{"Choice", "<-/->"},
+		}
+	} else {
+		view.BgColor = gocui.ColorBlack
+		c.KeyMapTipExtend = nil
+	}
+
+	theValueArr := []string{}
+	// 循环配置选项
+	for _, value := range config.radioMap {
+		if value == c.ConnectionConfig.Network {
+			value = NewColorString(value, "blue", "cyan", "bold")
+		}
+		theValueArr = append(theValueArr, value)
+	}
+	theValue := strings.Join(theValueArr, " / ")
+	view.Write([]byte(theValue))
+	GlobalApp.Gui.DeleteKeybindings(name)
+	// 额外添加左右选择控制
+	GuiSetKeysbinding(GlobalApp.Gui, name, []any{gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		theKey := 0
+		for key, value := range config.radioMap {
+			if value == c.ConnectionConfig.Network {
+				theKey = key + 1
+				break
+			}
+		}
+		if theKey >= len(config.radioMap) {
+			theKey = 0
+		}
+		*config.value.BindValString = config.radioMap[theKey]
+		c.Layout()
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, name, []any{gocui.KeyArrowLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		theKey := 0
+		for key, value := range config.radioMap {
+			if value == c.ConnectionConfig.Network {
+				theKey = key - 1
+				break
+			}
+		}
+		if theKey < 0 {
+			theKey = len(config.radioMap) - 1
+		}
+		*config.value.BindValString = config.radioMap[theKey]
+		c.Layout()
+		return nil
+	})
 }
 
 func (c *LTRConnectionEditComponent) formBtn(name string, title string, xBeing int, width int, isNewLine bool) {
@@ -224,14 +320,30 @@ func (c *LTRConnectionEditComponent) formBtn(name string, title string, xBeing i
 }
 
 func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
-	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyTab, gocui.KeyArrowDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.keyBindTab(1)
 		return nil
 	})
-
+	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyArrowUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		c.keyBindTab(-1)
+		return nil
+	})
 	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		switch c.viewNowCurrent {
 		case c.name + "_enter":
+			// c.ConnectionConfigBak = c.ConnectionConfig
+			// c.closeView()
+			// InitConnectionComponent()
+			PrintLn(c.ConnectionConfig)
+			apiResult := services.Connection().SaveConnection(c.ConnectionConfigBak.Name, c.ConnectionConfig.ConnectionConfig)
+			if apiResult.Success {
+				GlobalTipComponent.LayoutTemporary("Save Success", 2)
+			} else {
+				GlobalTipComponent.LayoutTemporary(apiResult.Msg, 2)
+			}
+			c.closeView()
+			InitConnectionComponent()
+			return nil
 		case c.name + "_cancel":
 			c.closeView()
 			InitConnectionComponent()
@@ -272,7 +384,6 @@ func (c *LTRConnectionEditComponent) keyBindTab(mod int) {
 				}
 			}
 		}
-
 		c.Layout()
 	}
 }
@@ -282,6 +393,7 @@ func (c *LTRConnectionEditComponent) KeyMapTip() string {
 		{"Switch", "<Tab>/<Enter>"},
 		{"Submit", "<Enter>"},
 	}
+	keyMap = append(keyMap, c.KeyMapTipExtend...)
 	ret := ""
 	for i, v := range keyMap {
 		if i > 0 {
