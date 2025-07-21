@@ -81,7 +81,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	// theValRune = theValRune[:GlobalApp.maxX-theX0-2]
 	// theVal = string(theValRune)
 	// theVal = text.TrimSpace(theVal)
-	c.view.Write([]byte(DisposeChinese(theVal)))
+	c.view.Write(DisposeMultibyteString(theVal))
 
 	// show format select
 	formatSelectView, err := GlobalApp.Gui.SetView("key_value_format", GlobalApp.maxX-15, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2)
@@ -96,7 +96,6 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 		// GlobalApp.Gui.SetCurrentView(c.name)
 		GlobalTipComponent.Layout(c.KeyMapTip())
 	}
-
 	return c
 }
 

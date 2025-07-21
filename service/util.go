@@ -38,20 +38,18 @@ func IsNormalChar(r rune) bool {
 	return false
 }
 
-// 处理中文
-func DisposeChinese(text string) string {
+// DisposeMultibyteString 处理多字节字符
+func DisposeMultibyteString(text string) []byte {
 	if len(text) == 0 {
-		return ""
+		return []byte("")
 	}
-	var result string
+	var result []rune
 	for _, r := range text {
-		rl, _ := fmt.Printf("%d", r)
-		rbl, _ := fmt.Printf("%d", byte(r))
-		if rl != rbl {
-			result = result +
+		if r > 255 {
+			result = append(result, r, 32)
 		} else {
 			result = append(result, r)
 		}
 	}
-	return string(result)
+	return []byte(string(result))
 }
