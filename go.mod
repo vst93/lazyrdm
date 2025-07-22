@@ -1,4 +1,4 @@
-module tinyrdm-tui
+module lazyrdm
 
 go 1.24.0
 

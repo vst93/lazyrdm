@@ -451,7 +451,7 @@ func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 		switch c.viewNowCurrent {
 		case c.name + "_enter":
 			if c.ConnectionConfig.Name == "" {
-				GlobalTipComponent.LayoutTemporary("Name can not be empty", 3)
+				GlobalTipComponent.LayoutTemporary("Name can not be empty", 3, TipTypeWarning)
 				return nil
 			}
 			if c.ConnectionConfig.Type == "group" {
@@ -465,17 +465,17 @@ func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 					apiResult = services.Connection().RenameGroup(c.ConnectionConfigBak.Name, c.ConnectionConfig.Name)
 				}
 				if apiResult.Success {
-					GlobalTipComponent.LayoutTemporary("Save group success", 2)
+					GlobalTipComponent.LayoutTemporary("Save group success", 2, TipTypeSuccess)
 				} else {
-					GlobalTipComponent.LayoutTemporary(apiResult.Msg, 3)
+					GlobalTipComponent.LayoutTemporary(apiResult.Msg, 3, TipTypeError)
 				}
 			} else {
 				// 修改连接信息
 				apiResult := services.Connection().SaveConnection(c.ConnectionConfigBak.Name, c.ConnectionConfig.ConnectionConfig)
 				if apiResult.Success {
-					GlobalTipComponent.LayoutTemporary("Save connection success", 2)
+					GlobalTipComponent.LayoutTemporary("Save connection success", 2, TipTypeSuccess)
 				} else {
-					GlobalTipComponent.LayoutTemporary(apiResult.Msg, 3)
+					GlobalTipComponent.LayoutTemporary(apiResult.Msg, 3, TipTypeError)
 				}
 			}
 
@@ -492,18 +492,24 @@ func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 		case c.name + "_test":
 			// 测试连接
 			if c.ConnectionConfig.Type == "group" {
-				GlobalTipComponent.LayoutTemporary("Test group not support", 3)
+				GlobalTipComponent.LayoutTemporary("Test group not support", 3, TipTypeWarning)
 			} else {
 				apiResult := services.Connection().TestConnection(c.ConnectionConfig.ConnectionConfig)
 				if apiResult.Success {
-					GlobalTipComponent.LayoutTemporary("Test connection : [success]", 2)
+					GlobalTipComponent.LayoutTemporary("Test connection : [success]", 2, TipTypeSuccess)
 				} else {
-					GlobalTipComponent.LayoutTemporary("Test connection : [error], "+apiResult.Msg, 5)
+					GlobalTipComponent.LayoutTemporary("Test connection : [error], "+apiResult.Msg, 5, TipTypeError)
 				}
 			}
 		default:
 			c.keyBindTab(1)
 		}
+		return nil
+	})
+	// 取消编辑
+	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		c.closeView()
+		InitConnectionComponent()
 		return nil
 	})
 	return c
@@ -542,6 +548,7 @@ func (c *LTRConnectionEditComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Switch", "<Tab>/<Enter>"},
 		{"Submit", "<Enter>"},
+		{"Cancel", "<Esc>"},
 	}
 	keyMap = append(keyMap, c.KeyMapTipExtend...)
 	ret := ""

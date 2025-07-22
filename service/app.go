@@ -28,6 +28,7 @@ type MainApp struct {
 }
 
 func NewMainApp(g *gocui.Gui) {
+	g.InputEsc = true
 	GlobalApp = &MainApp{
 		Gui:          g,
 		maxX:         0,
@@ -42,4 +43,20 @@ func NewMainApp(g *gocui.Gui) {
 	// GlobalApp.Gui.Cursor = true
 	InitTipComponent()
 	InitConnectionComponent()
+}
+
+func (app *MainApp) ForceUpdate(setViewName string) {
+	if setViewName != "" {
+		GlobalApp.Gui.SetCurrentView(setViewName)
+		switch setViewName {
+		case "connection_list":
+			GlobalConnectionComponent.Layout()
+		default:
+			GlobalDBComponent.Layout()
+			GlobalKeyComponent.Layout()
+			GlobalKeyInfoComponent.Layout()
+			GlobalKeyInfoDetailComponent.Layout()
+		}
+	}
+	GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil })
 }

@@ -1,9 +1,9 @@
 package main
 
 import (
+	"lazyrdm/service"
 	"log"
 	"os"
-	"tinyrdm-tui/service"
 	"tinyrdm/backend/services"
 
 	"github.com/jroimartin/gocui"
@@ -44,7 +44,7 @@ func main() {
 	// })
 
 	// 切换视图（板块）
-	g.SetKeybinding("", gocui.KeyTab, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	service.GuiSetKeysbinding(g, "", []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		// 切换视图（板块）
 		if len(service.GlobalApp.ViewNameList) < 2 {
 			return nil
@@ -61,18 +61,7 @@ func main() {
 			currentViewNameIndex = 0
 		}
 		nextViewName := service.GlobalApp.ViewNameList[currentViewNameIndex]
-		if _, err := g.SetCurrentView(nextViewName); err == nil {
-			service.GlobalApp.Gui.SetCurrentView(nextViewName)
-			switch nextViewName {
-			case "connection_list":
-				service.GlobalConnectionComponent.Layout()
-			default:
-				service.GlobalDBComponent.Layout()
-				service.GlobalKeyComponent.Layout()
-				service.GlobalKeyInfoComponent.Layout()
-				service.GlobalKeyInfoDetailComponent.Layout()
-			}
-		}
+		service.GlobalApp.ForceUpdate(nextViewName)
 		service.GlobalTipComponent.Layout("")
 		return nil
 	})

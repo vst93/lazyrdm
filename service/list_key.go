@@ -63,9 +63,10 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	c.view.Editable = false
 	c.view.Frame = true
 	if GlobalDBComponent.SelectedDB < 0 {
-		c.view.Title = " [not selected db] "
+		c.view.Title = " Key List "
 	} else {
-		c.view.Title = " [db" + strconv.Itoa(GlobalDBComponent.SelectedDB) + "]" + " [" + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10) + "] "
+		// c.view.Title = " [db" + strconv.Itoa(GlobalDBComponent.SelectedDB) + "]" + " [" + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10) + "] "
+		c.view.Title = " Key List [" + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10) + "] "
 	}
 	_, c.viewMaxY = c.view.Size()
 
@@ -75,27 +76,9 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	if len(c.keys) > 0 {
 		for index, key := range c.keys {
 			totalLine++
-			// keyStr, ok := key.(string)
-			// if !ok {
-			// 	continue
-			// }
 			keyStr := fmt.Sprintf("%s", key)
 			if c.Current == index {
 				currenLine = totalLine
-				// get key info
-				// keyType := services.Browser().GetKeyType(
-				// 	types.KeySummaryParam{
-				// 		Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
-				// 		DB:     GlobalDBComponent.SelectedDB,
-				// 		Key:    key.(string),
-				// 	},
-				// )
-				// theKeyTypeStr := ""
-				// if keyType.Success {
-				// 	keyTypeData := keyType.Data.(types.KeySummary)
-				// 	theKeyTypeStr = keyTypeData.Type
-				// }
-				// printString += NewTypeWord(theKeyTypeStr) + NewColorString(" "+key.(string)+""+SPACE_STRING+"\n", "white", "blue", "bold")
 				printString += NewColorString(strconv.Itoa(totalLine)+"-"+keyStr+""+SPACE_STRING+"\n", "white", "blue", "bold")
 			} else {
 				printString += fmt.Sprintf("%s\n", strconv.Itoa(totalLine)+"-"+keyStr+""+SPACE_STRING)
@@ -164,16 +147,13 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		GlobalApp.Gui.SetCurrentView(c.name)
-		c.Layout()
-		return nil
-	})
+	// GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 	GlobalApp.Gui.SetCurrentView(c.name)
+	// 	c.Layout()
+	// 	return nil
+	// })
 
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyEnter, gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		// get key info
-		// PrintLn(GlobalKeyComponent.Current)
-		// PrintLn(GlobalKeyComponent.keys)
 		if GlobalKeyComponent.Current < 0 || GlobalKeyComponent.Current > len(GlobalKeyComponent.keys)-1 {
 			return nil
 		}
@@ -185,13 +165,19 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		return nil
 	})
 
+	// 鼠标点击聚焦
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		GlobalApp.ForceUpdate(c.name)
+		return nil
+	})
+
 	return c
 }
 
 func (c *LTRListKeyComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Switch", "<Tab>"},
-		{"Select", "↑↓"},
+		{"Select", "↑/↓"},
 		{"Enter", "<Enter>/→"},
 	}
 	ret := ""

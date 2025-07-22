@@ -13,6 +13,12 @@ type LTRTipComponent struct {
 	temporaryTipString string
 }
 
+const (
+	TipTypeWarning string = "warning"
+	TipTypeError   string = "error"
+	TipTypeSuccess string = "success"
+)
+
 type KeyMapStruct struct {
 	Description string
 	Key         string
@@ -53,29 +59,34 @@ func (c *LTRTipComponent) Layout(tipString string) *LTRTipComponent {
 	return c
 }
 
-func (c *LTRTipComponent) LayoutTemporary(tipString string, durationSec int) *LTRTipComponent {
+func (c *LTRTipComponent) LayoutTemporary(tipString string, durationSec int, tipType string) *LTRTipComponent {
+	switch tipType {
+	case TipTypeWarning:
+		tipString = NewColorString(tipString, "yellow")
+	case TipTypeError:
+		tipString = NewColorString(tipString, "red")
+	case TipTypeSuccess:
+		tipString = NewColorString(tipString, "green")
+	}
 	//获取当前的view的内容
 	if c.lastTipString == tipString {
 		return c
 	}
 	c.temporaryTipString = tipString
 	// 修改展示的内容
-	c.Layout("")
+	// c.Layout("")
+	GlobalApp.Gui.Update(func(g *gocui.Gui) error {
+		c.Layout("")
+		return nil
+	})
 	// 3 s 后恢复原内容
 	go func() {
-		// time.Sleep(time.Second * 3)
 		time.Sleep(time.Second * time.Duration(durationSec))
-		// c.temporaryTipString = c.temporaryTipString + "."
-		// c.Layout("")
 		GlobalApp.Gui.Update(func(g *gocui.Gui) error {
 			c.temporaryTipString = ""
 			c.Layout("")
 			return nil
 		})
-		// time.Sleep(time.Second * time.Duration(durationSec))
-		// c.temporaryTipString = ""
-		// c.Layout("")
-		// GlobalKeyInfoDetailComponent.Layout()
 	}()
 	return c
 }

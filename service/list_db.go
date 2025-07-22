@@ -38,6 +38,7 @@ func InitDBComponent() {
 	InitKeyInfoComponent()
 	InitKeyInfoDetailComponent()
 	// GlobalTipComponent.Layout()
+	GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil }) // 刷新界面
 }
 
 func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
@@ -112,7 +113,6 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 		c.Layout()
 		return nil
 	})
-
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.CurrenDB--
 		if c.CurrenDB < 0 {
@@ -132,13 +132,19 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 		return nil
 	})
 
+	// 鼠标点击聚焦
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		GlobalApp.ForceUpdate(c.name)
+		return nil
+	})
+
 	return c
 }
 
 func (c *LTRListDBComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Switch", "<Tab>"},
-		{"Select", "↑↓"},
+		{"Select", "↑/↓"},
 		{"Enter", "<Enter>/→"},
 	}
 	ret := ""

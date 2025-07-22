@@ -22,6 +22,7 @@ type LTRConnectionComponent struct {
 	view                                  int
 	lastDB                                int
 	version                               string
+	isConnecting                          bool
 }
 
 func InitConnectionComponent() {
@@ -34,16 +35,34 @@ func InitConnectionComponent() {
 	GlobalConnectionComponent = &LTRConnectionComponent{
 		Name:                                  "connection_list",
 		title:                                 "Connection List",
-		ConnectionList:                        connectionListJson.Data.(types.Connections),
+		ConnectionList:                        types.Connections{},
 		ConnectionListCurrentGroupIndex:       -1,
 		ConnectionListSelectedConnectionIndex: -1,
 	}
 	// 兼容一级非目录的配置
-	for i, group := range GlobalConnectionComponent.ConnectionList {
+	connectionList := GlobalConnectionComponent.ConnectionList
+	noGriupConnection := []types.Connection{}
+	for _, group := range connectionListJson.Data.(types.Connections) {
 		if len(group.Connections) == 0 && group.Type != "group" {
-			GlobalConnectionComponent.ConnectionList[i].Connections = append(GlobalConnectionComponent.ConnectionList[i].Connections, group)
+			// GlobalConnectionComponent.ConnectionList[i].Connections = append(GlobalConnectionComponent.ConnectionList[i].Connections, group)
+			noGriupConnection = append(noGriupConnection, group)
+		} else if group.Type == "group" && group.Name == "" {
+			// 空组的名称的移动到 "NO_GROUP"
+			noGriupConnection = append(noGriupConnection, group.Connections...)
+		} else {
+			connectionList = append(connectionList, group)
 		}
 	}
+	if len(noGriupConnection) > 0 {
+		connectionList = append(connectionList, types.Connection{
+			ConnectionConfig: types.ConnectionConfig{
+				Name: "NO_GROUP",
+			},
+			Type:        "group",
+			Connections: noGriupConnection,
+		})
+	}
+	GlobalConnectionComponent.ConnectionList = connectionList
 	GlobalApp.ViewNameList = []string{GlobalConnectionComponent.Name}
 	GlobalConnectionComponent.Layout().KeyBind()
 	GlobalApp.Gui.SetCurrentView(GlobalConnectionComponent.Name)
@@ -80,6 +99,9 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 	currenLine := 0
 	totalLine := 0
 	for index, conn := range c.ConnectionList {
+		if conn.Name == "" {
+			continue
+		}
 		theConnectionsLen := len(conn.Connections)
 		if c.ConnectionListSelectedGroupIndex == index {
 			if c.ConnectionListSelectedConnectionIndex == -1 {
@@ -88,7 +110,7 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 				currenLine = totalLine
 			} else {
 				// printString += fmt.Sprintf("%s\n", "["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING)
-				printString += NewColorString("["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING+"\n", "white", "black", "bold")
+				printString += NewColorString("["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING+"\n", "white", "purple", "bold")
 				totalLine++
 			}
 			for key, item := range conn.Connections {
@@ -133,6 +155,9 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 
 	GlobalApp.Gui.SetKeybinding(c.Name, gocui.KeyArrowDown, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isConnecting {
+			return nil
+		}
 		if c.ConnectionListCurrentGroupIndex >= 0 {
 			c.ConnectionListSelectedConnectionIndex++
 			if c.ConnectionListSelectedConnectionIndex > len(c.ConnectionList[c.ConnectionListCurrentGroupIndex].Connections)-1 {
@@ -152,6 +177,9 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	GlobalApp.Gui.SetKeybinding(c.Name, gocui.KeyArrowUp, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isConnecting {
+			return nil
+		}
 		if c.ConnectionListCurrentGroupIndex >= 0 {
 			c.ConnectionListSelectedConnectionIndex--
 			if c.ConnectionListSelectedConnectionIndex < 0 {
@@ -171,27 +199,38 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	// 打开连接
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []interface{}{gocui.KeyEnter, gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyEnter, gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isConnecting {
+			return nil
+		}
 		if c.ConnectionListCurrentGroupIndex >= 0 {
+			GlobalTipComponent.LayoutTemporary("Connecting...", 10, TipTypeWarning)
+			c.isConnecting = true
 			if GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name != "" {
 				// 关闭之前的连接
 				services.Browser().CloseConnection(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name)
 			}
 			// connection selected
 			GlobalConnectionComponent.ConnectionListSelectedConnectionInfo = c.ConnectionList[c.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex]
-			connectionInfo := services.Browser().OpenConnection(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name)
-			// PrintLn(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name)
-			if connectionInfo.Success {
-				GlobalConnectionComponent.dbs = connectionInfo.Data.(map[string]any)["db"].([]types.ConnectionDB)
-				GlobalConnectionComponent.view = connectionInfo.Data.(map[string]any)["view"].(int)
-				GlobalConnectionComponent.lastDB = connectionInfo.Data.(map[string]any)["lastDB"].(int)
-				GlobalConnectionComponent.version = connectionInfo.Data.(map[string]any)["version"].(string)
-				GlobalApp.Gui.DeleteView(c.Name)
-				GlobalApp.Gui.DeleteKeybindings(c.Name)
-				GlobalApp.ViewNameList = []string{} // 清空视图列表
-				c.closeView()
-				InitDBComponent()
-			}
+			go func() {
+				connectionInfo := services.Browser().OpenConnection(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name)
+				if connectionInfo.Success {
+					GlobalTipComponent.LayoutTemporary("Open connection success", 2, TipTypeSuccess)
+					GlobalConnectionComponent.dbs = connectionInfo.Data.(map[string]any)["db"].([]types.ConnectionDB)
+					GlobalConnectionComponent.view = connectionInfo.Data.(map[string]any)["view"].(int)
+					GlobalConnectionComponent.lastDB = connectionInfo.Data.(map[string]any)["lastDB"].(int)
+					GlobalConnectionComponent.version = connectionInfo.Data.(map[string]any)["version"].(string)
+					GlobalApp.Gui.DeleteView(c.Name)
+					GlobalApp.Gui.DeleteKeybindings(c.Name)
+					GlobalApp.ViewNameList = []string{} // 清空视图列表
+					c.closeView()
+					InitDBComponent()
+				} else {
+					GlobalTipComponent.LayoutTemporary("Open connection failed", 5, TipTypeError)
+					GlobalApp.Gui.SetCurrentView(c.Name)
+				}
+				c.isConnecting = false
+			}()
 			return nil
 		} else {
 			c.ConnectionListCurrentGroupIndex = c.ConnectionListSelectedGroupIndex
@@ -204,6 +243,9 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 
 	// 编辑连接信息
 	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'e', 'E'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isConnecting {
+			return nil
+		}
 		if GlobalConnectionComponent.ConnectionListCurrentGroupIndex >= 0 {
 			// 编辑光标选中的连接
 			c.closeView()
@@ -222,12 +264,21 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 
 	// 新建连接信息
 	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'n', 'N'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isConnecting {
+			return nil
+		}
 		if GlobalConnectionComponent.ConnectionListCurrentGroupIndex >= 0 {
 			// 新建连接
 			c.closeView()
 			connectionComponent := InitConnectionEditComponent(types.Connection{
 				ConnectionConfig: types.ConnectionConfig{
 					Group: GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListCurrentGroupIndex].Name,
+					Port:  6379,
+					SSH: types.ConnectionSSH{
+						Enable:    false,
+						LoginType: "pwd",
+						Port:      22,
+					},
 				},
 			})
 			connectionComponent.Layout()
@@ -247,41 +298,44 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 
 	// 删除连接信息或分组
 	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'d', 'D'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isConnecting {
+			return nil
+		}
 		if GlobalConnectionComponent.ConnectionListSelectedConnectionIndex >= 0 {
 			NewPageComponentConfirm("Delete connection", "Are you sure to delete this connection?", func() {
 				//删除光标选中连接
 				apiResult := services.Connection().DeleteConnection(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex].Name)
 				if apiResult.Success {
-					GlobalTipComponent.LayoutTemporary("Delete connection success", 2)
+					GlobalTipComponent.LayoutTemporary("Delete connection success", 2, TipTypeSuccess)
 				} else {
-					GlobalTipComponent.LayoutTemporary("Delete connection failed", 3)
+					GlobalTipComponent.LayoutTemporary("Delete connection failed", 3, TipTypeError)
 				}
 				c.closeView()
 				InitConnectionComponent()
 			}, func() {
 				//取消删除
-				GlobalTipComponent.LayoutTemporary("Delete canceled", 2)
+				GlobalTipComponent.LayoutTemporary("Delete canceled", 2, TipTypeSuccess)
 				GlobalApp.Gui.SetCurrentView(c.Name)
 			})
 
 		} else if GlobalConnectionComponent.ConnectionListSelectedGroupIndex >= 0 {
 			if len(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListSelectedGroupIndex].Connections) > 0 {
-				GlobalTipComponent.LayoutTemporary("Group not empty, can not delete", 3)
+				GlobalTipComponent.LayoutTemporary("Group not empty, can not delete", 3, TipTypeError)
 				return nil
 			}
 			NewPageComponentConfirm("Delete group", "Are you sure to delete this group?", func() {
 				//删除光标选中的组
 				apiResult := services.Connection().DeleteGroup(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListSelectedGroupIndex].Name, false)
 				if apiResult.Success {
-					GlobalTipComponent.LayoutTemporary("Delete group success", 2)
+					GlobalTipComponent.LayoutTemporary("Delete group success", 2, TipTypeSuccess)
 				} else {
-					GlobalTipComponent.LayoutTemporary("Delete group failed", 3)
+					GlobalTipComponent.LayoutTemporary("Delete group failed", 3, TipTypeError)
 				}
 				c.closeView()
 				InitConnectionComponent()
 			}, func() {
 				//取消删除
-				GlobalTipComponent.LayoutTemporary("Delete canceled", 2)
+				GlobalTipComponent.LayoutTemporary("Delete canceled", 2, TipTypeSuccess)
 				GlobalApp.Gui.SetCurrentView(c.Name)
 			})
 		}
@@ -289,6 +343,9 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowLeft, gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isConnecting {
+			return nil
+		}
 		c.ConnectionListCurrentGroupIndex = -1
 		c.ConnectionListSelectedConnectionIndex = -1
 		v.Clear()
@@ -297,6 +354,9 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	GlobalApp.Gui.SetKeybinding(c.Name, gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isConnecting {
+			return nil
+		}
 		return nil
 	})
 	return c
@@ -304,12 +364,13 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 
 func (c *LTRConnectionComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
-		{"Select", "↑↓"},
+		{"Select", "↑/↓"},
 		{"Up", "←"},
 		{"Enter", "<Enter>/→"},
 		{"Edit", "<E>"},
 		{"New", "<N>"},
 		{"Delete", "<D>"},
+		{"[Global] Quit", "<Ctrl + Q>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

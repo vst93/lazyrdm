@@ -100,22 +100,11 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyBind() {
+	GlobalApp.Gui.DeleteKeybindings(c.name)
+	GlobalApp.Gui.DeleteKeybindings("key_value_format")
 	// format switch
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'f', 'F'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		nextIndex := 0
-		for i, format := range keyValueFormatList {
-			if format == c.keyValueFormat {
-				nextIndex = i + 1
-				break
-			}
-		}
-		if nextIndex >= len(keyValueFormatList) {
-			nextIndex = 0
-		}
-		c.keyValueFormat = keyValueFormatList[nextIndex]
-		c.viewOriginY = 0
-		c.Layout()
-		GlobalKeyInfoDetailComponent.Layout()
+		c.switchKeyValueFormat()
 		return nil
 	})
 
@@ -126,29 +115,39 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			return nil
 		}
 		clipboard.WriteAll(theVal)
-		GlobalTipComponent.LayoutTemporary("Copied to clipboard", 2)
+		GlobalTipComponent.LayoutTemporary("Copied to clipboard", 2, TipTypeSuccess)
 		return nil
 	})
-
+	// scroll
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		c.viewOriginY--
-		if c.viewOriginY < 0 {
-			c.viewOriginY = 0
-		}
-		c.view.SetOrigin(0, c.viewOriginY)
+		c.scroll(-1)
 		return nil
 	})
-
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		_, theViewY := c.view.Size()
-		if c.viewOriginY-1 >= c.keyValueMaxY-theViewY {
-			return nil
-		}
-		c.viewOriginY++
-		c.view.SetOrigin(0, c.viewOriginY)
+		c.scroll(1)
+		return nil
+	})
+	// scroll page
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		c.scroll(-GlobalApp.maxY + 9)
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		c.scroll(GlobalApp.maxY - 9)
 		return nil
 	})
 
+	// 鼠标点击聚焦
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		GlobalApp.ForceUpdate(c.name)
+		return nil
+	})
+
+	// key_value_format
+	GuiSetKeysbinding(GlobalApp.Gui, "key_value_format", []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		c.switchKeyValueFormat()
+		return nil
+	})
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
@@ -156,7 +155,8 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 		{"Switch", "<Tab>"},
 		{"Switch Format", "<F>"},
 		{"Copy", "<C>"},
-		{"Scroll", "↑↓"},
+		{"Scroll", "↑/↓"},
+		{"Scroll Page", "←/→"},
 	}
 	ret := ""
 	for i, v := range keyMap {
@@ -168,4 +168,34 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	}
 	// return "key_detail: " + ret
 	return ret
+}
+
+func (c *LTRKeyInfoDetailComponent) scroll(n int) {
+	c.viewOriginY += n
+	if c.viewOriginY < 0 {
+		c.viewOriginY = 0
+	}
+	_, theViewY := c.view.Size()
+	if c.keyValueMaxY-theViewY <= c.viewOriginY {
+		c.viewOriginY = c.keyValueMaxY - theViewY
+	}
+
+	c.view.SetOrigin(0, c.viewOriginY)
+}
+
+func (c *LTRKeyInfoDetailComponent) switchKeyValueFormat() {
+	nextIndex := 0
+	for i, format := range keyValueFormatList {
+		if format == c.keyValueFormat {
+			nextIndex = i + 1
+			break
+		}
+	}
+	if nextIndex >= len(keyValueFormatList) {
+		nextIndex = 0
+	}
+	c.keyValueFormat = keyValueFormatList[nextIndex]
+	c.viewOriginY = 0
+	c.Layout()
+	GlobalKeyInfoDetailComponent.Layout()
 }

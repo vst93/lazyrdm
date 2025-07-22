@@ -7,7 +7,7 @@ import (
 )
 
 // GuiSetKeysbinding set keysbinding for a view
-func GuiSetKeysbinding(g *gocui.Gui, viewname interface{}, keys []any, mod gocui.Modifier, handler func(*gocui.Gui, *gocui.View) error) error {
+func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifier, handler func(*gocui.Gui, *gocui.View) error) error {
 	// 如果 viewname 是数组,断言
 	viewnameArr, ok := viewname.([]string)
 	if ok {
