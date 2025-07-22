@@ -28,8 +28,6 @@ func main() {
 
 	service.NewMainApp(g)
 
-	// g.SetManagerFunc(service.Layout)
-
 	// 退出程序
 	if err := g.SetKeybinding("", gocui.KeyCtrlQ, gocui.ModNone, quit); err != nil {
 		log.Panicln(err)

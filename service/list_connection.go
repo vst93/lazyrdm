@@ -13,8 +13,8 @@ type LTRConnectionComponent struct {
 	Name                                  string
 	title                                 string
 	ConnectionList                        types.Connections
-	ConnectionListSelectedGroupIndex      int
-	ConnectionListCurrentGroupIndex       int
+	ConnectionListSelectedGroupIndex      int // 当前光标在的组的索引
+	ConnectionListCurrentGroupIndex       int // 当前选择的组的索引
 	ConnectionListSelectedConnectionIndex int
 	LayoutMaxY                            int
 	ConnectionListSelectedConnectionInfo  types.Connection
@@ -83,11 +83,12 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		theConnectionsLen := len(conn.Connections)
 		if c.ConnectionListSelectedGroupIndex == index {
 			if c.ConnectionListSelectedConnectionIndex == -1 {
-				printString += NewColorString("["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING+"\n", "white", "blue", "bold") // 白底黑字
+				printString += NewColorString("["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING+"\n", "white", "blue", "bold")
 				totalLine++
 				currenLine = totalLine
 			} else {
-				printString += fmt.Sprintf("%s\n", "["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING)
+				// printString += fmt.Sprintf("%s\n", "["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING)
+				printString += NewColorString("["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING+"\n", "white", "black", "bold")
 				totalLine++
 			}
 			for key, item := range conn.Connections {
@@ -204,10 +205,85 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	// 编辑连接信息
 	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'e', 'E'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if GlobalConnectionComponent.ConnectionListCurrentGroupIndex >= 0 {
+			// 编辑光标选中的连接
 			c.closeView()
 			connectionComponent := InitConnectionEditComponent(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex])
 			connectionComponent.Layout()
 			return nil
+		} else if GlobalConnectionComponent.ConnectionListSelectedGroupIndex >= 0 {
+			// 编辑光标选中的组
+			c.closeView()
+			connectionComponent := InitConnectionEditComponent(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListSelectedGroupIndex])
+			connectionComponent.Layout()
+			return nil
+		}
+		return nil
+	})
+
+	// 新建连接信息
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'n', 'N'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if GlobalConnectionComponent.ConnectionListCurrentGroupIndex >= 0 {
+			// 新建连接
+			c.closeView()
+			connectionComponent := InitConnectionEditComponent(types.Connection{
+				ConnectionConfig: types.ConnectionConfig{
+					Group: GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListCurrentGroupIndex].Name,
+				},
+			})
+			connectionComponent.Layout()
+			return nil
+		} else if GlobalConnectionComponent.ConnectionListSelectedGroupIndex >= 0 {
+			// 新建组
+			c.closeView()
+			connectionComponent := InitConnectionEditComponent(types.Connection{
+				Type: "group",
+			})
+			connectionComponent.Layout()
+			return nil
+		}
+
+		return nil
+	})
+
+	// 删除连接信息或分组
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'d', 'D'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if GlobalConnectionComponent.ConnectionListSelectedConnectionIndex >= 0 {
+			NewPageComponentConfirm("Delete connection", "Are you sure to delete this connection?", func() {
+				//删除光标选中连接
+				apiResult := services.Connection().DeleteConnection(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex].Name)
+				if apiResult.Success {
+					GlobalTipComponent.LayoutTemporary("Delete connection success", 2)
+				} else {
+					GlobalTipComponent.LayoutTemporary("Delete connection failed", 3)
+				}
+				c.closeView()
+				InitConnectionComponent()
+			}, func() {
+				//取消删除
+				GlobalTipComponent.LayoutTemporary("Delete canceled", 2)
+				GlobalApp.Gui.SetCurrentView(c.Name)
+			})
+
+		} else if GlobalConnectionComponent.ConnectionListSelectedGroupIndex >= 0 {
+			if len(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListSelectedGroupIndex].Connections) > 0 {
+				GlobalTipComponent.LayoutTemporary("Group not empty, can not delete", 3)
+				return nil
+			}
+			NewPageComponentConfirm("Delete group", "Are you sure to delete this group?", func() {
+				//删除光标选中的组
+				apiResult := services.Connection().DeleteGroup(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListSelectedGroupIndex].Name, false)
+				if apiResult.Success {
+					GlobalTipComponent.LayoutTemporary("Delete group success", 2)
+				} else {
+					GlobalTipComponent.LayoutTemporary("Delete group failed", 3)
+				}
+				c.closeView()
+				InitConnectionComponent()
+			}, func() {
+				//取消删除
+				GlobalTipComponent.LayoutTemporary("Delete canceled", 2)
+				GlobalApp.Gui.SetCurrentView(c.Name)
+			})
 		}
 		return nil
 	})
@@ -232,6 +308,8 @@ func (c *LTRConnectionComponent) KeyMapTip() string {
 		{"Up", "←"},
 		{"Enter", "<Enter>/→"},
 		{"Edit", "<E>"},
+		{"New", "<N>"},
+		{"Delete", "<D>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

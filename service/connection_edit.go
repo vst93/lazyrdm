@@ -26,14 +26,15 @@ type LTRConnectionEditComponent struct {
 }
 
 type LTRConnectionEditComponentFormViewConfig struct {
-	name      string
-	title     string
-	value     EditorInput
-	isNewLine bool
-	viewType  string
-	xBeing    int
-	xEnd      int
-	radioMap  []string
+	name         string
+	title        string
+	value        EditorInput
+	isNewLine    bool
+	viewType     string
+	xBeing       int
+	xEnd         int
+	radioMap     []any
+	disabledEdit bool
 }
 
 func InitConnectionEditComponent(con types.Connection) *LTRConnectionEditComponent {
@@ -64,6 +65,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 	c.viewNowLine = 0
 	c.viewList = []string{}
 	c.viewBeginY = 1
+	c.KeyMapTipExtend = nil
 
 	// json, _ := json.Marshal(c.ConnectionConfig)
 	// PrintLn(string(json))
@@ -75,12 +77,13 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 		value: EditorInput{BindValString: &c.ConnectionConfig.Name},
 	})
 	// group
-	if c.ConnectionConfig.Name == "" {
+	if c.ConnectionConfigBak.Name == "" {
 		c.formView(LTRConnectionEditComponentFormViewConfig{
-			name:      c.name + "_group",
-			title:     "Group",
-			value:     EditorInput{BindValString: &c.ConnectionConfig.Group},
-			isNewLine: true,
+			name:         c.name + "_group",
+			title:        "Group",
+			value:        EditorInput{BindValString: &c.ConnectionConfig.Group},
+			isNewLine:    true,
+			disabledEdit: true,
 		})
 	}
 	// network
@@ -90,7 +93,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 		value:     EditorInput{BindValString: &c.ConnectionConfig.Network},
 		isNewLine: true,
 		viewType:  "radio",
-		radioMap: []string{
+		radioMap: []any{
 			"tcp",
 			"unix",
 		},
@@ -140,11 +143,107 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 		isNewLine: true,
 	})
 
-	lineWitdh := (c.viewEndX - c.viewBeginX) / 3
+	// ssh
+	c.formView(LTRConnectionEditComponentFormViewConfig{
+		name:      c.name + "_ssh",
+		title:     "Open SSH",
+		value:     EditorInput{BindValBool: &c.ConnectionConfig.SSH.Enable},
+		isNewLine: true,
+		viewType:  "radio",
+		radioMap: []any{
+			false,
+			true,
+		},
+	})
+	if c.ConnectionConfig.SSH.Enable {
+		// ssh host
+		c.formView(LTRConnectionEditComponentFormViewConfig{
+			name:      c.name + "_ssh_host",
+			title:     "SSH Host",
+			value:     EditorInput{BindValString: &c.ConnectionConfig.SSH.Addr},
+			isNewLine: true,
+			xEnd:      c.viewEndX - 21,
+		})
+		// ssh port
+		c.formView(LTRConnectionEditComponentFormViewConfig{
+			name:      c.name + "_ssh_port",
+			title:     "SSH Port",
+			value:     EditorInput{BindValInt: &c.ConnectionConfig.SSH.Port},
+			isNewLine: false,
+			xBeing:    c.viewEndX - 20,
+		})
+		// ssh login type
+		c.formView(LTRConnectionEditComponentFormViewConfig{
+			name:      c.name + "_ssh_login_type",
+			title:     "SSH Login Type",
+			value:     EditorInput{BindValString: &c.ConnectionConfig.SSH.LoginType},
+			isNewLine: true,
+			viewType:  "radio",
+			radioMap: []any{
+				"pwd",
+				"pkfile",
+			},
+		})
+		if c.ConnectionConfig.SSH.LoginType == "pkfile" {
+			GlobalApp.Gui.DeleteView(c.name + "_ssh_username")
+			GlobalApp.Gui.DeleteView(c.name + "_ssh_password")
+			// ssh key file
+			c.formView(LTRConnectionEditComponentFormViewConfig{
+				name:      c.name + "_ssh_key_file",
+				title:     "SSH Key File Path",
+				value:     EditorInput{BindValString: &c.ConnectionConfig.SSH.PKFile},
+				isNewLine: true,
+			})
+			// ssh username
+			c.formView(LTRConnectionEditComponentFormViewConfig{
+				name:      c.name + "_ssh_username",
+				title:     "SSH Username",
+				value:     EditorInput{BindValString: &c.ConnectionConfig.SSH.Username},
+				isNewLine: true,
+			})
+			// ssh passphrase
+			c.formView(LTRConnectionEditComponentFormViewConfig{
+				name:      c.name + "_ssh_passphrase",
+				title:     "SSH Passphrase",
+				value:     EditorInput{BindValString: &c.ConnectionConfig.SSH.Passphrase},
+				isNewLine: true,
+			})
+		} else {
+			GlobalApp.Gui.DeleteView(c.name + "_ssh_key_file")
+			GlobalApp.Gui.DeleteView(c.name + "_ssh_username")
+			GlobalApp.Gui.DeleteView(c.name + "_ssh_passphrase")
+			// ssh username
+			c.formView(LTRConnectionEditComponentFormViewConfig{
+				name:      c.name + "_ssh_username",
+				title:     "SSH Username",
+				value:     EditorInput{BindValString: &c.ConnectionConfig.SSH.Username},
+				isNewLine: true,
+			})
+			// ssh password
+			c.formView(LTRConnectionEditComponentFormViewConfig{
+				name:      c.name + "_ssh_password",
+				title:     "SSH Password",
+				value:     EditorInput{BindValString: &c.ConnectionConfig.SSH.Password},
+				isNewLine: true,
+			})
+		}
+
+	} else {
+		GlobalApp.Gui.DeleteView(c.name + "_ssh_host")
+		GlobalApp.Gui.DeleteView(c.name + "_ssh_port")
+		GlobalApp.Gui.DeleteView(c.name + "_ssh_username")
+		GlobalApp.Gui.DeleteView(c.name + "_ssh_password")
+		GlobalApp.Gui.DeleteView(c.name + "_ssh_key")
+		GlobalApp.Gui.DeleteView(c.name + "_ssh_key_file")
+		GlobalApp.Gui.DeleteView(c.name + "_ssh_login_type")
+	}
+
+	lineWitdh := (c.viewEndX - c.viewBeginX) / 4
 	// btn
 	c.formBtn(c.name+"_enter", "Save", 0, lineWitdh, true)
 	c.formBtn(c.name+"_cancel", "Cancel", c.viewBeginX+lineWitdh, lineWitdh, false)
 	c.formBtn(c.name+"_reset", "Reset", c.viewBeginX+lineWitdh*2, lineWitdh, false)
+	c.formBtn(c.name+"_test", "Test", c.viewBeginX+lineWitdh*3, lineWitdh, false)
 
 	//表单选项选中
 	if c.viewNowCurrent == "" {
@@ -160,6 +259,10 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 }
 
 func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentFormViewConfig) {
+	if c.ConnectionConfig.Type == "group" && config.name != c.name+"_name" {
+		// 分组模式下，仅显示name
+		return
+	}
 	if config.viewType == "radio" {
 		c.formViewRadio(config)
 		return
@@ -171,7 +274,11 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 	valueEditor := config.value
 	xBeing := config.xBeing
 	xEnd := config.xEnd
-	c.viewList = append(c.viewList, name)
+
+	if !config.disabledEdit {
+		// 加入可选中项
+		c.viewList = append(c.viewList, name)
+	}
 	// (*line)++
 	if isNewLine {
 		c.viewNowLine = c.viewNowLine + 1
@@ -186,16 +293,17 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 	view.Clear()
 	view.Title = " " + title + " "
 	view.Frame = true
-	// view.Wrap = true
+
 	view.FgColor = gocui.ColorWhite
+
 	view.Clear()
-	if c.viewNowCurrent == name || (c.viewNowCurrent == "" && len(c.viewList) == 1) {
+	if !config.disabledEdit && (c.viewNowCurrent == name || (c.viewNowCurrent == "" && len(c.viewList) == 1)) {
 		view.BgColor = gocui.ColorBlue
 		view.Editable = true
 		view.Editor = &valueEditor
 		GlobalApp.Gui.SetCurrentView(name)
 		GlobalApp.Gui.Cursor = true
-	} else {
+	} else if !config.disabledEdit {
 		view.BgColor = gocui.ColorBlack
 	}
 	theValue := ""
@@ -242,16 +350,16 @@ func (c *LTRConnectionEditComponent) formViewRadio(config LTRConnectionEditCompo
 		}
 	} else {
 		view.BgColor = gocui.ColorBlack
-		c.KeyMapTipExtend = nil
+		// c.KeyMapTipExtend = nil
 	}
 
 	theValueArr := []string{}
 	// 循环配置选项
 	for _, value := range config.radioMap {
-		if value == c.ConnectionConfig.Network {
-			value = NewColorString(value, "blue", "cyan", "bold")
+		if value == config.getValue() {
+			value = NewColorString(ToString(value), "black", "green", "bold")
 		}
-		theValueArr = append(theValueArr, value)
+		theValueArr = append(theValueArr, ToString(value))
 	}
 	theValue := strings.Join(theValueArr, " / ")
 	view.Write([]byte(theValue))
@@ -260,7 +368,7 @@ func (c *LTRConnectionEditComponent) formViewRadio(config LTRConnectionEditCompo
 	GuiSetKeysbinding(GlobalApp.Gui, name, []any{gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		theKey := 0
 		for key, value := range config.radioMap {
-			if value == c.ConnectionConfig.Network {
+			if value == config.getValue() {
 				theKey = key + 1
 				break
 			}
@@ -268,14 +376,15 @@ func (c *LTRConnectionEditComponent) formViewRadio(config LTRConnectionEditCompo
 		if theKey >= len(config.radioMap) {
 			theKey = 0
 		}
-		*config.value.BindValString = config.radioMap[theKey]
+		config.setValue(config.radioMap[theKey])
+
 		c.Layout()
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, name, []any{gocui.KeyArrowLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		theKey := 0
 		for key, value := range config.radioMap {
-			if value == c.ConnectionConfig.Network {
+			if value == config.getValue() {
 				theKey = key - 1
 				break
 			}
@@ -283,7 +392,7 @@ func (c *LTRConnectionEditComponent) formViewRadio(config LTRConnectionEditCompo
 		if theKey < 0 {
 			theKey = len(config.radioMap) - 1
 		}
-		*config.value.BindValString = config.radioMap[theKey]
+		config.setValue(config.radioMap[theKey])
 		c.Layout()
 		return nil
 	})
@@ -317,6 +426,16 @@ func (c *LTRConnectionEditComponent) formBtn(name string, title string, xBeing i
 	theTitle += title
 	view.Write([]byte(theTitle))
 	GlobalApp.Gui.DeleteKeybindings(name)
+	// 增加额外的快捷键
+	GuiSetKeysbinding(GlobalApp.Gui, name, []any{gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		c.keyBindTab(1)
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, name, []any{gocui.KeyArrowLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		c.keyBindTab(-1)
+		return nil
+	})
+
 }
 
 func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
@@ -331,16 +450,35 @@ func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		switch c.viewNowCurrent {
 		case c.name + "_enter":
-			// c.ConnectionConfigBak = c.ConnectionConfig
-			// c.closeView()
-			// InitConnectionComponent()
-			PrintLn(c.ConnectionConfig)
-			apiResult := services.Connection().SaveConnection(c.ConnectionConfigBak.Name, c.ConnectionConfig.ConnectionConfig)
-			if apiResult.Success {
-				GlobalTipComponent.LayoutTemporary("Save Success", 2)
-			} else {
-				GlobalTipComponent.LayoutTemporary(apiResult.Msg, 2)
+			if c.ConnectionConfig.Name == "" {
+				GlobalTipComponent.LayoutTemporary("Name can not be empty", 3)
+				return nil
 			}
+			if c.ConnectionConfig.Type == "group" {
+				var apiResult types.JSResp
+				//修改分组名称
+				if c.ConnectionConfigBak.Name == "" {
+					// 创建分组
+					apiResult = services.Connection().CreateGroup(c.ConnectionConfig.Name)
+				} else {
+					// 修改分组名称
+					apiResult = services.Connection().RenameGroup(c.ConnectionConfigBak.Name, c.ConnectionConfig.Name)
+				}
+				if apiResult.Success {
+					GlobalTipComponent.LayoutTemporary("Save group success", 2)
+				} else {
+					GlobalTipComponent.LayoutTemporary(apiResult.Msg, 3)
+				}
+			} else {
+				// 修改连接信息
+				apiResult := services.Connection().SaveConnection(c.ConnectionConfigBak.Name, c.ConnectionConfig.ConnectionConfig)
+				if apiResult.Success {
+					GlobalTipComponent.LayoutTemporary("Save connection success", 2)
+				} else {
+					GlobalTipComponent.LayoutTemporary(apiResult.Msg, 3)
+				}
+			}
+
 			c.closeView()
 			InitConnectionComponent()
 			return nil
@@ -351,6 +489,18 @@ func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 		case c.name + "_reset":
 			c.ConnectionConfig = c.ConnectionConfigBak
 			c.Layout()
+		case c.name + "_test":
+			// 测试连接
+			if c.ConnectionConfig.Type == "group" {
+				GlobalTipComponent.LayoutTemporary("Test group not support", 3)
+			} else {
+				apiResult := services.Connection().TestConnection(c.ConnectionConfig.ConnectionConfig)
+				if apiResult.Success {
+					GlobalTipComponent.LayoutTemporary("Test connection : [success]", 2)
+				} else {
+					GlobalTipComponent.LayoutTemporary("Test connection : [error], "+apiResult.Msg, 5)
+				}
+			}
 		default:
 			c.keyBindTab(1)
 		}
@@ -412,4 +562,28 @@ func (c *LTRConnectionEditComponent) closeView() {
 	}
 	GlobalApp.Gui.DeleteView(c.name)
 	GlobalApp.Gui.DeleteKeybindings(c.name)
+}
+
+func (cf *LTRConnectionEditComponentFormViewConfig) getValue() any {
+	if cf.value.BindValString != nil {
+		return *cf.value.BindValString
+	} else if cf.value.BindValInt != nil {
+		return *cf.value.BindValInt
+	} else if cf.value.BindValBool != nil {
+		return *cf.value.BindValBool
+	} else {
+		return nil
+	}
+}
+
+func (cf *LTRConnectionEditComponentFormViewConfig) setValue(newValue any) {
+	if cf.value.BindValString != nil {
+		*cf.value.BindValString = newValue.(string)
+	} else if cf.value.BindValInt != nil {
+		*cf.value.BindValInt = newValue.(int)
+	} else if cf.value.BindValBool != nil {
+		*cf.value.BindValBool = newValue.(bool)
+	} else {
+		return
+	}
 }

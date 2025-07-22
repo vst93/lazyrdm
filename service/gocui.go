@@ -53,6 +53,7 @@ func (e *EditorPassword) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.M
 type EditorInput struct {
 	BindValString *string
 	BindValInt    *int
+	BindValBool   *bool
 }
 
 func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
@@ -63,6 +64,12 @@ func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
 		// 删除字符
 		v.EditDelete(true)
+		if e.BindValString != nil {
+			*e.BindValString = v.Buffer()
+		}
+		if e.BindValInt != nil {
+			*e.BindValInt = int(ch)
+		}
 	case key == gocui.KeyArrowLeft:
 		// 光标左移
 		v.MoveCursor(-1, 0, false)

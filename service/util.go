@@ -53,3 +53,14 @@ func DisposeMultibyteString(text string) []byte {
 	}
 	return []byte(string(result))
 }
+
+func ToString(s any) string {
+	switch s := s.(type) {
+	case string:
+		return s
+	case []byte:
+		return string(s)
+	default:
+		return fmt.Sprintf("%v", s)
+	}
+}
