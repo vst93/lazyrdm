@@ -3,10 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
+	"path"
+	"time"
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
 
+	"github.com/duke-git/lancet/v2/fileutil"
 	"github.com/jroimartin/gocui"
+	"github.com/vrischmann/userdir"
 )
 
 type LTRConnectionComponent struct {
@@ -353,12 +358,26 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		return nil
 	})
 
-	GlobalApp.Gui.SetKeybinding(c.Name, gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if c.isConnecting {
-			return nil
+	// 导出连接信息
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyCtrlE}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		apiResult := c.ExportConnections()
+		PrintLn(apiResult)
+		if apiResult.Success {
+			GlobalTipComponent.LayoutTemporary("Export connections success", 2, TipTypeSuccess)
+			OpenFileManager(apiResult.Data.(struct {
+				Path string `json:"path"`
+			}).Path)
+		} else {
+			GlobalTipComponent.LayoutTemporary("Export connections failed", 3, TipTypeError)
 		}
 		return nil
 	})
+	// GlobalApp.Gui.SetKeybinding(c.Name, gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 	if c.isConnecting {
+	// 		return nil
+	// 	}
+	// 	return nil
+	// })
 	return c
 }
 
@@ -370,6 +389,7 @@ func (c *LTRConnectionComponent) KeyMapTip() string {
 		{"Edit", "<E>"},
 		{"New", "<N>"},
 		{"Delete", "<D>"},
+		{"Export", "<Ctrl + E>"},
 		{"[Global] Quit", "<Ctrl + Q>"},
 	}
 	ret := ""
@@ -388,4 +408,39 @@ func (c *LTRConnectionComponent) closeView() {
 	GlobalApp.Gui.DeleteView(c.Name)
 	GlobalApp.Gui.DeleteKeybindings(c.Name)
 	GlobalApp.ViewNameList = []string{} // 清空视图列表
+}
+
+func (c *LTRConnectionComponent) ExportConnections() (resp types.JSResp) {
+	defaultFileName := "connections_" + time.Now().Format("20060102150405") + ".zip"
+
+	// 获取用户下载目录
+	userDownloadDir, err := GetDownloadPath()
+	if err != nil {
+		userDownloadDir = "~"
+	}
+	filepath := path.Join(userDownloadDir, defaultFileName)
+
+	// compress the connections profile with zip
+	const connectionFilename = "connections.yaml"
+	connectionFilePath := path.Join(userdir.GetConfigHome(), "TinyRDM", connectionFilename)
+	inputFile, err := os.Open(connectionFilePath)
+	if err != nil {
+		resp.Msg = err.Error()
+		return
+	}
+	defer inputFile.Close()
+
+	err = fileutil.Zip(connectionFilePath, filepath)
+	if err != nil {
+		resp.Msg = err.Error()
+		return
+	}
+
+	resp.Success = true
+	resp.Data = struct {
+		Path string `json:"path"`
+	}{
+		Path: filepath,
+	}
+	return
 }

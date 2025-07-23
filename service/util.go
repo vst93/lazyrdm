@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"unicode"
 )
 
@@ -63,4 +67,124 @@ func ToString(s any) string {
 	default:
 		return fmt.Sprintf("%v", s)
 	}
+}
+
+// // OpenFileManager 使用系统默认文件管理器打开指定路径
+// func OpenFileManager(path string) error {
+// 	// 获取绝对路径
+// 	absPath, err := filepath.Abs(path)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	// 根据不同操作系统执行不同命令
+// 	switch runtime.GOOS {
+// 	case "darwin": // macOS
+// 		return exec.Command("open", absPath).Start()
+// 	case "windows": // Windows
+// 		// 转换路径分隔符为Windows格式
+// 		winPath := filepath.ToSlash(absPath)
+// 		// 处理Windows驱动器号
+// 		if len(winPath) >= 2 && winPath[1] == ':' {
+// 			winPath = strings.ToUpper(string(winPath[0])) + winPath[1:]
+// 		}
+// 		return exec.Command("explorer", winPath).Start()
+// 	default: // Linux和其他类Unix系统
+// 		return exec.Command("xdg-open", absPath).Start()
+// 	}
+// }
+
+// OpenFileManager 使用默认文件管理器打开文件所在目录
+func OpenFileManager(filePath string) error {
+	// 获取文件的绝对路径和所在目录
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return fmt.Errorf("获取绝对路径失败: %w", err)
+	}
+
+	dirPath := filepath.Dir(absPath)
+
+	// 根据操作系统执行不同命令
+	switch runtime.GOOS {
+	case "darwin": // macOS
+		// 使用 open 命令打开目录
+		err = exec.Command("open", dirPath).Start()
+	case "linux":
+		// 使用 xdg-open 打开目录
+		err = exec.Command("xdg-open", dirPath).Start()
+	case "windows":
+		// Windows 需要特殊处理路径格式
+		winDir := strings.ReplaceAll(dirPath, "/", "\\")
+
+		// 使用 PowerShell 命令打开目录
+		cmd := exec.Command("powershell", "-Command",
+			fmt.Sprintf("Start-Process explorer -ArgumentList '%s'", winDir))
+
+		// 直接运行命令，不处理窗口隐藏
+		err = cmd.Start()
+	default:
+		err = fmt.Errorf("不支持的操作系统: %s", runtime.GOOS)
+	}
+
+	return err
+}
+
+// GetDownloadPath 获取当前系统的默认下载目录路径
+func GetDownloadPath() (string, error) {
+	switch runtime.GOOS {
+	case "windows":
+		return getWindowsDownloadPath()
+	case "darwin":
+		return getMacDownloadPath()
+	default: // Linux 和其他类Unix系统
+		return getLinuxDownloadPath()
+	}
+}
+
+// getWindowsDownloadPath 获取Windows下载路径
+func getWindowsDownloadPath() (string, error) {
+	// 首选检查环境变量
+	if path := os.Getenv("USERPROFILE"); path != "" {
+		return filepath.Join(path, "Downloads"), nil
+	}
+
+	// 备选方案：使用已知文件夹ID (FOLDERID_Downloads)
+	// 这需要调用Windows API，简单实现如下：
+	path, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	}
+	return filepath.Join(path, "Downloads"), nil
+}
+
+// getMacDownloadPath 获取macOS下载路径
+func getMacDownloadPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	}
+	return filepath.Join(home, "Downloads"), nil
+}
+
+// getLinuxDownloadPath 获取Linux下载路径
+func getLinuxDownloadPath() (string, error) {
+	// 1. 检查XDG规范的环境变量
+	if path := os.Getenv("XDG_DOWNLOAD_DIR"); path != "" {
+		return path, nil
+	}
+
+	// 2. 检查用户目录下的Downloads
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	}
+	downloadsPath := filepath.Join(home, "Downloads")
+
+	// 3. 检查路径是否存在（有些系统可能使用不同名称）
+	if _, err := os.Stat(downloadsPath); err == nil {
+		return downloadsPath, nil
+	}
+
+	// 4. 最后尝试使用$HOME作为备选
+	return home, nil
 }
