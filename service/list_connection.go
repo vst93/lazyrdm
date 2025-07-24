@@ -1,14 +1,18 @@
 package service
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path"
+	"strings"
 	"time"
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
 
+	"github.com/atotto/clipboard"
 	"github.com/duke-git/lancet/v2/fileutil"
 	"github.com/jroimartin/gocui"
 	"github.com/vrischmann/userdir"
@@ -28,6 +32,7 @@ type LTRConnectionComponent struct {
 	lastDB                                int
 	version                               string
 	isConnecting                          bool
+	GUIView                               *gocui.View
 }
 
 func InitConnectionComponent() {
@@ -83,22 +88,20 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		theX0 = (GlobalApp.maxX - GlobalApp.maxY) / 2
 		theX1 = theX0 + GlobalApp.maxY - 1
 	}
-	v, err := GlobalApp.Gui.SetView(c.Name, theX0, theY0, theX1, theY1)
-	if err != nil {
-		if err != gocui.ErrUnknownView {
-			return c
+	var err error
+	if c.GUIView == nil {
+		c.GUIView, err = GlobalApp.Gui.SetView(c.Name, theX0, theY0, theX1, theY1)
+		if err != nil {
+			if err != gocui.ErrUnknownView {
+				return c
+			}
+			c.GUIView.Title = " " + c.title + " "
+			c.GUIView.Editable = false
+			c.GUIView.Frame = true
+			_, c.LayoutMaxY = c.GUIView.Size()
 		}
-		v.Title = " " + c.title + " "
-		v.Editable = false
-		// v.Wrap = true
-		// v.Autoscroll = true
-		v.Frame = true
-		// v.FgColor = gocui.ColorGreen
-		_, c.LayoutMaxY = v.Size()
-
-		GlobalApp.Gui.SetCurrentView(c.Name)
-		// GlobalTipComponent.Layout()
 	}
+	GlobalApp.Gui.SetCurrentView(c.Name)
 
 	printString := ""
 	currenLine := 0
@@ -143,12 +146,12 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		if originLine > totalLine-c.LayoutMaxY {
 			originLine = totalLine - c.LayoutMaxY
 		}
-		v.SetOrigin(0, originLine)
+		c.GUIView.SetOrigin(0, originLine)
 	} else {
-		v.SetOrigin(0, 0)
+		c.GUIView.SetOrigin(0, 0)
 	}
-	v.Clear()
-	v.Write([]byte(printString))
+	c.GUIView.Clear()
+	c.GUIView.Write([]byte(printString))
 
 	if GlobalApp.Gui.CurrentView().Name() == c.Name {
 		GlobalTipComponent.Layout(c.KeyMapTip())
@@ -372,6 +375,40 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		}
 		return nil
 	})
+
+	// 导入连接信息
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyCtrlI}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		//读取剪切板内容
+		clipboardContent, _ := clipboard.ReadAll()
+		noticeString := "You need to first copy the path of the link file exported from Tiny RDM (in zip format) to the clipboard and select Confirm to import.\n\nCurrent clipboard: " + clipboardContent
+		NewPageComponentConfirm("Import connections", noticeString, func() {
+			// 导入连接信息
+			if clipboardContent == "" {
+				GlobalTipComponent.LayoutTemporary("Failed to get clipboard content", 5, TipTypeError)
+				GlobalApp.Gui.SetCurrentView(c.Name)
+				return
+			}
+			if !strings.HasSuffix(clipboardContent, ".zip") {
+				GlobalTipComponent.LayoutTemporary("The clipboard content is not a zip file path", 5, TipTypeError)
+				GlobalApp.Gui.SetCurrentView(c.Name)
+				return
+			}
+			apiResult := c.ImportConnections(clipboardContent)
+			if !apiResult.Success {
+				GlobalTipComponent.LayoutTemporary(apiResult.Msg, 5, TipTypeError)
+				GlobalApp.Gui.SetCurrentView(c.Name)
+				return
+			}
+			GlobalTipComponent.LayoutTemporary("Import connections success", 2, TipTypeSuccess)
+			c.closeView()
+			InitConnectionComponent()
+		}, func() {
+			// 取消导入
+			GlobalTipComponent.LayoutTemporary("Import canceled", 2, TipTypeSuccess)
+			GlobalApp.Gui.SetCurrentView(c.Name)
+		})
+		return nil
+	})
 	// GlobalApp.Gui.SetKeybinding(c.Name, gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 	// 	if c.isConnecting {
 	// 		return nil
@@ -410,6 +447,7 @@ func (c *LTRConnectionComponent) closeView() {
 	GlobalApp.ViewNameList = []string{} // 清空视图列表
 }
 
+// ExportConnections 导出连接信息
 func (c *LTRConnectionComponent) ExportConnections() (resp types.JSResp) {
 	defaultFileName := "connections_" + time.Now().Format("20060102150405") + ".zip"
 
@@ -442,5 +480,51 @@ func (c *LTRConnectionComponent) ExportConnections() (resp types.JSResp) {
 	}{
 		Path: filepath,
 	}
+	return
+}
+
+// ImportConnections import connections from local zip file
+func (c *LTRConnectionComponent) ImportConnections(filepath string) (resp types.JSResp) {
+	if !fileutil.IsZipFile(filepath) {
+		resp.Msg = "The file is not a zip file"
+		return
+	}
+
+	const connectionFilename = "connections.yaml"
+	zipFile, err := zip.OpenReader(filepath)
+	if err != nil {
+		resp.Msg = err.Error()
+		return
+	}
+
+	var file *zip.File
+	for _, file = range zipFile.File {
+		if file.Name == connectionFilename {
+			break
+		}
+	}
+	if file != nil {
+		zippedFile, err := file.Open()
+		if err != nil {
+			resp.Msg = err.Error()
+			return
+		}
+		defer zippedFile.Close()
+
+		outputFile, err := os.Create(path.Join(userdir.GetConfigHome(), "TinyRDM", connectionFilename))
+		PrintLn(path.Join(userdir.GetConfigHome(), "TinyRDM", connectionFilename))
+		if err != nil {
+			resp.Msg = err.Error()
+			return
+		}
+		defer outputFile.Close()
+
+		if _, err = io.Copy(outputFile, zippedFile); err != nil {
+			resp.Msg = err.Error()
+			return
+		}
+	}
+
+	resp.Success = true
 	return
 }

@@ -29,15 +29,15 @@ func NewPageComponentConfirm(title string, text string, callbackYes func(), call
 func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	GlobalApp.Gui.Cursor = false
 	theX0 := 0
-	theY0 := GlobalApp.maxY/2 - 3
+	theY0 := GlobalApp.maxY/2 - 5
 	theX1 := GlobalApp.maxX - 1
-	theY1 := theY0 + 5
+	theY1 := theY0 + 8
 	if GlobalApp.maxX > GlobalApp.maxY && (theY1*15/10) <= theX1 {
 		theX0 = (GlobalApp.maxX - GlobalApp.maxY) / 2
 		theX1 = theX0 + GlobalApp.maxY - 1
 	}
 	v, _ := GlobalApp.Gui.SetView(c.name, theX0, theY0, theX1, theY1)
-	v.Title = c.title
+	v.Title = " " + c.title + " "
 	v.Wrap = true
 	v.Editable = false
 	v.Frame = true
