@@ -32,7 +32,6 @@ type LTRConnectionComponent struct {
 	lastDB                                int
 	version                               string
 	isConnecting                          bool
-	GUIView                               *gocui.View
 }
 
 func InitConnectionComponent() {
@@ -88,18 +87,15 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		theX0 = (GlobalApp.maxX - GlobalApp.maxY) / 2
 		theX1 = theX0 + GlobalApp.maxY - 1
 	}
-	var err error
-	if c.GUIView == nil {
-		c.GUIView, err = GlobalApp.Gui.SetView(c.Name, theX0, theY0, theX1, theY1)
-		if err != nil {
-			if err != gocui.ErrUnknownView {
-				return c
-			}
-			c.GUIView.Title = " " + c.title + " "
-			c.GUIView.Editable = false
-			c.GUIView.Frame = true
-			_, c.LayoutMaxY = c.GUIView.Size()
+	v, err := GlobalApp.Gui.SetView(c.Name, theX0, theY0, theX1, theY1)
+	if err != nil {
+		if err != gocui.ErrUnknownView {
+			return c
 		}
+		v.Title = " " + c.title + " "
+		v.Editable = false
+		v.Frame = true
+		_, c.LayoutMaxY = v.Size()
 	}
 	GlobalApp.Gui.SetCurrentView(c.Name)
 
@@ -146,12 +142,12 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		if originLine > totalLine-c.LayoutMaxY {
 			originLine = totalLine - c.LayoutMaxY
 		}
-		c.GUIView.SetOrigin(0, originLine)
+		v.SetOrigin(0, originLine)
 	} else {
-		c.GUIView.SetOrigin(0, 0)
+		v.SetOrigin(0, 0)
 	}
-	c.GUIView.Clear()
-	c.GUIView.Write([]byte(printString))
+	v.Clear()
+	v.Write([]byte(printString))
 
 	if GlobalApp.Gui.CurrentView().Name() == c.Name {
 		GlobalTipComponent.Layout(c.KeyMapTip())
@@ -420,13 +416,14 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 
 func (c *LTRConnectionComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
-		{"Select", "↑/↓"},
+		{"Navigate", "↑/↓"},
 		{"Up", "←"},
-		{"Enter", "<Enter>/→"},
+		{"Select", "<Enter>/→"},
 		{"Edit", "<E>"},
 		{"New", "<N>"},
 		{"Delete", "<D>"},
 		{"Export", "<Ctrl + E>"},
+		{"Import", "<Ctrl + I>"},
 		{"[Global] Quit", "<Ctrl + Q>"},
 	}
 	ret := ""
@@ -512,7 +509,7 @@ func (c *LTRConnectionComponent) ImportConnections(filepath string) (resp types.
 		defer zippedFile.Close()
 
 		outputFile, err := os.Create(path.Join(userdir.GetConfigHome(), "TinyRDM", connectionFilename))
-		PrintLn(path.Join(userdir.GetConfigHome(), "TinyRDM", connectionFilename))
+		// PrintLn(path.Join(userdir.GetConfigHome(), "TinyRDM", connectionFilename))
 		if err != nil {
 			resp.Msg = err.Error()
 			return
