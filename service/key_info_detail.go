@@ -20,6 +20,7 @@ type LTRKeyInfoDetailComponent struct {
 	keyValueFormat string
 	viewOriginY    int
 	keyValueMaxY   int
+	CopyString     string
 }
 
 var keyValueFormatList = []string{"Raw", "JSON"}
@@ -81,6 +82,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	// theValRune = theValRune[:GlobalApp.maxX-theX0-2]
 	// theVal = string(theValRune)
 	// theVal = text.TrimSpace(theVal)
+	c.CopyString = theVal
 	c.view.Write(DisposeMultibyteString(theVal))
 
 	// show format select
@@ -110,12 +112,13 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 
 	//copy
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'c', 'C'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		theVal := c.view.ViewBuffer()
+		theVal := c.CopyString
 		if theVal == "" {
+			GlobalTipComponent.LayoutTemporary("No data to copy", 2, TipTypeWarning)
 			return nil
 		}
 		clipboard.WriteAll(theVal)
-		GlobalTipComponent.LayoutTemporary("Copied to clipboard", 2, TipTypeSuccess)
+		GlobalTipComponent.LayoutTemporary("Copied to clipboard", 3, TipTypeSuccess)
 		return nil
 	})
 	// scroll

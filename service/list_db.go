@@ -103,7 +103,7 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 }
 
 func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.CurrenDB++
 		if c.CurrenDB > len(GlobalConnectionComponent.dbs)-1 {
 			c.CurrenDB = 0
@@ -113,7 +113,7 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 		c.Layout()
 		return nil
 	})
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.CurrenDB--
 		if c.CurrenDB < 0 {
 			c.CurrenDB = len(GlobalConnectionComponent.dbs) - 1
