@@ -21,7 +21,6 @@ type LTRListKeyComponent struct {
 	MaxKeys       int64
 	IsEnd         bool
 	pendDeleteKey string
-	pendAddKey    string
 }
 
 func InitKeyComponent() {
@@ -33,6 +32,7 @@ func InitKeyComponent() {
 	}
 	GlobalKeyComponent.LoadKeys().Layout().KeyBind()
 	GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, GlobalKeyComponent.name)
+	GlobalTipComponent.AppendList(GlobalKeyComponent.name, GlobalKeyComponent.KeyMapTip())
 }
 
 func (c *LTRListKeyComponent) LoadKeys() *LTRListKeyComponent {
@@ -123,7 +123,6 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	// if GlobalApp.Gui.CurrentView().Name() == c.name {
 	// 	GlobalTipComponent.Layout(c.KeyMapTip())
 	// }
-	GlobalTipComponent.AppendList(c.name, c.KeyMapTip())
 
 	return c
 }

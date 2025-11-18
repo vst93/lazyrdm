@@ -85,15 +85,16 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 		GlobalTipComponent.LayoutTemporary("Copied to clipboard", 2, TipTypeSuccess)
 		return nil
 	})
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'v'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'v'}, "Are you sure to rename the key with the value in clipboard?", func() {
 		theClipboardValue, err := clipboard.ReadAll()
 		if err != nil {
 			GlobalTipComponent.LayoutTemporary("Clipboard is empty or not available", 3, TipTypeError)
-			return nil
+			return
 		}
 		if theClipboardValue == c.keyName {
 			GlobalTipComponent.LayoutTemporary("The value is the same as the current key", 3, TipTypeWarning)
-			return nil
+			return
 		}
 		// 修改 key
 		res := services.Browser().RenameKey(
@@ -104,15 +105,22 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 		)
 		if !res.Success {
 			GlobalTipComponent.LayoutTemporary("Failed to rename key, message: "+res.Msg, 3, TipTypeError)
-			return nil
+			return
 		}
 		GlobalTipComponent.LayoutTemporary("Renamed successfully", 3, TipTypeSuccess)
+		theOldKeyName := c.keyName
 		c.keyName = theClipboardValue
+		for i, v := range GlobalKeyComponent.keys {
+			if v == theOldKeyName {
+				GlobalKeyComponent.keys[i] = theClipboardValue
+				break
+			}
+		}
+		GlobalKeyComponent.Layout()
 		c.Layout()
-
-		return nil
+	}, func() {
+		GlobalTipComponent.LayoutTemporary("Cancel rename key", 3, TipTypeWarning)
 	})
-
 	return c
 }
 

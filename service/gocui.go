@@ -2,6 +2,7 @@ package service
 
 import (
 	"strings"
+	"time"
 
 	"github.com/jroimartin/gocui"
 )
@@ -29,6 +30,33 @@ func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifie
 		}
 	}
 	return nil
+}
+
+// GuiSetKeysbindingConfirm set keysbinding for a view with confirm
+func GuiSetKeysbindingConfirm(g *gocui.Gui, viewname string, keys []any, tip string, handlerYes func(), handlerNo func()) {
+	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		GlobalTipComponent.LayoutTemporary(tip, 10, TipTypeWarning)
+		GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+		GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+		go func() {
+			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+				handlerYes()
+				return nil
+			})
+			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+				handlerNo()
+				return nil
+			})
+			time.Sleep(time.Second * 10)
+			GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+			GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+		}()
+		return nil
+	})
 }
 
 // 密码编辑器，把每个字符替换为 '*'
