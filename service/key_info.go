@@ -6,6 +6,7 @@ import (
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
 
+	"github.com/atotto/clipboard"
 	"github.com/jroimartin/gocui"
 )
 
@@ -24,7 +25,7 @@ func InitKeyInfoComponent() {
 		title:      "Info",
 		LayoutMaxY: 0,
 	}
-	GlobalKeyInfoComponent.Layout()
+	GlobalKeyInfoComponent.Layout().KeyBind()
 	GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, GlobalKeyInfoComponent.name)
 }
 
@@ -73,9 +74,53 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	return c
 }
 
+func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'c'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		// copy key value
+		if c.keyName == "" {
+			GlobalTipComponent.LayoutTemporary("No data to copy", 2, TipTypeWarning)
+			return nil
+		}
+		clipboard.WriteAll(c.keyName)
+		GlobalTipComponent.LayoutTemporary("Copied to clipboard", 2, TipTypeSuccess)
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'v'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		theClipboardValue, err := clipboard.ReadAll()
+		if err != nil {
+			GlobalTipComponent.LayoutTemporary("Clipboard is empty or not available", 3, TipTypeError)
+			return nil
+		}
+		if theClipboardValue == c.keyName {
+			GlobalTipComponent.LayoutTemporary("The value is the same as the current key", 3, TipTypeWarning)
+			return nil
+		}
+		// 修改 key
+		res := services.Browser().RenameKey(
+			GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+			GlobalDBComponent.SelectedDB,
+			c.keyName,
+			theClipboardValue,
+		)
+		if !res.Success {
+			GlobalTipComponent.LayoutTemporary("Failed to rename key, message: "+res.Msg, 3, TipTypeError)
+			return nil
+		}
+		GlobalTipComponent.LayoutTemporary("Renamed successfully", 3, TipTypeSuccess)
+		c.keyName = theClipboardValue
+		c.Layout()
+
+		return nil
+	})
+
+	return c
+}
+
 func (c *LTRKeyInfoComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Switch", "<Tab>"},
+		{"Copy", "<C>"},
+		{"Paste", "<V>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
