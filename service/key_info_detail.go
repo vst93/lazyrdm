@@ -152,6 +152,14 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.switchKeyValueFormat()
 		return nil
 	})
+
+	// 刷新
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'r'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		GlobalKeyInfoComponent.Layout()
+		GlobalKeyInfoDetailComponent.viewOriginY = 0
+		GlobalKeyInfoDetailComponent.Layout()
+		return nil
+	})
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
@@ -161,6 +169,7 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 		{"Copy", "<C>"},
 		{"Scroll", "↑/↓"},
 		{"Scroll Page", "←/→"},
+		{"Refresh", "<R>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

@@ -164,6 +164,16 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		return nil
 	})
 
+	// 刷新
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'r'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		services.Browser().OpenDatabase(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name, GlobalDBComponent.SelectedDB)
+		c.IsEnd = false
+		c.keys = []any{}
+		c.Current = 0
+		c.LoadKeys().Layout()
+		return nil
+	})
+
 	// 鼠标点击聚焦
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		GlobalApp.ForceUpdate(c.name)
@@ -227,6 +237,7 @@ func (c *LTRListKeyComponent) KeyMapTip() string {
 		{"Select", "↑/↓"},
 		{"Enter", "<Enter>/→"},
 		{"Delete", "<D>"},
+		{"Refresh", "<R>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
