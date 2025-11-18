@@ -121,6 +121,34 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("Cancel rename key", 3, TipTypeWarning)
 	})
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'t'}, "Are you sure to change the TTL(seconds) with the value in clipboard?", func() {
+		theClipboardValue, err := clipboard.ReadAll()
+		if err != nil {
+			GlobalTipComponent.LayoutTemporary("Clipboard is empty or not available", 3, TipTypeError)
+			return
+		}
+		//判断剪切板内容是否为数字
+		theClipboardValueInt, err := strconv.ParseInt(theClipboardValue, 10, 64)
+		if err != nil {
+			GlobalTipComponent.LayoutTemporary("TTL value is not a number", 3, TipTypeError)
+			return
+		}
+		// 修改 ttl
+		res := services.Browser().SetKeyTTL(
+			GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+			GlobalDBComponent.SelectedDB,
+			c.keyName,
+			theClipboardValueInt,
+		)
+		if !res.Success {
+			GlobalTipComponent.LayoutTemporary("Failed to set TTL, message: "+res.Msg, 3, TipTypeError)
+			return
+		}
+		GlobalTipComponent.LayoutTemporary("Set TTL successfully", 3, TipTypeSuccess)
+		c.Layout()
+	}, func() {
+		GlobalTipComponent.LayoutTemporary("Cancel set TTL", 3, TipTypeWarning)
+	})
 	return c
 }
 
@@ -129,6 +157,7 @@ func (c *LTRKeyInfoComponent) KeyMapTip() string {
 		{"Switch", "<Tab>"},
 		{"Copy", "<C>"},
 		{"Paste", "<V>"},
+		{"Paste TTL", "<T>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

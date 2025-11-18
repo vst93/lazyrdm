@@ -160,6 +160,55 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		GlobalKeyInfoDetailComponent.Layout()
 		return nil
 	})
+
+	// 修改值
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'v'}, "Are you sure to change the value with the value in clipboard?", func() {
+		theClipboardValue, err := clipboard.ReadAll()
+		if err != nil {
+			GlobalTipComponent.LayoutTemporary("Clipboard is empty or not available", 3, TipTypeError)
+			return
+		}
+		if GlobalKeyInfoComponent.keyName == "" {
+			GlobalTipComponent.LayoutTemporary("No key selected", 3, TipTypeError)
+			return
+		}
+
+		// 检查 key 类型
+		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
+			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+			DB:     GlobalDBComponent.SelectedDB,
+			Key:    GlobalKeyInfoComponent.keyName,
+		})
+		if !keySummary.Success {
+			GlobalTipComponent.LayoutTemporary("Failed to get key summary, message: "+keySummary.Msg, 3, TipTypeError)
+			return
+		}
+		keySummaryData := keySummary.Data.(types.KeySummary)
+		if keySummaryData.Type != "string" {
+			GlobalTipComponent.LayoutTemporary("Only string type can be modified at now", 3, TipTypeError)
+			return
+		}
+
+		// 修改值
+		res := services.Browser().SetKeyValue(
+			types.SetKeyParam{
+				Server:  GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+				DB:      GlobalDBComponent.SelectedDB,
+				Key:     GlobalKeyInfoComponent.keyName,
+				KeyType: "string",
+				Value:   theClipboardValue,
+				TTL:     -1,
+			},
+		)
+		if !res.Success {
+			GlobalTipComponent.LayoutTemporary("Failed to set value, message: "+res.Msg, 3, TipTypeError)
+			return
+		}
+		GlobalTipComponent.LayoutTemporary("Set value successfully", 3, TipTypeSuccess)
+		c.Layout()
+	}, func() {
+		GlobalTipComponent.LayoutTemporary("Cancel set value", 3, TipTypeWarning)
+	})
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
@@ -167,6 +216,7 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 		{"Switch", "<Tab>"},
 		{"Switch Format", "<F>"},
 		{"Copy", "<C>"},
+		{"Paste", "<V>"},
 		{"Scroll", "↑/↓"},
 		{"Scroll Page", "←/→"},
 		{"Refresh", "<R>"},
