@@ -10,14 +10,15 @@ import (
 )
 
 type LTRListKeyComponent struct {
-	name     string
-	title    string
-	viewMaxY int
-	view     *gocui.View
-	Current  int
-	keys     []any
-	MaxKeys  int64
-	IsEnd    bool
+	name          string
+	title         string
+	viewMaxY      int
+	view          *gocui.View
+	Current       int
+	keys          []any
+	MaxKeys       int64
+	IsEnd         bool
+	pendDeleteKey string
 }
 
 func InitKeyComponent() {
@@ -167,6 +168,54 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		return nil
 	})
 
+	// 删除 key
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyDelete, 'd'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if GlobalKeyComponent.Current < 0 || GlobalKeyComponent.Current > len(GlobalKeyComponent.keys)-1 {
+			return nil
+		}
+		c.pendDeleteKey = fmt.Sprintf("%s", GlobalKeyComponent.keys[GlobalKeyComponent.Current])
+		GlobalTipComponent.LayoutTemporary("Do you want to delete key [ "+c.pendDeleteKey+"] ? (y/n)", 10, TipTypeWarning)
+		return nil
+	})
+
+	// 删除 key - n
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.pendDeleteKey == "" {
+			return nil
+		}
+		GlobalTipComponent.LayoutTemporary("Cancel deleting key", 2, TipTypeWarning)
+		return nil
+	})
+
+	// 删除 key - y
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.pendDeleteKey == "" {
+			return nil
+		}
+		deleteStaus := false
+		for i, key := range GlobalKeyComponent.keys {
+			if key == c.pendDeleteKey {
+				services.Browser().DeleteKey(
+					GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+					GlobalDBComponent.SelectedDB,
+					c.pendDeleteKey,
+					true,
+				)
+				GlobalKeyComponent.keys = append(GlobalKeyComponent.keys[:i], GlobalKeyComponent.keys[i+1:]...)
+				deleteStaus = true
+				break
+			}
+		}
+		if deleteStaus {
+			GlobalTipComponent.LayoutTemporary("Key [ "+c.pendDeleteKey+"] deleted", 2, TipTypeSuccess)
+		} else {
+			GlobalTipComponent.LayoutTemporary("Key [ "+c.pendDeleteKey+"] not found", 2, TipTypeError)
+		}
+		c.pendDeleteKey = ""
+		c.Layout()
+		return nil
+	})
+
 	return c
 }
 
@@ -175,6 +224,7 @@ func (c *LTRListKeyComponent) KeyMapTip() string {
 		{"Switch", "<Tab>"},
 		{"Select", "↑/↓"},
 		{"Enter", "<Enter>/→"},
+		{"Delete", "<D>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
