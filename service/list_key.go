@@ -17,6 +17,7 @@ type LTRListKeyComponent struct {
 	Current  int
 	keys     []any
 	MaxKeys  int64
+	IsEnd    bool
 }
 
 func InitKeyComponent() {
@@ -31,6 +32,9 @@ func InitKeyComponent() {
 }
 
 func (c *LTRListKeyComponent) LoadKeys() *LTRListKeyComponent {
+	if c.IsEnd {
+		return c
+	}
 	// get key list
 	if GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name == "" || GlobalDBComponent.SelectedDB < 0 {
 		return c
@@ -45,9 +49,16 @@ func (c *LTRListKeyComponent) LoadKeys() *LTRListKeyComponent {
 	if !keysInfo.Success {
 		return c
 	}
-	c.keys = keysInfo.Data.(map[string]any)["keys"].([]any)
-	// retEnd := keysInfo.Data.(map[string]any)["end"].(bool)
+	theList := keysInfo.Data.(map[string]any)["keys"].([]any)
+	if len(theList) > 0 {
+		c.keys = append(c.keys, theList...)
+	}
+	// c.keys = keysInfo.Data.(map[string]any)["keys"].([]any)
+	retEnd := keysInfo.Data.(map[string]any)["end"].(bool)
+	c.IsEnd = retEnd
 	c.MaxKeys = keysInfo.Data.(map[string]any)["maxKeys"].(int64)
+	// PrintLn(retEnd)
+	// PrintLn(c.MaxKeys)
 	return c
 }
 
@@ -97,6 +108,9 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 			} else {
 				printString += fmt.Sprintf("%s\n", strconv.Itoa(index)+"-"+keyStr+""+SPACE_STRING)
 			}
+		}
+		if c.Current >= (len(c.keys) - 1) {
+			c.LoadKeys()
 		}
 	}
 

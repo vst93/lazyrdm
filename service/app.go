@@ -54,8 +54,8 @@ func (app *MainApp) ForceUpdate(setViewName string) {
 		default:
 			GlobalDBComponent.Layout()
 			GlobalKeyComponent.Layout()
-			GlobalKeyInfoComponent.Layout()
-			GlobalKeyInfoDetailComponent.Layout()
+			// GlobalKeyInfoComponent.Layout()
+			// GlobalKeyInfoDetailComponent.Layout()
 		}
 	}
 	GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil })

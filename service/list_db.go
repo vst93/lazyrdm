@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"strconv"
+	"tinyrdm/backend/services"
 
 	"github.com/jroimartin/gocui"
 )
@@ -125,9 +126,17 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 	})
 
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyEnter, gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		oldSelectedDB := c.SelectedDB
 		c.SelectedDB = c.CurrenDB
 		GlobalApp.Gui.SetCurrentView(GlobalKeyComponent.name)
 		c.Layout()
+		if c.SelectedDB != oldSelectedDB {
+			services.Browser().OpenDatabase(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name, c.SelectedDB)
+			GlobalKeyComponent.IsEnd = false
+			GlobalKeyComponent.keys = []any{}
+			GlobalKeyComponent.Current = 0
+		}
+
 		GlobalKeyComponent.LoadKeys().Layout()
 		return nil
 	})
