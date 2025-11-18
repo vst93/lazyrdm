@@ -46,9 +46,10 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	v.Write([]byte(c.text))
 	GlobalApp.Gui.SetCurrentView(c.name)
 	c.KeyBind()
-	if GlobalApp.Gui.CurrentView().Name() == c.name {
-		GlobalTipComponent.Layout(c.KeyMapTips())
-	}
+	// if GlobalApp.Gui.CurrentView().Name() == c.name {
+	// 	GlobalTipComponent.Layout(c.KeyMapTips())
+	// }
+	GlobalTipComponent.AppendList(c.name, c.KeyMapTips())
 	return c
 }
 

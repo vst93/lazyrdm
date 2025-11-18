@@ -254,7 +254,8 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 	v.Clear()
 	c.KeyBind()
 
-	GlobalTipComponent.Layout(c.KeyMapTip())
+	// GlobalTipComponent.Layout(c.KeyMapTip())
+	GlobalTipComponent.AppendList(c.name, c.KeyMapTip())
 	return c
 }
 

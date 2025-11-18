@@ -149,10 +149,10 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 	v.Clear()
 	v.Write([]byte(printString))
 
-	if GlobalApp.Gui.CurrentView().Name() == c.Name {
-		GlobalTipComponent.Layout(c.KeyMapTip())
-	}
-
+	// if GlobalApp.Gui.CurrentView().Name() == c.Name {
+	// 	GlobalTipComponent.Layout(c.KeyMapTip())
+	// }
+	GlobalTipComponent.AppendList(c.Name, c.KeyMapTip())
 	return c
 }
 

@@ -33,6 +33,7 @@ func InitDBComponent() {
 	}
 	GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, GlobalDBComponent.name)
 	GlobalDBComponent.Layout().KeyBind()
+	GlobalTipComponent.AppendList(GlobalDBComponent.name, GlobalDBComponent.KeyMapTip())
 	GlobalApp.Gui.SetCurrentView(GlobalDBComponent.name)
 	GlobalDBComponent.Layout()
 	InitKeyComponent()

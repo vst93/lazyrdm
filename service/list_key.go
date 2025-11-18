@@ -117,9 +117,10 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 
 	c.view.Clear()
 	c.view.Write([]byte(printString))
-	if GlobalApp.Gui.CurrentView().Name() == c.name {
-		GlobalTipComponent.Layout(c.KeyMapTip())
-	}
+	// if GlobalApp.Gui.CurrentView().Name() == c.name {
+	// 	GlobalTipComponent.Layout(c.KeyMapTip())
+	// }
+	GlobalTipComponent.AppendList(c.name, c.KeyMapTip())
 
 	return c
 }
@@ -158,6 +159,7 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		GlobalKeyInfoComponent.keyName = fmt.Sprintf("%s", GlobalKeyComponent.keys[GlobalKeyComponent.Current])
 		// PrintLn(GlobalKeyInfoComponent.keyName)
 		GlobalKeyInfoComponent.Layout()
+		GlobalKeyInfoDetailComponent.viewOriginY = 0
 		GlobalKeyInfoDetailComponent.Layout()
 		return nil
 	})

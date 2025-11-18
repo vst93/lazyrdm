@@ -62,7 +62,7 @@ func main() {
 		}
 		nextViewName := service.GlobalApp.ViewNameList[currentViewNameIndex]
 		service.GlobalApp.ForceUpdate(nextViewName)
-		service.GlobalTipComponent.Layout("")
+		// service.GlobalTipComponent.Layout("")
 		return nil
 	})
 

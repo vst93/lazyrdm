@@ -94,10 +94,11 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	}
 	c.view.SetOrigin(0, c.viewOriginY)
 
-	if GlobalApp.Gui.CurrentView().Name() == c.name {
-		// GlobalApp.Gui.SetCurrentView(c.name)
-		GlobalTipComponent.Layout(c.KeyMapTip())
-	}
+	// if GlobalApp.Gui.CurrentView().Name() == c.name {
+	// 	// GlobalApp.Gui.SetCurrentView(c.name)
+	// 	GlobalTipComponent.Layout(c.KeyMapTip())
+	// }
+	GlobalTipComponent.AppendList(c.name, c.KeyMapTip())
 	return c
 }
 

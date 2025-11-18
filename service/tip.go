@@ -11,6 +11,7 @@ type LTRTipComponent struct {
 	view               *gocui.View
 	lastTipString      string
 	temporaryTipString string
+	list               map[string]string
 }
 
 const (
@@ -27,8 +28,28 @@ type KeyMapStruct struct {
 func InitTipComponent() {
 	GlobalTipComponent = &LTRTipComponent{
 		name: "key_map_tip",
+		list: make(map[string]string, 100),
 	}
 	GlobalTipComponent.Layout("")
+}
+
+func (c *LTRTipComponent) AppendList(key string, desc string) {
+	if _, ok := c.list[key]; !ok {
+		c.list[key] = desc
+		c.LayComponentTips()
+	}
+}
+
+func (c *LTRTipComponent) LayComponentTips() {
+	theName := GlobalApp.Gui.CurrentView().Name()
+	if theName != "" && len(c.list) > 0 {
+		for key, desc := range c.list {
+			if theName == key {
+				c.Layout(desc)
+				break
+			}
+		}
+	}
 }
 
 func (c *LTRTipComponent) Layout(tipString string) *LTRTipComponent {

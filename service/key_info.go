@@ -64,10 +64,11 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	}
 
 	// show key detail
-	if GlobalApp.Gui.CurrentView().Name() == GlobalKeyInfoComponent.name {
-		// GlobalApp.Gui.SetCurrentView(GlobalKeyInfoComponent.name)
-		GlobalTipComponent.Layout(c.KeyMapTip())
-	}
+	// if GlobalApp.Gui.CurrentView().Name() == GlobalKeyInfoComponent.name {
+	// 	// GlobalApp.Gui.SetCurrentView(GlobalKeyInfoComponent.name)
+	// 	GlobalTipComponent.Layout(c.KeyMapTip())
+	// }
+	GlobalTipComponent.AppendList(c.name, c.KeyMapTip())
 
 	return c
 }
