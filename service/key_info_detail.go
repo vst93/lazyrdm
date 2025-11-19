@@ -34,6 +34,7 @@ func InitKeyInfoDetailComponent() {
 	}
 	GlobalKeyInfoDetailComponent.Layout().KeyBind()
 	GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, GlobalKeyInfoDetailComponent.name)
+	GlobalTipComponent.AppendList(GlobalKeyInfoDetailComponent.name, GlobalKeyInfoDetailComponent.KeyMapTip())
 }
 
 func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
@@ -86,19 +87,21 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	c.view.Write(DisposeMultibyteString(theVal))
 
 	// show format select
-	formatSelectView, err := GlobalApp.Gui.SetView("key_value_format", GlobalApp.maxX-15, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2)
-	if err == nil {
-		formatSelectView.Frame = true
+	formatStr := " Format: " + c.keyValueFormat + " "
+	formatSelectView, err := GlobalApp.Gui.SetView("key_value_format", GlobalApp.maxX-len(formatStr)-2, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2)
+	if err == nil || err != gocui.ErrUnknownView {
 		formatSelectView.Clear()
-		formatSelectView.Write([]byte("Format: " + c.keyValueFormat))
+		formatSelectView.Write([]byte(formatStr))
 	}
+	formatSelectView.Frame = false
+	formatSelectView.BgColor = gocui.ColorGreen
+
 	c.view.SetOrigin(0, c.viewOriginY)
 
 	// if GlobalApp.Gui.CurrentView().Name() == c.name {
 	// 	// GlobalApp.Gui.SetCurrentView(c.name)
 	// 	GlobalTipComponent.Layout(c.KeyMapTip())
 	// }
-	GlobalTipComponent.AppendList(c.name, c.KeyMapTip())
 	return c
 }
 
@@ -260,5 +263,5 @@ func (c *LTRKeyInfoDetailComponent) switchKeyValueFormat() {
 	c.keyValueFormat = keyValueFormatList[nextIndex]
 	c.viewOriginY = 0
 	c.Layout()
-	GlobalKeyInfoDetailComponent.Layout()
+	// GlobalKeyInfoDetailComponent.Layout()
 }

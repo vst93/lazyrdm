@@ -54,23 +54,30 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 		c.keyView.Write([]byte(printString))
 	}
 
+	theTTLStr := ""
+	theTTLStrType := 0
+	if theTTL >= 0 {
+		if theTTL > 86400 {
+			theTTLStr += fmt.Sprintf("%dDay ", theTTL/86400)
+			theTTL = theTTL % 86400
+		}
+		theTTLStr += fmt.Sprintf("%02d:%02d:%02d", theTTL/3600, (theTTL%3600)/60, theTTL%60)
+		theTTLStr = " TTL: " + theTTLStr + ""
+	} else {
+		theTTLStr = " TTL: " + strconv.FormatInt(theTTL, 10) + " s"
+		theTTLStrType = 1
+	}
 	// show key ttl
-	c.keyViewTTL, err = GlobalApp.Gui.SetView(c.name+"_ttl", GlobalApp.maxX-24, 0, GlobalApp.maxX-1, 2)
+	c.keyViewTTL, err = GlobalApp.Gui.SetView(c.name+"_ttl", GlobalApp.maxX-len(theTTLStr)-3, 0, GlobalApp.maxX-1, 2)
 	if err == nil || err != gocui.ErrUnknownView {
-		c.keyViewTTL.Frame = false
 		c.keyViewTTL.Clear()
-		if theTTL >= 0 {
-			theTTLStr := ""
-			if theTTL > 86400 {
-				theTTLStr += fmt.Sprintf("%dDay ", theTTL/86400)
-				theTTL = theTTL % 86400
-			}
-			theTTLStr += fmt.Sprintf("%02d:%02d:%02d", theTTL/3600, (theTTL%3600)/60, theTTL%60)
-			c.keyViewTTL.Write([]byte(NewColorString(" TTL: "+theTTLStr+""+SPACE_STRING, "black", "green", "bold")))
+		if theTTLStrType == 1 {
+			c.keyViewTTL.Write([]byte(NewColorString(theTTLStr+SPACE_STRING, "white", "red", "bold")))
 		} else {
-			c.keyViewTTL.Write([]byte(NewColorString(" TTL: "+strconv.FormatInt(theTTL, 10)+" s"+SPACE_STRING, "white", "red", "bold")))
+			c.keyViewTTL.Write([]byte(NewColorString(theTTLStr+SPACE_STRING, "black", "green", "bold")))
 		}
 	}
+	c.keyViewTTL.Frame = false
 
 	// show key detail
 	// if GlobalApp.Gui.CurrentView().Name() == GlobalKeyInfoComponent.name {
