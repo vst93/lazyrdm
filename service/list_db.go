@@ -148,6 +148,19 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 		return nil
 	})
 
+	// 获取服务信息
+	// GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{"i"}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 	result := services.Browser().ServerInfo(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name)
+	// 	if result.Success {
+	// 		// 复制到剪切板
+	// 		theVal := fmt.Sprintf("Server Info:\n%s", result.Msg)
+	// 		clipboard.WriteAll(theVal)
+	// 	} else {
+	// 		GlobalTipComponent.LayoutTemporary("Failed to get server info.", 3, TipTypeWarning)
+	// 	}
+	// 	return nil
+	// })
+
 	return c
 }
 
@@ -156,6 +169,7 @@ func (c *LTRListDBComponent) KeyMapTip() string {
 		{"Switch", "<Tab>"},
 		{"Select", "↑/↓"},
 		{"Enter", "<Enter>/→"},
+		// {"Server Info", "<I>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
