@@ -27,6 +27,7 @@ func InitKeyInfoComponent() {
 	}
 	GlobalKeyInfoComponent.Layout().KeyBind()
 	GlobalApp.ViewNameList = append(GlobalApp.ViewNameList, GlobalKeyInfoComponent.name)
+	GlobalTipComponent.AppendList(GlobalKeyInfoComponent.name, GlobalKeyInfoComponent.KeyMapTip())
 }
 
 func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
@@ -35,7 +36,7 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	var err error
 	var theTTL int64
 	// show key info
-	c.keyView, err = GlobalApp.Gui.SetView(c.name, theX0, 0, GlobalApp.maxX-25, 2)
+	c.keyView, err = GlobalApp.Gui.SetView(c.name, theX0, 0, GlobalApp.maxX-1, 2)
 	if err == nil || err != gocui.ErrUnknownView {
 		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
 			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
@@ -56,11 +57,18 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	// show key ttl
 	c.keyViewTTL, err = GlobalApp.Gui.SetView(c.name+"_ttl", GlobalApp.maxX-24, 0, GlobalApp.maxX-1, 2)
 	if err == nil || err != gocui.ErrUnknownView {
+		c.keyViewTTL.Frame = false
 		c.keyViewTTL.Clear()
 		if theTTL >= 0 {
-			c.keyViewTTL.Write([]byte(NewColorString("TTL: "+strconv.FormatInt(theTTL, 10)+" s"+SPACE_STRING, "black", "green", "bold")))
+			theTTLStr := ""
+			if theTTL > 86400 {
+				theTTLStr += fmt.Sprintf("%dDay ", theTTL/86400)
+				theTTL = theTTL % 86400
+			}
+			theTTLStr += fmt.Sprintf("%02d:%02d:%02d", theTTL/3600, (theTTL%3600)/60, theTTL%60)
+			c.keyViewTTL.Write([]byte(NewColorString(" TTL: "+theTTLStr+""+SPACE_STRING, "black", "green", "bold")))
 		} else {
-			c.keyViewTTL.Write([]byte(NewColorString("TTL: "+strconv.FormatInt(theTTL, 10)+" s"+SPACE_STRING, "white", "red", "bold")))
+			c.keyViewTTL.Write([]byte(NewColorString(" TTL: "+strconv.FormatInt(theTTL, 10)+" s"+SPACE_STRING, "white", "red", "bold")))
 		}
 	}
 
@@ -69,12 +77,17 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	// 	// GlobalApp.Gui.SetCurrentView(GlobalKeyInfoComponent.name)
 	// 	GlobalTipComponent.Layout(c.KeyMapTip())
 	// }
-	GlobalTipComponent.AppendList(c.name, c.KeyMapTip())
 
 	return c
 }
 
 func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
+	// 鼠标点击聚焦
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		GlobalApp.ForceUpdate(c.name)
+		return nil
+	})
+
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'c'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		// copy key value
 		if c.keyName == "" {
