@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 type FileSelector struct {
@@ -53,7 +53,7 @@ func (fs *FileSelector) Layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 
 	// 创建标题视图
-	if v, err := g.SetView("title", 0, 0, maxX-1, 2); err != nil {
+	if v, err := g.SetView("title", 0, 0, maxX-1, 2, 0); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -64,7 +64,7 @@ func (fs *FileSelector) Layout(g *gocui.Gui) error {
 	}
 
 	// 创建文件列表视图
-	if v, err := g.SetView(fs.name, 0, 3, maxX-1, maxY-2); err != nil {
+	if v, err := g.SetView(fs.name, 0, 3, maxX-1, maxY-2, 0); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}

@@ -9,7 +9,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/duke-git/lancet/v2/validator"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 type LTRKeyInfoDetailComponent struct {
@@ -43,7 +43,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	var err error
 	theVal := ""
 	// show key detail
-	c.view, err = GlobalApp.Gui.SetView(c.name, theX0, 3, GlobalApp.maxX-1, GlobalApp.maxY-2)
+	c.view, err = GlobalApp.Gui.SetView(c.name, theX0, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyValueMaxY = 0
 		c.view.Wrap = true
@@ -84,11 +84,12 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	// theVal = string(theValRune)
 	// theVal = text.TrimSpace(theVal)
 	c.CopyString = theVal
-	c.view.Write(DisposeMultibyteString(theVal))
+	// c.view.Write(DisposeMultibyteString(theVal))
+	c.view.Write([]byte(theVal))
 
 	// show format select
 	formatStr := " Format: " + c.keyValueFormat + " "
-	formatSelectView, err := GlobalApp.Gui.SetView("key_value_format", GlobalApp.maxX-len(formatStr)-2, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2)
+	formatSelectView, err := GlobalApp.Gui.SetView("key_value_format", GlobalApp.maxX-len(formatStr)-2, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 	if err == nil || err != gocui.ErrUnknownView {
 		formatSelectView.Clear()
 		formatSelectView.Write([]byte(formatStr))
@@ -165,7 +166,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 	})
 
 	// 修改值
-	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'v'}, "Are you sure to change the value with the value in clipboard?", func() {
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'p'}, "Replace value with clipboard content?", func() {
 		theClipboardValue, err := clipboard.ReadAll()
 		if err != nil {
 			GlobalTipComponent.LayoutTemporary("Clipboard is empty or not available", 3, TipTypeError)
@@ -212,14 +213,60 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("Cancel set value", 3, TipTypeWarning)
 	})
+
+	// 修改值
+	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'e'}, "", func() string {
+		return c.CopyString
+	}, func(editorResult string) {
+		if GlobalKeyInfoComponent.keyName == "" {
+			GlobalTipComponent.LayoutTemporary("No key selected", 3, TipTypeError)
+			return
+		}
+		// 检查 key 类型
+		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
+			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+			DB:     GlobalDBComponent.SelectedDB,
+			Key:    GlobalKeyInfoComponent.keyName,
+		})
+		if !keySummary.Success {
+			GlobalTipComponent.LayoutTemporary("Failed to get key summary, message: "+keySummary.Msg, 3, TipTypeError)
+			return
+		}
+		keySummaryData := keySummary.Data.(types.KeySummary)
+		if keySummaryData.Type != "string" {
+			GlobalTipComponent.LayoutTemporary("Only string type can be modified at now", 3, TipTypeError)
+			return
+		}
+
+		// 修改值
+		res := services.Browser().SetKeyValue(
+			types.SetKeyParam{
+				Server:  GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+				DB:      GlobalDBComponent.SelectedDB,
+				Key:     GlobalKeyInfoComponent.keyName,
+				KeyType: "string",
+				Value:   editorResult,
+				TTL:     -1,
+			},
+		)
+		if !res.Success {
+			GlobalTipComponent.LayoutTemporary("Failed to set value, message: "+res.Msg, 3, TipTypeError)
+			return
+		}
+		GlobalTipComponent.LayoutTemporary("Set value successfully", 3, TipTypeSuccess)
+		c.Layout()
+	}, func() {
+		GlobalTipComponent.LayoutTemporary("Cancel set value", 3, TipTypeWarning)
+	})
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Switch", "<Tab>"},
 		{"Switch Format", "<F>"},
+		{"Edit", "<E>"},
 		{"Copy", "<C>"},
-		{"Paste", "<V>"},
+		{"Paste", "<P>"},
 		{"Scroll", "↑/↓"},
 		{"Scroll Page", "←/→"},
 		{"Refresh", "<R>"},

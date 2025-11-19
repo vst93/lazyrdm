@@ -6,7 +6,7 @@ import (
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 	"github.com/nsf/termbox-go"
 )
 
@@ -58,7 +58,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 		theX1 = theX0 + GlobalApp.maxY - 1
 	}
 	c.viewBeginX, c.viewBeginY, c.viewEndX, c.viewEndY = theX0, theY0, theX1, theY1
-	v, _ := GlobalApp.Gui.SetView(c.name, c.viewBeginX, c.viewBeginY, c.viewEndX, c.viewEndY)
+	v, _ := GlobalApp.Gui.SetView(c.name, c.viewBeginX, c.viewBeginY, c.viewEndX, c.viewEndY, 0)
 	v.Title = c.title
 	// v.Editable = true
 	v.Wrap = true
@@ -290,7 +290,7 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 	if xEnd == 0 {
 		xEnd = c.viewEndX - 1
 	}
-	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3)
+	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3, 0)
 	view.Clear()
 	view.Title = " " + title + " "
 	view.Frame = true
@@ -336,7 +336,7 @@ func (c *LTRConnectionEditComponent) formViewRadio(config LTRConnectionEditCompo
 		xEnd = c.viewEndX - 1
 	}
 
-	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3)
+	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3, 0)
 	view.Title = " " + title + " "
 	view.Frame = true
 	view.FgColor = gocui.ColorWhite
@@ -407,7 +407,7 @@ func (c *LTRConnectionEditComponent) formBtn(name string, title string, xBeing i
 	if xBeing == 0 {
 		xBeing = c.viewBeginX
 	}
-	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xBeing+width, c.viewBeginY+c.viewNowLine*3+3)
+	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xBeing+width, c.viewBeginY+c.viewNowLine*3+3, 0)
 	view.Frame = false
 	view.FgColor = gocui.ColorWhite
 	view.Clear()

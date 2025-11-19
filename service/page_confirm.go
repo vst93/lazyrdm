@@ -3,7 +3,7 @@ package service
 import (
 	"fmt"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 type PageComponentConfirm struct {
@@ -36,7 +36,7 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 		theX0 = (GlobalApp.maxX - GlobalApp.maxY) / 2
 		theX1 = theX0 + GlobalApp.maxY - 1
 	}
-	v, _ := GlobalApp.Gui.SetView(c.name, theX0, theY0, theX1, theY1)
+	v, _ := GlobalApp.Gui.SetView(c.name, theX0, theY0, theX1, theY1, 0)
 	v.Title = " " + c.title + " "
 	v.Wrap = true
 	v.Editable = false

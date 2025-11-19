@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 var SPACE_STRING = "                                                                                                                             "

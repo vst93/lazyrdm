@@ -13,8 +13,8 @@ import (
 	"tinyrdm/backend/types"
 
 	"github.com/atotto/clipboard"
+	"github.com/awesome-gocui/gocui"
 	"github.com/duke-git/lancet/v2/fileutil"
-	"github.com/jroimartin/gocui"
 	"github.com/vrischmann/userdir"
 )
 
@@ -87,7 +87,7 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		theX0 = (GlobalApp.maxX - GlobalApp.maxY) / 2
 		theX1 = theX0 + GlobalApp.maxY - 1
 	}
-	v, err := GlobalApp.Gui.SetView(c.Name, theX0, theY0, theX1, theY1)
+	v, err := GlobalApp.Gui.SetView(c.Name, theX0, theY0, theX1, theY1, 0)
 	if err != nil {
 		if err != gocui.ErrUnknownView {
 			return c

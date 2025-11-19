@@ -6,7 +6,7 @@ import (
 	"os"
 	"tinyrdm/backend/services"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 	defer devNull.Close()
 	log.SetOutput(devNull)
 
-	g, err := gocui.NewGui(gocui.OutputNormal)
+	g, err := gocui.NewGui(gocui.OutputNormal, false)
 	g.Mouse = true
 	if err != nil {
 		log.Panicln(err)

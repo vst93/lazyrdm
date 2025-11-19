@@ -3,7 +3,7 @@ package service
 import (
 	"time"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 type LTRTipComponent struct {
@@ -61,7 +61,7 @@ func (c *LTRTipComponent) Layout(tipString string) *LTRTipComponent {
 	}
 
 	var err error
-	c.view, err = GlobalApp.Gui.SetView(c.name, 0, GlobalApp.maxY-2, GlobalApp.maxX, GlobalApp.maxY)
+	c.view, err = GlobalApp.Gui.SetView(c.name, 0, GlobalApp.maxY-2, GlobalApp.maxX, GlobalApp.maxY, 0)
 	if err != nil && err != gocui.ErrUnknownView {
 		PrintLn(err.Error())
 		return c

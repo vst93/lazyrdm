@@ -8,7 +8,7 @@ import (
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 type LTRListKeyComponent struct {
@@ -70,7 +70,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	_, theDBComponentH := GlobalDBComponent.view.Size()
 	var err error
 	// 列表
-	c.view, err = GlobalApp.Gui.SetView(c.name, 0, theDBComponentH+2, GlobalApp.maxX*2/10, GlobalApp.maxY-2)
+	c.view, err = GlobalApp.Gui.SetView(c.name, 0, theDBComponentH+2, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)
 	if err != nil && err != gocui.ErrUnknownView {
 		PrintLn(err.Error())
 		return c

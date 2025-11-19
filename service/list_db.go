@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"tinyrdm/backend/services"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 type LTRListDBComponent struct {
@@ -51,7 +51,7 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 	if GlobalApp.Gui.CurrentView().Name() != c.name {
 		theY1 = c.minH
 	}
-	v, err := GlobalApp.Gui.SetView(c.name, 0, 0, GlobalApp.maxX*2/10, theY1)
+	v, err := GlobalApp.Gui.SetView(c.name, 0, 0, GlobalApp.maxX*2/10, theY1, 0)
 	if err != nil {
 		if err != gocui.ErrUnknownView {
 			return c

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 // GuiSetKeysbinding set keysbinding for a view
@@ -34,26 +34,76 @@ func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifie
 
 // GuiSetKeysbindingConfirm set keysbinding for a view with confirm
 func GuiSetKeysbindingConfirm(g *gocui.Gui, viewname string, keys []any, tip string, handlerYes func(), handlerNo func()) {
+	tip += " (Y/n)"
 	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		GlobalTipComponent.LayoutTemporary(tip, 10, TipTypeWarning)
 		GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+		GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 		GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
 		go func() {
-			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'y', gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+				GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
 				handlerYes()
 				return nil
 			})
 			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+				GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
 				handlerNo()
 				return nil
 			})
 			time.Sleep(time.Second * 10)
 			GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+			GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 			GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+		}()
+		return nil
+	})
+}
+
+// GuiSetKeysbindingConfirmWithVIEditor set keysbinding for a view with confirm and vi editors
+func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []any, tip string, handlerGetText func() string, handlerYes func(editedText string), handlerNo func()) {
+	if tip == "" {
+		tip = "Change the value?"
+	}
+	tip += " (Y/n)"
+	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		gocui.Suspend()
+		// 调用外部编辑器
+		editedText, err := EditWithExternalEditor(handlerGetText())
+		if err != nil {
+			// 恢复 gocui
+			gocui.Resume()
+			return err
+		}
+		// 恢复 gocui
+		gocui.Resume()
+		GlobalTipComponent.LayoutTemporary(tip, 10, TipTypeWarning)
+		GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+		GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+		GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+		go func() {
+			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+				GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+				handlerYes(editedText)
+				return nil
+			})
+			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+				GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+				handlerNo()
+				return nil
+			})
+			time.Sleep(time.Second * 10)
+			GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
+			GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+			GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 		}()
 		return nil
 	})
@@ -100,10 +150,10 @@ func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		}
 	case key == gocui.KeyArrowLeft:
 		// 光标左移
-		v.MoveCursor(-1, 0, false)
+		v.MoveCursor(-1, 0)
 	case key == gocui.KeyArrowRight:
 		// 光标右移
-		v.MoveCursor(1, 0, false)
+		v.MoveCursor(1, 0)
 	case key == gocui.KeyTab:
 		v.EditWrite(ch)
 		if e.BindValString != nil {
