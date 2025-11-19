@@ -34,30 +34,30 @@ func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifie
 
 // GuiSetKeysbindingConfirm set keysbinding for a view with confirm
 func GuiSetKeysbindingConfirm(g *gocui.Gui, viewname string, keys []any, tip string, handlerYes func(), handlerNo func()) {
-	tip += " (Y/n)"
+	tip += " (y/n)"
 	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		GlobalTipComponent.LayoutTemporary(tip, 10, TipTypeWarning)
 		GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-		GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+		// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 		GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
 		go func() {
-			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'y', gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+				// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
 				handlerYes()
 				return nil
 			})
 			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+				// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
 				handlerNo()
 				return nil
 			})
 			time.Sleep(time.Second * 10)
 			GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-			GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+			// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 			GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
 		}()
 		return nil
@@ -65,11 +65,12 @@ func GuiSetKeysbindingConfirm(g *gocui.Gui, viewname string, keys []any, tip str
 }
 
 // GuiSetKeysbindingConfirmWithVIEditor set keysbinding for a view with confirm and vi editors
-func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []any, tip string, handlerGetText func() string, handlerYes func(editedText string), handlerNo func()) {
+func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []any, tip string, handlerGetText func() string, handlerYes func(editedText string), handlerNo func(), skipConfirm bool) {
+	// 展示提示语
 	if tip == "" {
 		tip = "Change the value?"
 	}
-	tip += " (Y/n)"
+	tip += " (y/n)"
 	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		gocui.Suspend()
 		// 调用外部编辑器
@@ -81,29 +82,34 @@ func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []
 		}
 		// 恢复 gocui
 		gocui.Resume()
+		// 跳过确认
+		if skipConfirm {
+			handlerYes(editedText)
+			return nil
+		}
 		GlobalTipComponent.LayoutTemporary(tip, 10, TipTypeWarning)
 		GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
 		GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
-		GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+		// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 		go func() {
 			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+				// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 				handlerYes(editedText)
 				return nil
 			})
 			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+				// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 				handlerNo()
 				return nil
 			})
 			time.Sleep(time.Second * 10)
 			GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
 			GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
-			GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
+			// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
 		}()
 		return nil
 	})

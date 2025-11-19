@@ -37,6 +37,15 @@ func InitKeyInfoDetailComponent() {
 	GlobalTipComponent.AppendList(GlobalKeyInfoDetailComponent.name, GlobalKeyInfoDetailComponent.KeyMapTip())
 }
 
+func (c *LTRKeyInfoDetailComponent) LayoutTitle() *LTRKeyInfoDetailComponent {
+	if c.view != nil && GlobalApp.Gui.CurrentView().Name() == c.name {
+		c.view.Title = " [" + c.title + "] "
+	} else {
+		c.view.Title = " " + c.title + " "
+	}
+	return c
+}
+
 func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	theX0, _ := GlobalDBComponent.view.Size()
 	theX0 = theX0 + 2
@@ -47,7 +56,12 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyValueMaxY = 0
 		c.view.Wrap = true
-		c.view.Title = " " + c.title + " "
+		// c.view.Title = " " + c.title + " "
+		if GlobalApp.Gui.CurrentView().Name() == c.name {
+			c.view.Title = " [" + c.title + "] "
+		} else {
+			c.view.Title = " " + c.title + " "
+		}
 		keyDetail := services.Browser().GetKeyDetail(types.KeyDetailParam{
 			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
 			DB:     GlobalDBComponent.SelectedDB,
@@ -257,7 +271,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.Layout()
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("Cancel set value", 3, TipTypeWarning)
-	})
+	}, false)
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {

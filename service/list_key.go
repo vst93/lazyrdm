@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"tinyrdm/backend/services"
@@ -20,7 +21,8 @@ type LTRListKeyComponent struct {
 	keys          []any
 	MaxKeys       int64
 	IsEnd         bool
-	pendDeleteKey string
+	searchKeyword string
+	searchView    *gocui.View
 }
 
 func InitKeyComponent() {
@@ -43,10 +45,22 @@ func (c *LTRListKeyComponent) LoadKeys() *LTRListKeyComponent {
 	if GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name == "" || GlobalDBComponent.SelectedDB < 0 {
 		return c
 	}
+	theSearchKeyword := ""
+	if c.searchKeyword != "" && c.searchKeyword != "*" {
+		theSearchKeyword = c.searchKeyword
+		if theSearchKeyword[0:1] != "*" {
+			theSearchKeyword = "*" + theSearchKeyword
+		}
+		// 判断theSearchKeyword 末尾是不是 *
+		if theSearchKeyword[len(theSearchKeyword)-1:] != "*" {
+			theSearchKeyword = theSearchKeyword + "*"
+		}
+		// PrintLn(theSearchKeyword)
+	}
 	keysInfo := services.Browser().LoadNextKeys(
 		GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
 		GlobalDBComponent.SelectedDB,
-		"",
+		theSearchKeyword,
 		"",
 		false,
 	)
@@ -77,11 +91,18 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	}
 	c.view.Editable = false
 	c.view.Frame = true
-	if GlobalDBComponent.SelectedDB < 0 {
+	c.view.Title = " Key List "
+	if GlobalApp.Gui.CurrentView().Name() == c.name {
+		c.view.Title = " [Key List] "
+	} else {
 		c.view.Title = " Key List "
+	}
+	if GlobalDBComponent.SelectedDB < 0 {
+		c.view.Subtitle = ""
 	} else {
 		// c.view.Title = " [db" + strconv.Itoa(GlobalDBComponent.SelectedDB) + "]" + " [" + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10) + "] "
-		c.view.Title = " Key List [" + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10) + "] "
+		// c.view.Title = " Key List [" + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10) + "] "
+		c.view.Subtitle = " " + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10) + " "
 	}
 	_, c.viewMaxY = c.view.Size()
 
@@ -120,9 +141,23 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 
 	c.view.Clear()
 	c.view.Write([]byte(printString))
-	// if GlobalApp.Gui.CurrentView().Name() == c.name {
-	// 	GlobalTipComponent.Layout(c.KeyMapTip())
-	// }
+
+	// 显示搜索关键词
+	if c.searchKeyword != "" {
+		searchKeywordShow := " Search: " + c.searchKeyword + " "
+		c.searchView, err = GlobalApp.Gui.SetView("search_key", GlobalApp.maxX*2/10-len(searchKeywordShow)-1, GlobalApp.maxY-4, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)
+		if err != nil && err != gocui.ErrUnknownView {
+			// PrintLn(err.Error())
+			return c
+		}
+		c.searchView.Visible = true
+		c.searchView.Frame = false
+		c.searchView.BgColor = gocui.ColorYellow
+		c.searchView.Clear()
+		c.searchView.Write([]byte(searchKeywordShow))
+	} else if c.searchView != nil {
+		c.searchView.Visible = false
+	}
 
 	return c
 }
@@ -168,11 +203,7 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 
 	// 刷新
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'r'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		services.Browser().OpenDatabase(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name, GlobalDBComponent.SelectedDB)
-		c.IsEnd = false
-		c.keys = []any{}
-		c.Current = 0
-		c.LoadKeys().Layout()
+		c.RefreshList()
 		return nil
 	})
 
@@ -183,112 +214,196 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 	})
 
 	// 删除 key
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyDelete, 'd'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyDelete, 'd'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 	if GlobalKeyComponent.Current < 0 || GlobalKeyComponent.Current > len(GlobalKeyComponent.keys)-1 {
+	// 		return nil
+	// 	}
+	// 	c.pendDeleteKey = fmt.Sprintf("%s", GlobalKeyComponent.keys[GlobalKeyComponent.Current])
+	// 	GlobalTipComponent.LayoutTemporary("Do you want to delete key [ "+c.pendDeleteKey+" ] ? (y/n)", 10, TipTypeWarning)
+	// 	GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
+	// 	GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
+	// 	go func() {
+	// 		// 删除 key - y
+	// 		GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 			GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
+	// 			GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
+	// 			if c.pendDeleteKey == "" {
+	// 				return nil
+	// 			}
+	// 			deleteStaus := false
+	// 			for i, key := range GlobalKeyComponent.keys {
+	// 				if key == c.pendDeleteKey {
+	// 					services.Browser().DeleteKey(
+	// 						GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+	// 						GlobalDBComponent.SelectedDB,
+	// 						c.pendDeleteKey,
+	// 						true,
+	// 					)
+	// 					GlobalKeyComponent.keys = append(GlobalKeyComponent.keys[:i], GlobalKeyComponent.keys[i+1:]...)
+	// 					deleteStaus = true
+	// 					break
+	// 				}
+	// 			}
+	// 			if deleteStaus {
+	// 				GlobalTipComponent.LayoutTemporary("Key [ "+c.pendDeleteKey+"] deleted", 2, TipTypeSuccess)
+	// 			} else {
+	// 				GlobalTipComponent.LayoutTemporary("Key [ "+c.pendDeleteKey+"] not found", 2, TipTypeError)
+	// 			}
+	// 			c.pendDeleteKey = ""
+	// 			c.Layout()
+	// 			return nil
+	// 		})
+	// 		// 删除 key - n
+	// 		GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 			GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
+	// 			GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
+	// 			if c.pendDeleteKey == "" {
+	// 				return nil
+	// 			}
+	// 			GlobalTipComponent.LayoutTemporary("Cancel deleting key", 2, TipTypeWarning)
+	// 			return nil
+	// 		})
+	// 		time.Sleep(time.Second * 10)
+	// 		GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
+	// 		GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
+	// 	}()
+	// 	return nil
+	// })
+
+	// 新增 key （当前仅支持 string 类型）
+	// GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'a'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 	GlobalTipComponent.LayoutTemporary("Do you want to add a new temporary string key? (y/n)", 10, TipTypeWarning)
+	// 	GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
+	// 	GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
+	// 	go func() {
+	// 		GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 			GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
+	// 			GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
+	// 			// 新增 key
+	// 			theTmpKey := "layrdm_tmp_key:" + time.Now().Format("20060102150405")
+	// 			res := services.Browser().SetKeyValue(
+	// 				types.SetKeyParam{
+	// 					Server:  GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+	// 					DB:      GlobalDBComponent.SelectedDB,
+	// 					Key:     theTmpKey,
+	// 					KeyType: "string",
+	// 					Value:   "null",
+	// 					TTL:     -1,
+	// 				},
+	// 			)
+	// 			if res.Success {
+	// 				// 加到 keys 最开头
+	// 				GlobalKeyComponent.keys = append([]any{theTmpKey}, GlobalKeyComponent.keys...)
+	// 				GlobalKeyComponent.Current = 0
+	// 				GlobalKeyInfoComponent.keyName = theTmpKey
+	// 				GlobalKeyInfoComponent.Layout()
+	// 				GlobalKeyInfoDetailComponent.viewOriginY = 0
+	// 				GlobalKeyInfoDetailComponent.Layout()
+	// 				c.Layout()
+	// 				GlobalTipComponent.LayoutTemporary("Key [ "+theTmpKey+"] added", 2, TipTypeSuccess)
+	// 			} else {
+	// 				GlobalTipComponent.LayoutTemporary("Add key failed", 3, TipTypeError)
+	// 			}
+	// 			return nil
+	// 		})
+	// 		GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// 			GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
+	// 			GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
+	// 			GlobalTipComponent.LayoutTemporary("Cancel adding key", 2, TipTypeWarning)
+	// 			return nil
+	// 		})
+	// 		time.Sleep(time.Second * 10)
+	// 		GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
+	// 		GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
+	// 	}()
+
+	// 	return nil
+	// })
+
+	// 删除 key
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'d'}, "Do you want to delete the key?", func() {
 		if GlobalKeyComponent.Current < 0 || GlobalKeyComponent.Current > len(GlobalKeyComponent.keys)-1 {
-			return nil
+			return
 		}
-		c.pendDeleteKey = fmt.Sprintf("%s", GlobalKeyComponent.keys[GlobalKeyComponent.Current])
-		GlobalTipComponent.LayoutTemporary("Do you want to delete key [ "+c.pendDeleteKey+"] ? (y/n)", 10, TipTypeWarning)
-		GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
-		GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
-		go func() {
-			// 删除 key - y
-			GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-				GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
-				if c.pendDeleteKey == "" {
-					return nil
-				}
-				deleteStaus := false
-				for i, key := range GlobalKeyComponent.keys {
-					if key == c.pendDeleteKey {
-						services.Browser().DeleteKey(
-							GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
-							GlobalDBComponent.SelectedDB,
-							c.pendDeleteKey,
-							true,
-						)
-						GlobalKeyComponent.keys = append(GlobalKeyComponent.keys[:i], GlobalKeyComponent.keys[i+1:]...)
-						deleteStaus = true
-						break
-					}
-				}
-				if deleteStaus {
-					GlobalTipComponent.LayoutTemporary("Key [ "+c.pendDeleteKey+"] deleted", 2, TipTypeSuccess)
-				} else {
-					GlobalTipComponent.LayoutTemporary("Key [ "+c.pendDeleteKey+"] not found", 2, TipTypeError)
-				}
-				c.pendDeleteKey = ""
-				c.Layout()
-				return nil
-			})
-			// 删除 key - n
-			GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-				GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
-				if c.pendDeleteKey == "" {
-					return nil
-				}
-				GlobalTipComponent.LayoutTemporary("Cancel deleting key", 2, TipTypeWarning)
-				return nil
-			})
-			time.Sleep(time.Second * 10)
-			GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
-			GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
-		}()
-		return nil
+		pendDeleteKey := fmt.Sprintf("%s", GlobalKeyComponent.keys[GlobalKeyComponent.Current])
+		if pendDeleteKey == "" {
+			return
+		}
+		deleteStaus := false
+		for i, key := range GlobalKeyComponent.keys {
+			if key == pendDeleteKey {
+				services.Browser().DeleteKey(
+					GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+					GlobalDBComponent.SelectedDB,
+					pendDeleteKey,
+					true,
+				)
+				GlobalKeyComponent.keys = append(GlobalKeyComponent.keys[:i], GlobalKeyComponent.keys[i+1:]...)
+				deleteStaus = true
+				break
+			}
+		}
+		if deleteStaus {
+			GlobalTipComponent.LayoutTemporary("Key [ "+pendDeleteKey+"] deleted", 2, TipTypeSuccess)
+		} else {
+			GlobalTipComponent.LayoutTemporary("Key [ "+pendDeleteKey+"] not found", 2, TipTypeError)
+		}
+		GlobalKeyComponent.Layout()
+	}, func() {
+		GlobalTipComponent.LayoutTemporary("Delete Key cancelled", 2, TipTypeWarning)
 	})
 
 	// 新增 key （当前仅支持 string 类型）
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'a'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		GlobalTipComponent.LayoutTemporary("Do you want to add a new temporary string key? (y/n)", 10, TipTypeWarning)
-		GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
-		GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
-		go func() {
-			GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-				GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
-				// 新增 key
-				theTmpKey := "layrdm_tmp_key:" + time.Now().Format("20060102150405")
-				res := services.Browser().SetKeyValue(
-					types.SetKeyParam{
-						Server:  GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
-						DB:      GlobalDBComponent.SelectedDB,
-						Key:     theTmpKey,
-						KeyType: "string",
-						Value:   "null",
-						TTL:     -1,
-					},
-				)
-				if res.Success {
-					// 加到 keys 最开头
-					GlobalKeyComponent.keys = append([]any{theTmpKey}, GlobalKeyComponent.keys...)
-					GlobalKeyComponent.Current = 0
-					GlobalKeyInfoComponent.keyName = theTmpKey
-					GlobalKeyInfoComponent.Layout()
-					GlobalKeyInfoDetailComponent.viewOriginY = 0
-					GlobalKeyInfoDetailComponent.Layout()
-					c.Layout()
-					GlobalTipComponent.LayoutTemporary("Key [ "+theTmpKey+"] added", 2, TipTypeSuccess)
-				} else {
-					GlobalTipComponent.LayoutTemporary("Add key failed", 3, TipTypeError)
-				}
-				return nil
-			})
-			GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-				GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
-				GlobalTipComponent.LayoutTemporary("Cancel adding key", 2, TipTypeWarning)
-				return nil
-			})
-			time.Sleep(time.Second * 10)
-			GlobalApp.Gui.DeleteKeybinding(c.name, 'y', gocui.ModNone)
-			GlobalApp.Gui.DeleteKeybinding(c.name, 'n', gocui.ModNone)
-		}()
-
-		return nil
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'a'}, "Do you want to create a new temporary string key?", func() {
+		// 新增 key
+		theTmpKey := "layrdm_tmp_key:" + time.Now().Format("20060102150405")
+		res := services.Browser().SetKeyValue(
+			types.SetKeyParam{
+				Server:  GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+				DB:      GlobalDBComponent.SelectedDB,
+				Key:     theTmpKey,
+				KeyType: "string",
+				Value:   "null",
+				TTL:     -1,
+			},
+		)
+		if res.Success {
+			// 加到 keys 最开头
+			GlobalKeyComponent.keys = append([]any{theTmpKey}, GlobalKeyComponent.keys...)
+			GlobalKeyComponent.Current = 0
+			GlobalKeyInfoComponent.keyName = theTmpKey
+			GlobalKeyInfoComponent.Layout()
+			GlobalKeyInfoDetailComponent.viewOriginY = 0
+			GlobalKeyInfoDetailComponent.Layout()
+			c.Layout()
+			GlobalTipComponent.LayoutTemporary("Key [ "+theTmpKey+" ] added", 2, TipTypeSuccess)
+		} else {
+			GlobalTipComponent.LayoutTemporary("Failed to create key", 3, TipTypeError)
+		}
+	}, func() {
+		GlobalTipComponent.LayoutTemporary("Key creation cancelled", 2, TipTypeWarning)
 	})
 
+	// 搜索
+	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'s'}, "Search by keyword?", func() string {
+		return c.searchKeyword
+	}, func(editorResult string) {
+		editorResult = strings.TrimSpace(editorResult)
+		c.searchKeyword = editorResult
+		c.RefreshList()
+	}, func() {
+	}, true)
+
+	return c
+}
+
+// 刷新列表
+func (c *LTRListKeyComponent) RefreshList() *LTRListKeyComponent {
+	services.Browser().OpenDatabase(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name, GlobalDBComponent.SelectedDB)
+	c.IsEnd = false
+	c.keys = []any{}
+	c.Current = 0
+	c.LoadKeys().Layout()
 	return c
 }
 
@@ -297,6 +412,7 @@ func (c *LTRListKeyComponent) KeyMapTip() string {
 		{"Switch", "<Tab>"},
 		{"Select", "↑/↓"},
 		{"Enter", "<Enter>/→"},
+		{"Search", "<S>"},
 		{"Delete", "<D>"},
 		{"Add", "<A>"},
 		{"Refresh", "<R>"},

@@ -56,6 +56,8 @@ func (app *MainApp) ForceUpdate(setViewName string) {
 			GlobalKeyComponent.Layout()
 			// GlobalKeyInfoComponent.Layout()
 			// GlobalKeyInfoDetailComponent.Layout()
+			GlobalKeyInfoComponent.LayoutTitle()
+			GlobalKeyInfoDetailComponent.LayoutTitle()
 		}
 		GlobalTipComponent.LayComponentTips()
 	}

@@ -31,6 +31,15 @@ func InitKeyInfoComponent() {
 	GlobalTipComponent.AppendList(GlobalKeyInfoComponent.name, GlobalKeyInfoComponent.KeyMapTip())
 }
 
+func (c *LTRKeyInfoComponent) LayoutTitle() *LTRKeyInfoComponent {
+	if c.keyView != nil && GlobalApp.Gui.CurrentView().Name() == c.name {
+		c.keyView.Title = " [" + c.title + "] "
+	} else {
+		c.keyView.Title = " " + c.title + " "
+	}
+	return c
+}
+
 func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	theX0, _ := GlobalDBComponent.view.Size()
 	theX0 = theX0 + 2
@@ -44,7 +53,12 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 			DB:     GlobalDBComponent.SelectedDB,
 			Key:    c.keyName,
 		})
-		c.keyView.Title = " " + c.title + " "
+		// c.keyView.Title = " " + c.title + " "
+		if GlobalApp.Gui.CurrentView().Name() == c.name {
+			c.keyView.Title = " [" + c.title + "] "
+		} else {
+			c.keyView.Title = " " + c.title + " "
+		}
 		printString := ""
 		if keySummary.Success {
 			keySummaryData := keySummary.Data.(types.KeySummary)
@@ -212,7 +226,7 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 		c.Layout()
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("Cancel rename key", 3, TipTypeWarning)
-	})
+	}, false)
 
 	// 修改 ttl
 	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'t'}, "Do you want to modify the TTL (seconds)?", func() string {
@@ -256,7 +270,7 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 		c.Layout()
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("TTL setting cancelled", 3, TipTypeWarning)
-	})
+	}, false)
 	return c
 }
 

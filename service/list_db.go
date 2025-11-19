@@ -51,16 +51,21 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 	if GlobalApp.Gui.CurrentView().Name() != c.name {
 		theY1 = c.minH
 	}
-	v, err := GlobalApp.Gui.SetView(c.name, 0, 0, GlobalApp.maxX*2/10, theY1, 0)
-	if err != nil {
-		if err != gocui.ErrUnknownView {
-			return c
-		}
+	var err error
+	c.view, err = GlobalApp.Gui.SetView(c.name, 0, 0, GlobalApp.maxX*2/10, theY1, 0)
+	if err != nil && err != gocui.ErrUnknownView {
+		return c
 	}
-	v.Title = " " + c.title + " "
-	v.Editable = false
-	v.Frame = true
-	_, c.LayoutMaxH = v.Size()
+
+	if GlobalApp.Gui.CurrentView().Name() == c.name {
+		c.view.Title = " [" + c.title + "] "
+	} else {
+		c.view.Title = " " + c.title + " "
+	}
+
+	c.view.Editable = false
+	c.view.Frame = true
+	_, c.LayoutMaxH = c.view.Size()
 
 	printString := ""
 	currenLine := 0
@@ -76,8 +81,12 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 			totalLine++
 		}
 	}
+
+	c.view.Clear()
+	c.view.Write([]byte(printString))
+
 	if GlobalApp.Gui.CurrentView().Name() != c.name && c.SelectedDB >= 0 {
-		v.SetOrigin(0, c.SelectedDB)
+		c.view.SetOrigin(0, c.SelectedDB)
 	} else if currenLine > c.LayoutMaxH/2 {
 		originLine := currenLine - c.LayoutMaxH/2
 		if originLine < 0 {
@@ -86,20 +95,11 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 		if originLine > totalLine-c.LayoutMaxH {
 			originLine = totalLine - c.LayoutMaxH
 		}
-		v.SetOrigin(0, originLine)
+		c.view.SetOrigin(0, originLine)
 	} else {
-		v.SetOrigin(0, 0)
+		c.view.SetOrigin(0, 0)
 	}
-	v.Clear()
-	v.Write([]byte(printString))
-	c.view = v
-
-	// if GlobalApp.Gui.CurrentView().Name() == c.name {
-	// 	// c.KeyBind()
-	// 	GlobalApp.Gui.SetCurrentView(c.name)
-	// } else {
-	// 	// GlobalApp.gui.DeleteKeybindings(c.name)
-	// }
+	// c.view = v
 
 	return c
 }

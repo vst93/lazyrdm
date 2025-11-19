@@ -18,6 +18,7 @@ func main() {
 
 	g, err := gocui.NewGui(gocui.OutputNormal, false)
 	g.Mouse = true
+	g.SelFrameColor = gocui.ColorGreen
 	if err != nil {
 		log.Panicln(err)
 	}
