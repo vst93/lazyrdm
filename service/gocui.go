@@ -84,7 +84,9 @@ func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []
 		gocui.Resume()
 		// 跳过确认
 		if skipConfirm {
-			handlerYes(editedText)
+			if handlerYes != nil {
+				handlerYes(editedText)
+			}
 			return nil
 		}
 		GlobalTipComponent.LayoutTemporary(tip, 10, TipTypeWarning)
@@ -96,14 +98,18 @@ func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
 				// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
-				handlerYes(editedText)
+				if handlerYes != nil {
+					handlerYes(editedText)
+				}
 				return nil
 			})
 			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
 				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
 				// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
-				handlerNo()
+				if handlerNo != nil {
+					handlerNo()
+				}
 				return nil
 			})
 			time.Sleep(time.Second * 10)

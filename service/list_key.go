@@ -168,11 +168,11 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	if err == nil || err != gocui.ErrUnknownView {
 		// c.lineView.FrameColor = gocui.NewRGBColor(149, 165, 166)
 		c.lineView.FgColor = gocui.NewRGBColor(78, 142, 166)
-		c.lineView.FrameRunes = []rune{'─', '│', '┌', '─', '└', '─'}
 		c.lineView.Clear()
 		c.lineView.Write([]byte(lineStr))
 		c.lineView.SetOrigin(0, 0)
 	}
+	c.lineView.FrameRunes = []rune{'─', '│', '┌', '─', '└', '─'}
 
 	// reset view x0 and x1
 	c.view, _ = GlobalApp.Gui.SetView(c.name, 1+lineViewWidth, theDBComponentH+2, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)
@@ -277,7 +277,7 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 				Key:     theTmpKey,
 				KeyType: "string",
 				Value:   "null",
-				TTL:     -1,
+				TTL:     600, // ten minutes ttl
 			},
 		)
 		if res.Success {

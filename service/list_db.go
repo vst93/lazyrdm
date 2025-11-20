@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"tinyrdm/backend/services"
@@ -149,17 +150,23 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 	})
 
 	// 获取服务信息
-	// GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{"i"}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-	// 	result := services.Browser().ServerInfo(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name)
-	// 	if result.Success {
-	// 		// 复制到剪切板
-	// 		theVal := fmt.Sprintf("Server Info:\n%s", result.Msg)
-	// 		clipboard.WriteAll(theVal)
-	// 	} else {
-	// 		GlobalTipComponent.LayoutTemporary("Failed to get server info.", 3, TipTypeWarning)
-	// 	}
-	// 	return nil
-	// })
+	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'i'}, "", func() string {
+		result := services.Browser().ServerInfo(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name)
+		infoText := ""
+		if result.Success {
+			// 复制到剪切板
+			resultData, err := json.Marshal(result.Data)
+			if err == nil {
+				infoText, _ = PrettyString(string(resultData))
+			} else {
+				infoText = "Failed to parse server info"
+			}
+		} else {
+			infoText = "Failed to get server info"
+		}
+		infoText = fmt.Sprintf("Server Info (View Only)\n----------------------------------\n%s", infoText)
+		return infoText
+	}, nil, nil, true)
 
 	return c
 }
@@ -169,7 +176,7 @@ func (c *LTRListDBComponent) KeyMapTip() string {
 		{"Switch", "<Tab>"},
 		{"Select", "↑/↓"},
 		{"Enter", "<Enter>/→"},
-		// {"Server Info", "<I>"},
+		{"Server Info", "<I>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

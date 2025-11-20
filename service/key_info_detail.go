@@ -6,6 +6,7 @@ import (
 	"strings"
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
+	"unicode/utf8"
 
 	"github.com/atotto/clipboard"
 	"github.com/duke-git/lancet/v2/validator"
@@ -25,7 +26,7 @@ type LTRKeyInfoDetailComponent struct {
 	lineView       *gocui.View
 }
 
-var keyValueFormatList = []string{"Raw", "JSON"}
+var keyValueFormatList = []string{"Raw", "JSON", "Unicode JSON"}
 
 func InitKeyInfoDetailComponent() {
 	GlobalKeyInfoDetailComponent = &LTRKeyInfoDetailComponent{
@@ -61,7 +62,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	lineViewWidth := 0
 	lineViewWidthStr := "1"
 	// show key detail
-	c.view, err = GlobalApp.Gui.SetView(c.name, theX0+6, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
+	c.view, err = GlobalApp.Gui.SetView(c.name, theX0+1, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyValueMaxY = 0
 		c.view.Wrap = true
@@ -83,6 +84,10 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 			if c.keyValueFormat == "JSON" && validator.IsJSON(theVal) {
 				theVal, _ = PrettyString(theVal)
 				// c.view.Wrap = false
+			} else if c.keyValueFormat == "Unicode JSON" && validator.IsJSON(theVal) {
+				theVal, _ = UnicodeSequenceToString(theVal)
+				theVal, _ = PrettyString(theVal)
+				// c.view.Wrap = false
 			}
 			theValSlice := strings.Split(theVal, "\n")
 			maxLine = len(theValSlice) - 1
@@ -94,13 +99,15 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 			// reset view x0 , later affects the view width
 			c.view, _ = GlobalApp.Gui.SetView(c.name, theX0+1+lineViewWidth, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 			theViewX, _ := c.view.Size()
-			PrintLn(theViewX)
+			// PrintLn(theViewX)
 			for k, line := range theValSlice {
 				if k == maxLine {
 					// 跳过最后一行
 					break
 				}
-				lineLen := len(line)
+				// lineLen := len(line)
+				lineLen := utf8.RuneCountInString(line)
+
 				if lineLen > theViewX {
 					theRealHeight := 0
 					theRealHeight = lineLen / theViewX
@@ -156,11 +163,11 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	if err == nil || err != gocui.ErrUnknownView {
 		// c.lineView.FrameColor = gocui.NewRGBColor(149, 165, 166)
 		c.lineView.FgColor = gocui.NewRGBColor(78, 142, 166)
-		c.lineView.FrameRunes = []rune{'─', '│', '┌', '─', '└', '─'}
 		c.lineView.Clear()
 		c.lineView.Write([]byte(lineStr))
 		c.lineView.SetOrigin(0, 0)
 	}
+	c.lineView.FrameRunes = []rune{'─', '│', '┌', '─', '└', '─'}
 
 	// reset view x0 and x1
 	c.lineView, _ = GlobalApp.Gui.SetView("key_detail_line", theX0, 3, theX0+1+lineViewWidth, GlobalApp.maxY-2, 1)

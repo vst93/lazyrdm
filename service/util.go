@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -22,7 +23,7 @@ func PrintLn(str any) {
 
 func PrettyString(str string) (string, error) {
 	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, []byte(str), "", " "); err != nil {
+	if err := json.Indent(&prettyJSON, []byte(str), "", "  "); err != nil {
 		return str, err
 	}
 	return prettyJSON.String(), nil
@@ -187,4 +188,27 @@ func getLinuxDownloadPath() (string, error) {
 
 	// 4. 最后尝试使用$HOME作为备选
 	return home, nil
+}
+
+func UnicodeSequenceToString(unicodeSeq string) (string, error) {
+	var result strings.Builder
+
+	// 处理 \uXXXX 格式
+	for i := 0; i < len(unicodeSeq); {
+		if i+6 <= len(unicodeSeq) && unicodeSeq[i:i+2] == "\\u" {
+			// 提取十六进制部分
+			hexStr := unicodeSeq[i+2 : i+6]
+			code, err := strconv.ParseInt(hexStr, 16, 32)
+			if err != nil {
+				return "", err
+			}
+			result.WriteRune(rune(code))
+			i += 6
+		} else {
+			result.WriteByte(unicodeSeq[i])
+			i++
+		}
+	}
+
+	return result.String(), nil
 }
