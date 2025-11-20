@@ -149,10 +149,9 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 	v.Clear()
 	v.Write([]byte(printString))
 
-	// if GlobalApp.Gui.CurrentView().Name() == c.Name {
-	// 	GlobalTipComponent.Layout(c.KeyMapTip())
-	// }
-	GlobalTipComponent.AppendList(c.Name, c.KeyMapTip())
+	if GlobalApp.Gui.CurrentView().Name() == c.Name {
+		GlobalTipComponent.Layout(c.KeyMapTip())
+	}
 	return c
 }
 
@@ -358,7 +357,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	// 导出连接信息
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyCtrlE}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'E'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		apiResult := c.ExportConnections()
 		PrintLn(apiResult)
 		if apiResult.Success {
@@ -373,10 +372,10 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	// 导入连接信息
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyCtrlI}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'I'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		//读取剪切板内容
 		clipboardContent, _ := clipboard.ReadAll()
-		noticeString := "You need to first copy the path of the link file exported from Tiny RDM (in zip format) to the clipboard and select Confirm to import.\n\nCurrent clipboard: " + clipboardContent
+		noticeString := "To import, copy the file path of the Tiny RDM export (ZIP) and select \"Yes\".\n\nCurrent clipboard: \"" + clipboardContent + "\""
 		NewPageComponentConfirm("Import connections", noticeString, func() {
 			// 导入连接信息
 			if clipboardContent == "" {
@@ -419,8 +418,8 @@ func (c *LTRConnectionComponent) KeyMapTip() string {
 		{"Edit", "<e>"},
 		{"New", "<n>"},
 		{"Delete", "<d>"},
-		{"Export", "<Ctrl + e>"},
-		{"Import", "<Ctrl + i>"},
+		{"Export", "<E>"},
+		{"Import", "<I>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

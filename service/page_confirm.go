@@ -46,20 +46,17 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	v.Write([]byte(c.text))
 	GlobalApp.Gui.SetCurrentView(c.name)
 	c.KeyBind()
-	// if GlobalApp.Gui.CurrentView().Name() == c.name {
-	// 	GlobalTipComponent.Layout(c.KeyMapTips())
-	// }
 	GlobalTipComponent.AppendList(c.name, c.KeyMapTips())
 	return c
 }
 
 func (c *PageComponentConfirm) KeyBind() *PageComponentConfirm {
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'y', 'Y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.closeView()
 		c.callbackYes()
 		return nil
 	})
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'n', 'N'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.closeView()
 		c.callbackNo()
 		return nil
@@ -71,12 +68,13 @@ func (c *PageComponentConfirm) KeyBind() *PageComponentConfirm {
 func (c *PageComponentConfirm) closeView() {
 	GlobalApp.Gui.DeleteView(c.name)
 	GlobalApp.Gui.DeleteKeybindings(c.name)
+	GlobalApp.Gui.SetCurrentView(GlobalApp.Gui.Views()[0].Name())
 }
 
 func (c *PageComponentConfirm) KeyMapTips() string {
 	keyMap := []KeyMapStruct{
-		{"Yes", "<Y>"},
-		{"No", "<N>"},
+		{"Yes", "<y>"},
+		{"No", "<n>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
