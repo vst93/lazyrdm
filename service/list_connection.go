@@ -416,6 +416,8 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 
 func (c *LTRConnectionComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
+		{"[Global] Quit", "<Ctrl + Q>"},
+		{"[Global] Help", "<?>"},
 		{"Navigate", "↑/↓"},
 		{"Up", "←"},
 		{"Select", "<Enter>/→"},
@@ -424,7 +426,6 @@ func (c *LTRConnectionComponent) KeyMapTip() string {
 		{"Delete", "<D>"},
 		{"Export", "<Ctrl + E>"},
 		{"Import", "<Ctrl + I>"},
-		{"[Global] Quit", "<Ctrl + Q>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

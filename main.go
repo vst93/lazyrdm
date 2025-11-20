@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"lazyrdm/service"
 	"log"
 	"os"
+	"strings"
 	"tinyrdm/backend/services"
 
 	"github.com/awesome-gocui/gocui"
@@ -66,6 +68,14 @@ func main() {
 		// service.GlobalTipComponent.Layout("")
 		return nil
 	})
+
+	// 查看当前快捷键信息
+	service.GuiSetKeysbindingConfirmWithVIEditor(g, "", []any{'?'}, "", func() string {
+		infoText := service.GlobalTipComponent.GetLastTipString()
+		infoText = strings.ReplaceAll(infoText, " | ", "\n")
+		infoText = fmt.Sprintf("Shortcut Keys Reference (View Only)\n----------------------------------\n%s", infoText)
+		return infoText
+	}, nil, nil, true)
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)

@@ -33,6 +33,10 @@ func InitTipComponent() {
 	GlobalTipComponent.Layout("")
 }
 
+func (c *LTRTipComponent) GetLastTipString() string {
+	return c.lastTipString
+}
+
 func (c *LTRTipComponent) AppendList(key string, desc string) {
 	if _, ok := c.list[key]; !ok {
 		c.list[key] = desc

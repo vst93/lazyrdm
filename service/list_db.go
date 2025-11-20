@@ -154,7 +154,6 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 		result := services.Browser().ServerInfo(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name)
 		infoText := ""
 		if result.Success {
-			// 复制到剪切板
 			resultData, err := json.Marshal(result.Data)
 			if err == nil {
 				infoText, _ = PrettyString(string(resultData))
