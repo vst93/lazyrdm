@@ -34,8 +34,10 @@ func InitKeyInfoComponent() {
 func (c *LTRKeyInfoComponent) LayoutTitle() *LTRKeyInfoComponent {
 	if c.keyView != nil && GlobalApp.Gui.CurrentView().Name() == c.name {
 		c.keyView.Title = " [" + c.title + "] "
+		c.keyViewTTL.FrameColor = gocui.ColorGreen
 	} else {
 		c.keyView.Title = " " + c.title + " "
+		c.keyViewTTL.FrameColor = gocui.ColorDefault
 	}
 	return c
 }
@@ -92,7 +94,8 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 			c.keyViewTTL.Write([]byte(NewColorString(theTTLStr+SPACE_STRING, "black", "green", "bold")))
 		}
 	}
-	c.keyViewTTL.Frame = false
+	c.keyViewTTL.FrameRunes = []rune{'─', '│', '─', '┐', '─', '┘'}
+	// c.keyViewTTL.Frame = false
 
 	// show key detail
 	// if GlobalApp.Gui.CurrentView().Name() == GlobalKeyInfoComponent.name {

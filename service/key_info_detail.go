@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
@@ -18,9 +19,10 @@ type LTRKeyInfoDetailComponent struct {
 	LayoutMaxY     int
 	view           *gocui.View
 	keyValueFormat string
-	viewOriginY    int
-	keyValueMaxY   int
+	viewOriginY    int // view origin y
+	keyValueMaxY   int // value real total height
 	CopyString     string
+	lineView       *gocui.View
 }
 
 var keyValueFormatList = []string{"Raw", "JSON"}
@@ -40,8 +42,10 @@ func InitKeyInfoDetailComponent() {
 func (c *LTRKeyInfoDetailComponent) LayoutTitle() *LTRKeyInfoDetailComponent {
 	if c.view != nil && GlobalApp.Gui.CurrentView().Name() == c.name {
 		c.view.Title = " [" + c.title + "] "
+		c.lineView.FrameColor = gocui.ColorGreen
 	} else {
 		c.view.Title = " " + c.title + " "
+		c.lineView.FrameColor = gocui.ColorDefault
 	}
 	return c
 }
@@ -51,8 +55,13 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	theX0 = theX0 + 2
 	var err error
 	theVal := ""
+	maxLine := 0
+	lineStr := ""
+	lineStrNo := 1
+	lineViewWidth := 0
+	lineViewWidthStr := "1"
 	// show key detail
-	c.view, err = GlobalApp.Gui.SetView(c.name, theX0, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
+	c.view, err = GlobalApp.Gui.SetView(c.name, theX0+6, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyValueMaxY = 0
 		c.view.Wrap = true
@@ -76,22 +85,51 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 				// c.view.Wrap = false
 			}
 			theValSlice := strings.Split(theVal, "\n")
+			maxLine = len(theValSlice) - 1
+			if maxLine < 0 {
+				maxLine = 0
+			}
+			lineViewWidth = len(strconv.Itoa(maxLine))
+			lineViewWidthStr = strconv.Itoa(lineViewWidth)
+			// reset view x0 , later affects the view width
+			c.view, _ = GlobalApp.Gui.SetView(c.name, theX0+1+lineViewWidth, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 			theViewX, _ := c.view.Size()
-			for _, line := range theValSlice {
+			PrintLn(theViewX)
+			for k, line := range theValSlice {
+				if k == maxLine {
+					// 跳过最后一行
+					break
+				}
 				lineLen := len(line)
 				if lineLen > theViewX {
-					c.keyValueMaxY += lineLen / theViewX
+					theRealHeight := 0
+					theRealHeight = lineLen / theViewX
 					if lineLen%theViewX > 0 {
-						c.keyValueMaxY++
+						theRealHeight++
+					}
+					c.keyValueMaxY += theRealHeight
+					for i := 0; i < theRealHeight; i++ {
+						if i == 0 {
+							lineStr += fmt.Sprintf("%"+lineViewWidthStr+"d", lineStrNo) + "\n"
+						} else {
+							lineStr += "\n"
+						}
 					}
 				} else {
 					c.keyValueMaxY++
+					lineStr += fmt.Sprintf("%"+lineViewWidthStr+"d", lineStrNo) + "\n"
 				}
+				lineStrNo++
 			}
 			// PrintLn(c.keyValueMaxY)
 		} else {
 			theVal = fmt.Sprintln("")
 		}
+	}
+	if maxLine > 0 {
+		c.view.Subtitle = " " + strconv.Itoa(maxLine) + " "
+	} else {
+		c.view.Subtitle = ""
 	}
 	c.view.Clear()
 	// theValRune = theValRune[:GlobalApp.maxX-theX0-2]
@@ -113,10 +151,20 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 
 	c.view.SetOrigin(0, c.viewOriginY)
 
-	// if GlobalApp.Gui.CurrentView().Name() == c.name {
-	// 	// GlobalApp.Gui.SetCurrentView(c.name)
-	// 	GlobalTipComponent.Layout(c.KeyMapTip())
-	// }
+	// line view
+	c.lineView, err = GlobalApp.Gui.SetView("key_detail_line", theX0, 3, theX0+6, GlobalApp.maxY-2, 1)
+	if err == nil || err != gocui.ErrUnknownView {
+		// c.lineView.FrameColor = gocui.NewRGBColor(149, 165, 166)
+		c.lineView.FgColor = gocui.NewRGBColor(78, 142, 166)
+		c.lineView.FrameRunes = []rune{'─', '│', '┌', '─', '└', '─'}
+		c.lineView.Clear()
+		c.lineView.Write([]byte(lineStr))
+		c.lineView.SetOrigin(0, 0)
+	}
+
+	// reset view x0 and x1
+	c.lineView, _ = GlobalApp.Gui.SetView("key_detail_line", theX0, 3, theX0+1+lineViewWidth, GlobalApp.maxY-2, 1)
+
 	return c
 }
 
@@ -306,8 +354,8 @@ func (c *LTRKeyInfoDetailComponent) scroll(n int) {
 	if c.keyValueMaxY-theViewY <= c.viewOriginY {
 		c.viewOriginY = c.keyValueMaxY - theViewY
 	}
-
 	c.view.SetOrigin(0, c.viewOriginY)
+	c.lineView.SetOrigin(0, c.viewOriginY)
 }
 
 func (c *LTRKeyInfoDetailComponent) switchKeyValueFormat() {
@@ -324,5 +372,4 @@ func (c *LTRKeyInfoDetailComponent) switchKeyValueFormat() {
 	c.keyValueFormat = keyValueFormatList[nextIndex]
 	c.viewOriginY = 0
 	c.Layout()
-	// GlobalKeyInfoDetailComponent.Layout()
 }
