@@ -36,16 +36,6 @@ func main() {
 		log.Panicln(err)
 	}
 
-	// service.GuiSetKeysbinding(g, "", []any{gocui.KeyCtrlQ}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-	// 	if service.GlobalApp.Gui.CurrentView().Name() == "connection_list" {
-	// 		return nil
-	// 	}
-	// 	service.GlobalApp.Gui.SetCurrentView(service.GlobalConnectionComponent.Name)
-	// 	service.GlobalApp.ViewNameList = []string{} // 清空视图列表
-	// 	service.InitConnectionComponent()
-	// 	return nil
-	// })
-
 	// 切换视图（板块）
 	service.GuiSetKeysbinding(g, "", []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		// 切换视图（板块）

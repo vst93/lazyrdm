@@ -6,13 +6,6 @@ import (
 
 var SPACE_STRING = "                                                                                                                             "
 var GlobalApp *MainApp
-
-//	var GlobalConnection struct {
-//		dbs     []types.ConnectionDB
-//		view    int
-//		lastDB  int
-//		version string
-//	}
 var GlobalConnectionComponent *LTRConnectionComponent
 var GlobalDBComponent *LTRListDBComponent
 var GlobalKeyComponent *LTRListKeyComponent
@@ -21,9 +14,8 @@ var GlobalKeyInfoDetailComponent *LTRKeyInfoDetailComponent
 var GlobalTipComponent *LTRTipComponent
 
 type MainApp struct {
-	Gui        *gocui.Gui
-	maxX, maxY int
-	// CurrentView  string
+	Gui          *gocui.Gui
+	maxX, maxY   int
 	ViewNameList []string
 }
 

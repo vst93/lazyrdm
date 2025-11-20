@@ -23,7 +23,7 @@ func PrintLn(str any) {
 
 func PrettyString(str string) (string, error) {
 	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, []byte(str), "", "  "); err != nil {
+	if err := json.Indent(&prettyJSON, []byte(str), "", " "); err != nil {
 		return str, err
 	}
 	return prettyJSON.String(), nil
@@ -211,4 +211,19 @@ func UnicodeSequenceToString(unicodeSeq string) (string, error) {
 	}
 
 	return result.String(), nil
+}
+
+// 计算字符串的占位长度（中文2，英文1）
+func DisplayWidth(s string) int {
+	width := 0
+	for _, r := range s {
+		if unicode.In(r, unicode.Han) ||
+			r >= 0xFF00 && r <= 0xFFEF || // 全角字符
+			r >= 0x3000 && r <= 0x303F { // 中文标点
+			width += 2
+		} else {
+			width += 1
+		}
+	}
+	return width
 }

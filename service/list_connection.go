@@ -158,7 +158,7 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 
 func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 
-	GlobalApp.Gui.SetKeybinding(c.Name, gocui.KeyArrowDown, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowDown, 'j'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isConnecting {
 			return nil
 		}
@@ -180,7 +180,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		return nil
 	})
 
-	GlobalApp.Gui.SetKeybinding(c.Name, gocui.KeyArrowUp, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowUp, 'k'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isConnecting {
 			return nil
 		}
@@ -203,7 +203,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	// 打开连接
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyEnter, gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyEnter, gocui.KeyArrowRight, 'l'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isConnecting {
 			return nil
 		}
@@ -246,7 +246,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	// 编辑连接信息
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'e', 'E'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'e'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isConnecting {
 			return nil
 		}
@@ -267,7 +267,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	// 新建连接信息
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'n', 'N'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isConnecting {
 			return nil
 		}
@@ -301,7 +301,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	})
 
 	// 删除连接信息或分组
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'d', 'D'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'d'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isConnecting {
 			return nil
 		}
@@ -346,7 +346,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowLeft, gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowLeft, gocui.KeyEsc, 'h'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isConnecting {
 			return nil
 		}
@@ -405,27 +405,22 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		})
 		return nil
 	})
-	// GlobalApp.Gui.SetKeybinding(c.Name, gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-	// 	if c.isConnecting {
-	// 		return nil
-	// 	}
-	// 	return nil
-	// })
+
 	return c
 }
 
 func (c *LTRConnectionComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
-		{"[Global] Quit", "<Ctrl + Q>"},
+		{"[Global] Quit", "<Ctrl + q>"},
 		{"[Global] Help", "<?>"},
-		{"Navigate", "↑/↓"},
-		{"Up", "←"},
-		{"Select", "<Enter>/→"},
-		{"Edit", "<E>"},
-		{"New", "<N>"},
-		{"Delete", "<D>"},
-		{"Export", "<Ctrl + E>"},
-		{"Import", "<Ctrl + I>"},
+		{"Navigate", "↑/↓/j/k"},
+		{"Up", "←/h"},
+		{"Select", "<Enter>/l/→"},
+		{"Edit", "<e>"},
+		{"New", "<n>"},
+		{"Delete", "<d>"},
+		{"Export", "<Ctrl + e>"},
+		{"Import", "<Ctrl + i>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

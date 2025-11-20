@@ -6,7 +6,6 @@ import (
 	"strings"
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
-	"unicode/utf8"
 
 	"github.com/atotto/clipboard"
 	"github.com/duke-git/lancet/v2/validator"
@@ -99,14 +98,15 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 			// reset view x0 , later affects the view width
 			c.view, _ = GlobalApp.Gui.SetView(c.name, theX0+1+lineViewWidth, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 			theViewX, _ := c.view.Size()
-			// PrintLn(theViewX)
+			PrintLn(theViewX)
 			for k, line := range theValSlice {
 				if k == maxLine {
 					// 跳过最后一行
 					break
 				}
-				// lineLen := len(line)
-				lineLen := utf8.RuneCountInString(line)
+				lineLen2 := len(line)
+				lineLen := DisplayWidth(line)
+				PrintLn(strconv.Itoa(k+1) + " = " + strconv.Itoa(lineLen) + " " + strconv.Itoa(lineLen2))
 
 				if lineLen > theViewX {
 					theRealHeight := 0
@@ -179,13 +179,13 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 	GlobalApp.Gui.DeleteKeybindings(c.name)
 	GlobalApp.Gui.DeleteKeybindings("key_value_format")
 	// format switch
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'f', 'F'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'f'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.switchKeyValueFormat()
 		return nil
 	})
 
 	//copy
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'c', 'C'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'c'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		theVal := c.CopyString
 		if theVal == "" {
 			GlobalTipComponent.LayoutTemporary("No data to copy", 2, TipTypeWarning)
@@ -196,20 +196,20 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 	// scroll
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp, 'k'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.scroll(-1)
 		return nil
 	})
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown, 'j'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.scroll(1)
 		return nil
 	})
 	// scroll page
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowLeft, 'h'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.scroll(-GlobalApp.maxY + 9)
 		return nil
 	})
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowRight, 'l'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.scroll(GlobalApp.maxY - 9)
 		return nil
 	})
@@ -332,13 +332,13 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Switch", "<Tab>"},
-		{"Switch Format", "<F>"},
-		{"Edit", "<E>"},
-		{"Copy", "<C>"},
-		{"Paste", "<P>"},
-		{"Scroll", "↑/↓"},
-		{"Scroll Page", "←/→"},
-		{"Refresh", "<R>"},
+		{"Switch Format", "<f>"},
+		{"Edit", "<e>"},
+		{"Copy", "<c>"},
+		{"Paste", "<p>"},
+		{"Scroll", "↑/↓/j/k"},
+		{"Scroll Page", "←/→/h/l"},
+		{"Refresh", "<r>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

@@ -106,7 +106,7 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 }
 
 func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown, 'j'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.CurrenDB++
 		if c.CurrenDB > len(GlobalConnectionComponent.dbs)-1 {
 			c.CurrenDB = 0
@@ -116,7 +116,7 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 		c.Layout()
 		return nil
 	})
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp, 'k'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.CurrenDB--
 		if c.CurrenDB < 0 {
 			c.CurrenDB = len(GlobalConnectionComponent.dbs) - 1
@@ -127,7 +127,7 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyEnter, gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyEnter, gocui.KeyArrowRight, 'l'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		oldSelectedDB := c.SelectedDB
 		c.SelectedDB = c.CurrenDB
 		GlobalApp.Gui.SetCurrentView(GlobalKeyComponent.name)
@@ -173,9 +173,9 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 func (c *LTRListDBComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Switch", "<Tab>"},
-		{"Select", "↑/↓"},
-		{"Enter", "<Enter>/→"},
-		{"Server Info", "<I>"},
+		{"Select", "↑/↓/j/k"},
+		{"Enter", "<Enter>/l/→"},
+		{"Server Info", "<i>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

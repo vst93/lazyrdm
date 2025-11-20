@@ -274,11 +274,11 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 func (c *LTRKeyInfoComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Switch", "<Tab>"},
-		{"Copy", "<C>"},
-		{"Edit", "<E>"},
-		{"Edit TTL", "<T>"},
-		{"Paste", "<P>"},
-		{"Paste TTL", "<X>"},
+		{"Copy", "<c>"},
+		{"Edit", "<e>"},
+		{"Edit TTL", "<t>"},
+		{"Paste", "<p>"},
+		{"Paste TTL", "<x>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

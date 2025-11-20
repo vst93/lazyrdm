@@ -87,7 +87,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	// 列表
 	c.view, err = GlobalApp.Gui.SetView(c.name, 1, theDBComponentH+4, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)
 	if err != nil && err != gocui.ErrUnknownView {
-		PrintLn(err.Error())
+		// PrintLn(err.Error())
 		return c
 	}
 	c.view.Editable = false
@@ -109,10 +109,10 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	if rangeBegin < 0 {
 		rangeBegin = 0
 	}
-	rangeEnd := rangeBegin + c.viewMaxY
+	rangeEnd := rangeBegin + c.viewMaxY + 2
 	if rangeEnd > len(c.keys) {
 		rangeEnd = len(c.keys)
-		rangeBegin = rangeEnd - c.viewMaxY
+		rangeBegin = rangeEnd - c.viewMaxY - 2
 		if rangeBegin < 0 {
 			rangeBegin = 0
 		}
@@ -189,7 +189,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 }
 
 func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown, 'j'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.Current++
 		if c.Current > len(c.keys)-1 {
 			c.Current = 0
@@ -199,7 +199,7 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp, 'k'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.Current--
 		if c.Current < 0 {
 			c.Current = len(c.keys) - 1
@@ -209,7 +209,7 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyEnter, gocui.KeyArrowRight}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyEnter, gocui.KeyArrowRight, 'l'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if GlobalKeyComponent.Current < 0 || GlobalKeyComponent.Current > len(GlobalKeyComponent.keys)-1 {
 			return nil
 		}
@@ -323,12 +323,12 @@ func (c *LTRListKeyComponent) RefreshList() *LTRListKeyComponent {
 func (c *LTRListKeyComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Switch", "<Tab>"},
-		{"Select", "↑/↓"},
-		{"Enter", "<Enter>/→"},
-		{"Search", "<S>"},
-		{"Delete", "<D>"},
-		{"Add", "<A>"},
-		{"Refresh", "<R>"},
+		{"Select", "↑/↓/j/l"},
+		{"Enter", "<Enter>/l/→"},
+		{"Search", "<s>"},
+		{"Delete", "<d>"},
+		{"Add", "<a>"},
+		{"Refresh", "<r>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
