@@ -234,7 +234,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 
-	// 修改值
+	// 粘贴-修改值
 	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'p'}, "Replace value with clipboard content?", func() {
 		theClipboardValue, err := clipboard.ReadAll()
 		if err != nil {

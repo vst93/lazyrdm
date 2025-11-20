@@ -268,6 +268,15 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("TTL setting cancelled", 3, TipTypeWarning)
 	}, false)
+
+	// 刷新
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'r'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		GlobalKeyInfoComponent.Layout()
+		GlobalKeyInfoDetailComponent.viewOriginY = 0
+		GlobalKeyInfoDetailComponent.Layout()
+		return nil
+	})
+
 	return c
 }
 
@@ -279,6 +288,7 @@ func (c *LTRKeyInfoComponent) KeyMapTip() string {
 		{"Edit TTL", "<t>"},
 		{"Paste", "<p>"},
 		{"Paste TTL", "<x>"},
+		{"Refresh", "<r>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
