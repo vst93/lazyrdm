@@ -5,6 +5,8 @@
 
 项目地址： https://github.com/vst93/lazyrdm
 
+![1763717011102.png](https://youke1.picui.cn/s1/2025/11/21/69202f6b330a4.png)
+
 ### 特性
 - 基于 go 语言开发，跨平台支持，意味着支持 **Termux** 下使用
 - 底层服务直接引用开源项目 tiny-rdm 项目( https://github.com/tiny-craft/tiny-rdm )，意味着如果你正在使用 tiny-rdm 管理 redis ，那么 lazyrdm 可以直接使用连接配置，同时两边的调整同步（因为读取和使用的同一个配置文件）
