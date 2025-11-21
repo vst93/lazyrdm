@@ -375,6 +375,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'I'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		//读取剪切板内容
 		clipboardContent, _ := clipboard.ReadAll()
+		clipboardContent = strings.TrimSpace(clipboardContent)
 		noticeString := "To import, copy the file path of the Tiny RDM export (ZIP) and select \"Yes\".\n\nCurrent clipboard: \"" + clipboardContent + "\""
 		NewPageComponentConfirm("Import connections", noticeString, func() {
 			// 导入连接信息
@@ -503,7 +504,16 @@ func (c *LTRConnectionComponent) ImportConnections(filepath string) (resp types.
 		}
 		defer zippedFile.Close()
 
+		// 检查和创建 TinyRDM 目录
+		if !fileutil.IsDir(path.Join(userdir.GetConfigHome(), "TinyRDM")) {
+			if err = os.MkdirAll(path.Join(userdir.GetConfigHome(), "TinyRDM"), 0755); err != nil {
+				resp.Msg = err.Error()
+				return
+			}
+		}
+
 		outputFile, err := os.Create(path.Join(userdir.GetConfigHome(), "TinyRDM", connectionFilename))
+
 		// PrintLn(path.Join(userdir.GetConfigHome(), "TinyRDM", connectionFilename))
 		if err != nil {
 			resp.Msg = err.Error()
