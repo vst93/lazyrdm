@@ -1,10 +1,13 @@
 package service
 
 import (
+	"os"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/awesome-gocui/gocui"
+	"golang.org/x/term"
 )
 
 // GuiSetKeysbinding set keysbinding for a view
@@ -72,16 +75,60 @@ func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []
 	}
 	tip += " (y/n)"
 	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		initialText := handlerGetText()
+		currentView := g.CurrentView()
+		// 保存原始终端状态
+		var oldState *term.State
+		if runtime.GOOS != "windows" {
+			if state, err := term.MakeRaw(int(os.Stdin.Fd())); err == nil {
+				oldState = state
+				defer term.Restore(int(os.Stdin.Fd()), oldState)
+			}
+		}
+		// 禁用鼠标输入
+		disableMouseInput()
 		gocui.Suspend()
-		// 调用外部编辑器
-		editedText, err := EditWithExternalEditor(handlerGetText())
-		if err != nil {
-			// 恢复 gocui
+		defer func() {
+			// 完全重置终端
+			resetTerminalCompletely()
 			gocui.Resume()
+			// 重新启用鼠标和重绘界面
+			if g != nil {
+				g.Update(func(g *gocui.Gui) error {
+					// 延迟重新启用鼠标
+					if runtime.GOOS != "windows" {
+						go func() {
+							time.Sleep(100 * time.Millisecond)
+							enableMouseInput()
+						}()
+					}
+					// 恢复当前视图
+					if currentView != nil {
+						if view, err := g.View(currentView.Name()); err == nil {
+							g.SetCurrentView(view.Name())
+						}
+					}
+					return nil
+				})
+			}
+		}()
+
+		editedText, err := EditWithExternalEditor(initialText)
+		if err != nil {
 			return err
 		}
-		// 恢复 gocui
-		gocui.Resume()
+
+		// gocui.Suspend()
+		// // 恢复 gocui
+		// defer gocui.Resume()
+		// // 调用外部编辑器
+		// editedText, err := RunEditorInSubprocess(handlerGetText())
+		// if err != nil {
+		// 	// 恢复 gocui
+		// 	// gocui.Resume()
+		// 	return err
+		// }
+
 		// 跳过确认
 		if skipConfirm {
 			if handlerYes != nil {

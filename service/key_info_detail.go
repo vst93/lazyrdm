@@ -303,7 +303,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		}
 		keySummaryData := keySummary.Data.(types.KeySummary)
 		if keySummaryData.Type != "string" {
-			GlobalTipComponent.LayoutTemporary("Only string type can be modified at now", 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Only string-type values can be modified currently", 3, TipTypeError)
 			return
 		}
 
@@ -316,6 +316,8 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 				KeyType: "string",
 				Value:   editorResult,
 				TTL:     -1,
+				Format:  types.FORMAT_RAW,
+				Decode:  types.DECODE_NONE,
 			},
 		)
 		if !res.Success {
