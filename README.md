@@ -3,6 +3,8 @@
 ## 介绍
 **lazyrdm** 是一个终端形式下的 redis 管理工具，也可以理解为 tiny-rdm 的终端界面🙂。
 
+项目地址： https://github.com/vst93/lazyrdm
+
 ### 特性
 - 基于 go 语言开发，跨平台支持，意味着支持 **Termux** 下使用
 - 底层服务直接引用开源项目 tiny-rdm 项目( https://github.com/tiny-craft/tiny-rdm )，意味着如果你正在使用 tiny-rdm 管理 redis ，那么 lazyrdm 可以直接使用连接配置，同时两边的调整同步（因为读取和使用的同一个配置文件）
@@ -20,6 +22,8 @@
 ## English Introduction
 
 **lazyrdm** is a Redis management tool designed for the terminal, which can also be thought of as the command-line interface version of **tiny-rdm** 🙂.
+
+Project Address: https://github.com/vst93/lazyrdm
 
 ### Features
 - Developed in Go, with cross-platform support, meaning it is compatible with **Termux**.
