@@ -15,6 +15,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/awesome-gocui/gocui"
 	"github.com/duke-git/lancet/v2/fileutil"
+	"github.com/pkg/browser"
 	"github.com/vrischmann/userdir"
 )
 
@@ -406,6 +407,22 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		return nil
 	})
 
+	// 检查更新
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowUp, 'u'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		haveNewVersion, msg := CheckOutNewVersion()
+		if haveNewVersion {
+			NewPageComponentConfirm("New version available", "There is a new version available, do you want to download it by browser?", func() {
+				// 浏览器打开
+				browser.OpenURL(msg)
+			}, func() {
+				GlobalTipComponent.LayoutTemporary("Download canceled", 2, TipTypeSuccess)
+			})
+		} else {
+			GlobalTipComponent.LayoutTemporary("No new version available,Reasons: "+msg, 2, TipTypeSuccess)
+		}
+		return nil
+	})
+
 	return c
 }
 
@@ -421,6 +438,7 @@ func (c *LTRConnectionComponent) KeyMapTip() string {
 		{"Delete", "<d>"},
 		{"Export", "<E>"},
 		{"Import", "<I>"},
+		{"Update", "<u>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

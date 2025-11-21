@@ -1,1 +1,3 @@
 go_log.txt
+build/*
+.DS_Store
