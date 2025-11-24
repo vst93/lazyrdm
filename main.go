@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"lazyrdm/service"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -76,7 +75,8 @@ func main() {
 	}, nil, nil, true)
 
 	// 发送一个访问统计, 仅用于统计使用情况
-	go http.Get("https://finicounter.eu.org/counter?host=github.com/vst93/lazyrdm")
+	// go http.Get("https://finicounter.eu.org/counter?host=github.com/vst93/lazyrdm")
+	go service.SendAppStats()
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
