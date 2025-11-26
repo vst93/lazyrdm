@@ -7,7 +7,7 @@ read -p "请输入版本号（例如 x.x）: " VERSION
 rm -rf ./build/*
 
 # 定义平台和架构
-PLATFORMS=("darwin/amd64" "darwin/arm64" "windows/amd64" "linux/amd64")
+PLATFORMS=("darwin/amd64" "darwin/arm64" "windows/amd64" "linux/amd64" "android/arm64")
 
 # 遍历平台并构建
 for PLATFORM in "${PLATFORMS[@]}"; do
@@ -16,7 +16,10 @@ for PLATFORM in "${PLATFORMS[@]}"; do
   ARCH=$(echo $PLATFORM | cut -d'/' -f2)
   OS_ALIAS=$(echo $OS)
   if [ "$OS_ALIAS" == "darwin" ]; then
-    OS_ALIAS="mac"
+    OS_ALIAS="macos"
+  fi
+  if [ "$OS_ALIAS" == "android" ]; then
+    OS_ALIAS="termux"
   fi
 
   # 设置输出文件名
@@ -28,12 +31,10 @@ for PLATFORM in "${PLATFORMS[@]}"; do
 
   if [ "$OS" == "windows" ]; then
     OUTPUT_NAME="${OUTPUT_NAME}.exe"
-  elif [ "$OS" == "darwin" ]; then
-    OUTPUT_NAME="${OUTPUT_NAME}"
   fi
 
   # 构建应用程序
-  CGO_ENABLED=0 GOOS=$OS GOARCH=$ARCH go build -o ./build/${OUTPUT_NAME} main.go
+  CGO_ENABLED=0 GOOS=$OS GOARCH=$ARCH go build -ldflags="-s -w" -o ./build/${OUTPUT_NAME} main.go
 
   # 检查构建是否成功
   if [ $? -eq 0 ]; then
@@ -43,13 +44,10 @@ for PLATFORM in "${PLATFORMS[@]}"; do
     cd build || { echo "无法进入 build/ 目录"; exit 1; }
 
     # 打包为 ZIP 文件
-    if [ "$OS" == "windows" ]; then
-      zip -r ./${ZIP_NAME} ${OUTPUT_NAME}
-    elif [ "$OS" == "darwin" ]; then
-      zip -r ./${ZIP_NAME} ${OUTPUT_NAME}
-    else
-      zip -r ./${ZIP_NAME} ${OUTPUT_NAME}
-    fi
+    zip -r ./${ZIP_NAME} ${OUTPUT_NAME}
+
+    # 删除文件
+    rm ${OUTPUT_NAME}
 
     # 返回上一级目录
     cd ../
