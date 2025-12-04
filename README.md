@@ -19,6 +19,21 @@
 - windows 系统下建议在有  Windows Terminal 的 windows11 下使用，CMD 下显示效果很差
 - macos 中的 arm 版本未经测试，如果不能使用请反馈，然后尝试 amd 版本
 
+### 安装与卸载
+``` bash
+# brew 
+# 安装 
+brew install vst93/tap/lazyrdm
+# 卸载 
+brew uninstall lazyrdm
+
+
+# shell 
+# 安装 
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/main/cmd/install.sh)"
+
+```
+
 --------------------------------------
 
 ## English Introduction
@@ -37,3 +52,18 @@ Project Address: https://github.com/vst93/lazyrdm
 - Due to limited maintenance of both https://github.com/awesome-gocui/gocui and https://github.com/jroimartin/gocui, implementing complex interactions is challenging.
 - On Windows, it is recommended to use **lazyrdm** with **Windows Terminal** on Windows 11 for the best experience, as the display performance in CMD is poor.
 - The ARM version for macOS has not been thoroughly tested. If it does not work, please provide feedback and try the AMD version instead.
+
+### Install & Uninstall
+``` bash
+# brew 
+# install 
+brew install vst93/tap/lazyrdm
+# uninstall 
+brew uninstall lazyrdm
+
+
+# shell 
+# install 
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/main/cmd/install.sh)"
+
+```
