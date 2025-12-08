@@ -30,7 +30,7 @@ brew uninstall lazyrdm
 
 # shell 
 # 安装 
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/main/cmd/install.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)"
 
 ```
 
@@ -64,6 +64,6 @@ brew uninstall lazyrdm
 
 # shell 
 # install 
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/main/cmd/install.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)"
 
 ```
