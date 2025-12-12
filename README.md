@@ -5,7 +5,7 @@
 
 项目地址： https://github.com/vst93/lazyrdm
 
-![1763717011102.png](https://youke1.picui.cn/s1/2025/11/21/69202f6b330a4.png)
+![screenshot.png](https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/screenshot.png)
 
 ### 特性
 - 基于 go 语言开发，跨平台支持，意味着支持 **Termux** 下使用
