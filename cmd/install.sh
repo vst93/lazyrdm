@@ -302,7 +302,7 @@ install_binary() {
 
 # 主安装流程
 main() {
-    echo "开始安装 $BINARY_NAME v$VERSION"
+    echo "开始安装 $BINARY_NAME $VERSION"
     
     # 确定安装目录
     INSTALL_DIR=$(determine_install_dir)
