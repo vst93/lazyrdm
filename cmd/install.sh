@@ -3,10 +3,14 @@
 set -e
 
 # 配置信息
-VERSION="1.1"
 REPO="https://github.com/vst93/lazyrdm"
 BINARY_NAME="lazyrdm"
 TEMP_DIR=$(mktemp -d)
+
+# 使用GitHub API获取最新的发行版信息（里边有最新的版本号标识）
+response=$(curl -s https://api.github.com/repos/vst93/$BINARY_NAME/releases/latest)
+# 提取下载链接 （tag_name属性即为版本号属性 cut命令获取版本号属性的值 awk命令把版本号中的v字符删除）
+VERSION=$(echo "$response" | grep 'tag_name' | cut -d'"' -f4)
 
 # 确定安装目录
 determine_install_dir() {
