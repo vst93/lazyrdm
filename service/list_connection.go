@@ -80,6 +80,9 @@ func InitConnectionComponent() {
 
 func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 	GlobalApp.Gui.Cursor = false
+	if GlobalApp.maxX < 2 || GlobalApp.maxY < 3 {
+		return c
+	}
 	theX0 := 0
 	theY0 := 0
 	theX1 := GlobalApp.maxX - 1
@@ -88,7 +91,13 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		theX0 = (GlobalApp.maxX - GlobalApp.maxY) / 2
 		theX1 = theX0 + GlobalApp.maxY - 1
 	}
-	v, err := GlobalApp.Gui.SetView(c.Name, theX0, theY0, theX1, theY1, 0)
+	if theX1 <= theX0 {
+		theX1 = theX0 + 1
+	}
+	if theY1 <= theY0 {
+		theY1 = theY0 + 1
+	}
+	v, err := SetViewSafe(c.Name, theX0, theY0, theX1, theY1, 0)
 	if err != nil {
 		if err != gocui.ErrUnknownView {
 			return c
@@ -99,39 +108,52 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		_, c.LayoutMaxY = v.Size()
 	}
 	GlobalApp.Gui.SetCurrentView(c.Name)
+	if c.ConnectionListCurrentGroupIndex >= 0 && c.ConnectionListCurrentGroupIndex < len(c.ConnectionList) {
+		v.Subtitle = " Connection mode | Group: " + c.ConnectionList[c.ConnectionListCurrentGroupIndex].Name + " | Enter: connect | h: back to groups "
+	} else {
+		v.Subtitle = " Group mode | Enter: open group | j/k: move | e/n/d: edit/new/delete group "
+	}
 
-	printString := ""
+	builder := strings.Builder{}
 	currenLine := 0
 	totalLine := 0
-	for index, conn := range c.ConnectionList {
-		if conn.Name == "" {
+	for index, group := range c.ConnectionList {
+		if group.Name == "" {
 			continue
 		}
-		theConnectionsLen := len(conn.Connections)
+
+		groupPrefix := ">"
+		if c.ConnectionListCurrentGroupIndex == index {
+			groupPrefix = "v"
+		}
+		groupLine := fmt.Sprintf("%s [%s] (%d)\n", groupPrefix, group.Name, len(group.Connections))
+
 		if c.ConnectionListSelectedGroupIndex == index {
 			if c.ConnectionListSelectedConnectionIndex == -1 {
-				printString += NewColorString("["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING+"\n", "white", "blue", "bold")
+				builder.WriteString(NewColorString(groupLine, "white", "blue", "bold"))
 				totalLine++
 				currenLine = totalLine
 			} else {
-				// printString += fmt.Sprintf("%s\n", "["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING)
-				printString += NewColorString("["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING+"\n", "white", "purple", "bold")
+				builder.WriteString(NewColorString(groupLine, "white", "purple", "bold"))
 				totalLine++
 			}
-			for key, item := range conn.Connections {
+		} else {
+			builder.WriteString(groupLine)
+			totalLine++
+		}
+
+		if c.ConnectionListCurrentGroupIndex == index {
+			for key, item := range group.Connections {
+				connectionLine := fmt.Sprintf("  - %s\n", item.Name)
 				if key == c.ConnectionListSelectedConnectionIndex {
-					// printString += fmt.Sprintf(" - \x1b[1;37;44m%s\x1b[0m\n", item.Name+SPACE_STRING) // 白底黑字
-					printString += NewColorString(" - "+item.Name+SPACE_STRING+"\n", "white", "blue", "bold")
+					builder.WriteString(NewColorString(connectionLine, "white", "blue", "bold"))
 					totalLine++
 					currenLine = totalLine
 				} else {
-					printString += fmt.Sprintf(" - %s%s\n", item.Name, SPACE_STRING)
+					builder.WriteString(connectionLine)
 					totalLine++
 				}
 			}
-		} else {
-			printString += fmt.Sprintf("%s\n", "["+conn.Name+"] ("+fmt.Sprintf("%d", theConnectionsLen)+")"+SPACE_STRING)
-			totalLine++
 		}
 	}
 
@@ -148,9 +170,9 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		v.SetOrigin(0, 0)
 	}
 	v.Clear()
-	v.Write([]byte(printString))
+	v.Write([]byte(builder.String()))
 
-	if GlobalApp.Gui.CurrentView().Name() == c.Name {
+	if CurrentViewName() == c.Name {
 		GlobalTipComponent.Layout(c.KeyMapTip())
 	}
 	return c
@@ -163,10 +185,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			return nil
 		}
 		if c.ConnectionListCurrentGroupIndex >= 0 {
-			c.ConnectionListSelectedConnectionIndex++
-			if c.ConnectionListSelectedConnectionIndex > len(c.ConnectionList[c.ConnectionListCurrentGroupIndex].Connections)-1 {
-				c.ConnectionListSelectedConnectionIndex = 0
-			}
+			c.moveConnectionSelection(1)
 		} else {
 			c.ConnectionListSelectedGroupIndex++
 			if c.ConnectionListSelectedGroupIndex > len(c.ConnectionList)-1 {
@@ -185,10 +204,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			return nil
 		}
 		if c.ConnectionListCurrentGroupIndex >= 0 {
-			c.ConnectionListSelectedConnectionIndex--
-			if c.ConnectionListSelectedConnectionIndex < 0 {
-				c.ConnectionListSelectedConnectionIndex = len(c.ConnectionList[c.ConnectionListCurrentGroupIndex].Connections) - 1
-			}
+			c.moveConnectionSelection(-1)
 		} else {
 			c.ConnectionListSelectedGroupIndex--
 			if c.ConnectionListSelectedGroupIndex < 0 {
@@ -208,7 +224,11 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			return nil
 		}
 		if c.ConnectionListCurrentGroupIndex >= 0 {
-			GlobalTipComponent.LayoutTemporary("Connecting...", 10, TipTypeWarning)
+			if c.ConnectionListCurrentGroupIndex >= len(c.ConnectionList) || c.ConnectionListSelectedConnectionIndex < 0 || c.ConnectionListSelectedConnectionIndex >= len(c.ConnectionList[c.ConnectionListCurrentGroupIndex].Connections) {
+				GlobalTipComponent.LayoutTemporary("No connection selected", 2, TipTypeWarning)
+				return nil
+			}
+			GlobalTipComponent.LayoutTemporary("Connecting to Redis...", 10, TipTypeWarning)
 			c.isConnecting = true
 			if GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name != "" {
 				// 关闭之前的连接
@@ -219,7 +239,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			go func() {
 				connectionInfo := services.Browser().OpenConnection(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name)
 				if connectionInfo.Success {
-					GlobalTipComponent.LayoutTemporary("Open connection success", 2, TipTypeSuccess)
+					GlobalTipComponent.LayoutTemporary("Connected successfully", 2, TipTypeSuccess)
 					GlobalConnectionComponent.dbs = connectionInfo.Data.(map[string]any)["db"].([]types.ConnectionDB)
 					GlobalConnectionComponent.view = connectionInfo.Data.(map[string]any)["view"].(int)
 					GlobalConnectionComponent.lastDB = connectionInfo.Data.(map[string]any)["lastDB"].(int)
@@ -230,14 +250,22 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 					c.closeView()
 					InitDBComponent()
 				} else {
-					GlobalTipComponent.LayoutTemporary("Open connection failed", 5, TipTypeError)
+					GlobalTipComponent.LayoutTemporary("Failed to connect", 5, TipTypeError)
 					GlobalApp.Gui.SetCurrentView(c.Name)
 				}
 				c.isConnecting = false
 			}()
 			return nil
 		} else {
+			if c.ConnectionListSelectedGroupIndex < 0 || c.ConnectionListSelectedGroupIndex >= len(c.ConnectionList) {
+				return nil
+			}
+			if len(c.ConnectionList[c.ConnectionListSelectedGroupIndex].Connections) == 0 {
+				GlobalTipComponent.LayoutTemporary("This group has no connections. Press n to create one.", 3, TipTypeWarning)
+				return nil
+			}
 			c.ConnectionListCurrentGroupIndex = c.ConnectionListSelectedGroupIndex
+			c.ConnectionListSelectedGroupIndex = c.ConnectionListCurrentGroupIndex
 			c.ConnectionListSelectedConnectionIndex = 0
 			v.Clear()
 			c.Layout()
@@ -310,36 +338,36 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 				//删除光标选中连接
 				apiResult := services.Connection().DeleteConnection(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListCurrentGroupIndex].Connections[c.ConnectionListSelectedConnectionIndex].Name)
 				if apiResult.Success {
-					GlobalTipComponent.LayoutTemporary("Delete connection success", 2, TipTypeSuccess)
+					GlobalTipComponent.LayoutTemporary("Connection deleted", 2, TipTypeSuccess)
 				} else {
-					GlobalTipComponent.LayoutTemporary("Delete connection failed", 3, TipTypeError)
+					GlobalTipComponent.LayoutTemporary("Failed to delete connection", 3, TipTypeError)
 				}
 				c.closeView()
 				InitConnectionComponent()
 			}, func() {
 				//取消删除
-				GlobalTipComponent.LayoutTemporary("Delete canceled", 2, TipTypeSuccess)
+				GlobalTipComponent.LayoutTemporary("Delete cancelled", 2, TipTypeWarning)
 				GlobalApp.Gui.SetCurrentView(c.Name)
 			})
 
 		} else if GlobalConnectionComponent.ConnectionListSelectedGroupIndex >= 0 {
 			if len(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListSelectedGroupIndex].Connections) > 0 {
-				GlobalTipComponent.LayoutTemporary("Group not empty, can not delete", 3, TipTypeError)
+				GlobalTipComponent.LayoutTemporary("Cannot delete non-empty group", 3, TipTypeError)
 				return nil
 			}
 			NewPageComponentConfirm("Delete group", "Are you sure to delete this group?", func() {
 				//删除光标选中的组
 				apiResult := services.Connection().DeleteGroup(GlobalConnectionComponent.ConnectionList[GlobalConnectionComponent.ConnectionListSelectedGroupIndex].Name, false)
 				if apiResult.Success {
-					GlobalTipComponent.LayoutTemporary("Delete group success", 2, TipTypeSuccess)
+					GlobalTipComponent.LayoutTemporary("Group deleted", 2, TipTypeSuccess)
 				} else {
-					GlobalTipComponent.LayoutTemporary("Delete group failed", 3, TipTypeError)
+					GlobalTipComponent.LayoutTemporary("Failed to delete group", 3, TipTypeError)
 				}
 				c.closeView()
 				InitConnectionComponent()
 			}, func() {
 				//取消删除
-				GlobalTipComponent.LayoutTemporary("Delete canceled", 2, TipTypeSuccess)
+				GlobalTipComponent.LayoutTemporary("Delete cancelled", 2, TipTypeWarning)
 				GlobalApp.Gui.SetCurrentView(c.Name)
 			})
 		}
@@ -362,12 +390,12 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		apiResult := c.ExportConnections()
 		PrintLn(apiResult)
 		if apiResult.Success {
-			GlobalTipComponent.LayoutTemporary("Export connections success", 2, TipTypeSuccess)
+			GlobalTipComponent.LayoutTemporary("Connections exported", 2, TipTypeSuccess)
 			OpenFileManager(apiResult.Data.(struct {
 				Path string `json:"path"`
 			}).Path)
 		} else {
-			GlobalTipComponent.LayoutTemporary("Export connections failed", 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Failed to export connections", 3, TipTypeError)
 		}
 		return nil
 	})
@@ -377,16 +405,16 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		//读取剪切板内容
 		clipboardContent, _ := clipboard.ReadAll()
 		clipboardContent = strings.TrimSpace(clipboardContent)
-		noticeString := "To import, copy the file path of the Tiny RDM export (ZIP) and select \"Yes\".\n\nCurrent clipboard: \"" + clipboardContent + "\""
+		noticeString := "Copy a Tiny RDM export ZIP path to your clipboard, then press y to import.\n\nClipboard: \"" + clipboardContent + "\""
 		NewPageComponentConfirm("Import connections", noticeString, func() {
 			// 导入连接信息
 			if clipboardContent == "" {
-				GlobalTipComponent.LayoutTemporary("Failed to get clipboard content", 5, TipTypeError)
+				GlobalTipComponent.LayoutTemporary("Clipboard is empty", 5, TipTypeError)
 				GlobalApp.Gui.SetCurrentView(c.Name)
 				return
 			}
 			if !strings.HasSuffix(clipboardContent, ".zip") {
-				GlobalTipComponent.LayoutTemporary("The clipboard content is not a zip file path", 5, TipTypeError)
+				GlobalTipComponent.LayoutTemporary("Clipboard does not contain a .zip path", 5, TipTypeError)
 				GlobalApp.Gui.SetCurrentView(c.Name)
 				return
 			}
@@ -396,29 +424,29 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 				GlobalApp.Gui.SetCurrentView(c.Name)
 				return
 			}
-			GlobalTipComponent.LayoutTemporary("Import connections success", 2, TipTypeSuccess)
+			GlobalTipComponent.LayoutTemporary("Connections imported", 2, TipTypeSuccess)
 			c.closeView()
 			InitConnectionComponent()
 		}, func() {
 			// 取消导入
-			GlobalTipComponent.LayoutTemporary("Import canceled", 2, TipTypeSuccess)
+			GlobalTipComponent.LayoutTemporary("Import cancelled", 2, TipTypeWarning)
 			GlobalApp.Gui.SetCurrentView(c.Name)
 		})
 		return nil
 	})
 
 	// 检查更新
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowUp, 'u'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{'u'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		haveNewVersion, msg := CheckOutNewVersion()
 		if haveNewVersion {
-			NewPageComponentConfirm("New version available", "There is a new version available, do you want to download it by browser?", func() {
+			NewPageComponentConfirm("New version available", "A new version is available. Open the download page in your browser?", func() {
 				// 浏览器打开
 				browser.OpenURL(msg)
 			}, func() {
-				GlobalTipComponent.LayoutTemporary("Download canceled", 2, TipTypeSuccess)
+				GlobalTipComponent.LayoutTemporary("Download cancelled", 2, TipTypeWarning)
 			})
 		} else {
-			GlobalTipComponent.LayoutTemporary("No new version available,Reasons: "+msg, 2, TipTypeSuccess)
+			GlobalTipComponent.LayoutTemporary("No new version available: "+msg, 2, TipTypeSuccess)
 		}
 		return nil
 	})
@@ -427,18 +455,24 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 }
 
 func (c *LTRConnectionComponent) KeyMapTip() string {
-	keyMap := []KeyMapStruct{
-		{"[Global] Quit", "<Ctrl + q>"},
-		{"[Global] Help", "<?>"},
-		{"Navigate", "↑/↓/j/k"},
-		{"Up", "←/h"},
-		{"Select", "<Enter>/l/→"},
-		{"Edit", "<e>"},
-		{"New", "<n>"},
-		{"Delete", "<d>"},
-		{"Export", "<E>"},
-		{"Import", "<I>"},
-		{"Update", "<u>"},
+	keyMap := []KeyMapStruct{}
+	if c.ConnectionListCurrentGroupIndex >= 0 {
+		keyMap = []KeyMapStruct{
+			{"Move", "↑/↓/j/k (cross-group)"},
+			{"Connect", "<Enter>/l/→"},
+			{"Back", "<Esc>/h/←"},
+			{"Edit/New/Delete", "<e>/<n>/<d>"},
+			{"Export/Import/Update", "<E>/<I>/<u>"},
+			{"Quit/Help", "<Ctrl+q>/<?>"},
+		}
+	} else {
+		keyMap = []KeyMapStruct{
+			{"Move", "↑/↓/j/k"},
+			{"Open Group", "<Enter>/l/→"},
+			{"Edit/New/Delete", "<e>/<n>/<d>"},
+			{"Export/Import/Update", "<E>/<I>/<u>"},
+			{"Quit/Help", "<Ctrl+q>/<?>"},
+		}
 	}
 	ret := ""
 	for i, v := range keyMap {
@@ -446,10 +480,82 @@ func (c *LTRConnectionComponent) KeyMapTip() string {
 			ret += " | "
 		}
 		ret += fmt.Sprintf("%s: %s", v.Description, v.Key)
-		i++
 	}
 	// return "connection_list: " + ret
 	return ret
+}
+
+func (c *LTRConnectionComponent) moveConnectionSelection(step int) {
+	if c.ConnectionListCurrentGroupIndex < 0 || c.ConnectionListCurrentGroupIndex >= len(c.ConnectionList) {
+		return
+	}
+	currentConnections := c.ConnectionList[c.ConnectionListCurrentGroupIndex].Connections
+	if len(currentConnections) == 0 {
+		nextGroup := c.findNextGroupWithConnections(c.ConnectionListCurrentGroupIndex, step)
+		if nextGroup < 0 {
+			c.ConnectionListCurrentGroupIndex = -1
+			c.ConnectionListSelectedGroupIndex = -1
+			c.ConnectionListSelectedConnectionIndex = -1
+			return
+		}
+		c.ConnectionListCurrentGroupIndex = nextGroup
+		c.ConnectionListSelectedGroupIndex = nextGroup
+		if step > 0 {
+			c.ConnectionListSelectedConnectionIndex = 0
+		} else {
+			c.ConnectionListSelectedConnectionIndex = len(c.ConnectionList[nextGroup].Connections) - 1
+		}
+		return
+	}
+
+	if c.ConnectionListSelectedConnectionIndex < 0 || c.ConnectionListSelectedConnectionIndex >= len(currentConnections) {
+		if step > 0 {
+			c.ConnectionListSelectedConnectionIndex = 0
+		} else {
+			c.ConnectionListSelectedConnectionIndex = len(currentConnections) - 1
+		}
+		return
+	}
+
+	nextIndex := c.ConnectionListSelectedConnectionIndex + step
+	if nextIndex >= 0 && nextIndex < len(currentConnections) {
+		c.ConnectionListSelectedConnectionIndex = nextIndex
+		return
+	}
+
+	nextGroup := c.findNextGroupWithConnections(c.ConnectionListCurrentGroupIndex, step)
+	if nextGroup < 0 {
+		c.ConnectionListCurrentGroupIndex = -1
+		c.ConnectionListSelectedGroupIndex = -1
+		c.ConnectionListSelectedConnectionIndex = -1
+		return
+	}
+
+	c.ConnectionListCurrentGroupIndex = nextGroup
+	c.ConnectionListSelectedGroupIndex = nextGroup
+	if step > 0 {
+		c.ConnectionListSelectedConnectionIndex = 0
+	} else {
+		c.ConnectionListSelectedConnectionIndex = len(c.ConnectionList[nextGroup].Connections) - 1
+	}
+}
+
+func (c *LTRConnectionComponent) findNextGroupWithConnections(from int, step int) int {
+	if len(c.ConnectionList) == 0 {
+		return -1
+	}
+	listLen := len(c.ConnectionList)
+	for i := 1; i <= listLen; i++ {
+		next := from + i*step
+		for next < 0 {
+			next += listLen
+		}
+		next = next % listLen
+		if len(c.ConnectionList[next].Connections) > 0 {
+			return next
+		}
+	}
+	return -1
 }
 
 func (c *LTRConnectionComponent) closeView() {

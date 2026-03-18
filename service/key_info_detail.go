@@ -40,7 +40,7 @@ func InitKeyInfoDetailComponent() {
 }
 
 func (c *LTRKeyInfoDetailComponent) LayoutTitle() *LTRKeyInfoDetailComponent {
-	if c.view != nil && GlobalApp.Gui.CurrentView().Name() == c.name {
+	if c.view != nil && CurrentViewName() == c.name {
 		c.view.Title = " [" + c.title + "] "
 		c.lineView.FrameColor = gocui.ColorGreen
 	} else {
@@ -61,12 +61,12 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	lineViewWidth := 0
 	lineViewWidthStr := "1"
 	// show key detail
-	c.view, err = GlobalApp.Gui.SetView(c.name, theX0+1, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
+	c.view, err = SetViewSafe(c.name, theX0+1, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyValueMaxY = 0
 		c.view.Wrap = true
 		// c.view.Title = " " + c.title + " "
-		if GlobalApp.Gui.CurrentView().Name() == c.name {
+		if CurrentViewName() == c.name {
 			c.view.Title = " [" + c.title + "] "
 		} else {
 			c.view.Title = " " + c.title + " "
@@ -96,17 +96,14 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 			lineViewWidth = len(strconv.Itoa(maxLine))
 			lineViewWidthStr = strconv.Itoa(lineViewWidth)
 			// reset view x0 , later affects the view width
-			c.view, _ = GlobalApp.Gui.SetView(c.name, theX0+1+lineViewWidth, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
+			c.view, _ = SetViewSafe(c.name, theX0+1+lineViewWidth, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 			theViewX, _ := c.view.Size()
-			PrintLn(theViewX)
 			for k, line := range theValSlice {
 				if k == maxLine {
 					// 跳过最后一行
 					break
 				}
-				lineLen2 := len(line)
 				lineLen := DisplayWidth(line)
-				PrintLn(strconv.Itoa(k+1) + " = " + strconv.Itoa(lineLen) + " " + strconv.Itoa(lineLen2))
 
 				if lineLen > theViewX {
 					theRealHeight := 0
@@ -134,7 +131,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 		}
 	}
 	if maxLine > 0 {
-		c.view.Subtitle = " " + strconv.Itoa(maxLine) + " "
+		c.view.Subtitle = " Lines: " + strconv.Itoa(maxLine) + " "
 	} else {
 		c.view.Subtitle = ""
 	}
@@ -148,7 +145,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 
 	// show format select
 	formatStr := " Format: " + c.keyValueFormat + " "
-	formatSelectView, err := GlobalApp.Gui.SetView("key_value_format", GlobalApp.maxX-len(formatStr)-2, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
+	formatSelectView, err := SetViewSafe("key_value_format", GlobalApp.maxX-len(formatStr)-2, GlobalApp.maxY-4, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 	if err == nil || err != gocui.ErrUnknownView {
 		formatSelectView.Clear()
 		formatSelectView.Write([]byte(formatStr))
@@ -159,7 +156,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	c.view.SetOrigin(0, c.viewOriginY)
 
 	// line view
-	c.lineView, err = GlobalApp.Gui.SetView("key_detail_line", theX0, 3, theX0+6, GlobalApp.maxY-2, 1)
+	c.lineView, err = SetViewSafe("key_detail_line", theX0, 3, theX0+6, GlobalApp.maxY-2, 1)
 	if err == nil || err != gocui.ErrUnknownView {
 		// c.lineView.FrameColor = gocui.NewRGBColor(149, 165, 166)
 		c.lineView.FgColor = gocui.NewRGBColor(78, 142, 166)
@@ -170,7 +167,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	c.lineView.FrameRunes = []rune{'─', '│', '┌', '─', '└', '─'}
 
 	// reset view x0 and x1
-	c.lineView, _ = GlobalApp.Gui.SetView("key_detail_line", theX0, 3, theX0+1+lineViewWidth, GlobalApp.maxY-2, 1)
+	c.lineView, _ = SetViewSafe("key_detail_line", theX0, 3, theX0+1+lineViewWidth, GlobalApp.maxY-2, 1)
 
 	return c
 }
@@ -188,11 +185,11 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'c'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		theVal := c.CopyString
 		if theVal == "" {
-			GlobalTipComponent.LayoutTemporary("No data to copy", 2, TipTypeWarning)
+			GlobalTipComponent.LayoutTemporary("No value to copy", 2, TipTypeWarning)
 			return nil
 		}
 		clipboard.WriteAll(theVal)
-		GlobalTipComponent.LayoutTemporary("Copied to clipboard", 3, TipTypeSuccess)
+		GlobalTipComponent.LayoutTemporary("Copied value to clipboard", 3, TipTypeSuccess)
 		return nil
 	})
 	// scroll
@@ -235,14 +232,14 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 	})
 
 	// 粘贴-修改值
-	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'p'}, "Replace value with clipboard content?", func() {
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'p'}, "Replace value using clipboard content?", func() {
 		theClipboardValue, err := clipboard.ReadAll()
 		if err != nil {
-			GlobalTipComponent.LayoutTemporary("Clipboard is empty or not available", 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Clipboard is empty or unavailable", 3, TipTypeError)
 			return
 		}
 		if GlobalKeyInfoComponent.keyName == "" {
-			GlobalTipComponent.LayoutTemporary("No key selected", 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("No key selected", 3, TipTypeWarning)
 			return
 		}
 
@@ -253,12 +250,12 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			Key:    GlobalKeyInfoComponent.keyName,
 		})
 		if !keySummary.Success {
-			GlobalTipComponent.LayoutTemporary("Failed to get key summary, message: "+keySummary.Msg, 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Failed to load key summary: "+keySummary.Msg, 3, TipTypeError)
 			return
 		}
 		keySummaryData := keySummary.Data.(types.KeySummary)
 		if keySummaryData.Type != "string" {
-			GlobalTipComponent.LayoutTemporary("Only string type can be modified at now", 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Only string values can be edited", 3, TipTypeError)
 			return
 		}
 
@@ -274,13 +271,13 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			},
 		)
 		if !res.Success {
-			GlobalTipComponent.LayoutTemporary("Failed to set value, message: "+res.Msg, 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Failed to update value: "+res.Msg, 3, TipTypeError)
 			return
 		}
-		GlobalTipComponent.LayoutTemporary("Set value successfully", 3, TipTypeSuccess)
+		GlobalTipComponent.LayoutTemporary("Value updated", 3, TipTypeSuccess)
 		c.Layout()
 	}, func() {
-		GlobalTipComponent.LayoutTemporary("Cancel set value", 3, TipTypeWarning)
+		GlobalTipComponent.LayoutTemporary("Value update cancelled", 3, TipTypeWarning)
 	})
 
 	// 修改值
@@ -288,7 +285,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return c.CopyString
 	}, func(editorResult string) {
 		if GlobalKeyInfoComponent.keyName == "" {
-			GlobalTipComponent.LayoutTemporary("No key selected", 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("No key selected", 3, TipTypeWarning)
 			return
 		}
 		// 检查 key 类型
@@ -298,7 +295,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			Key:    GlobalKeyInfoComponent.keyName,
 		})
 		if !keySummary.Success {
-			GlobalTipComponent.LayoutTemporary("Failed to get key summary, message: "+keySummary.Msg, 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Failed to load key summary: "+keySummary.Msg, 3, TipTypeError)
 			return
 		}
 		keySummaryData := keySummary.Data.(types.KeySummary)
@@ -321,26 +318,27 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			},
 		)
 		if !res.Success {
-			GlobalTipComponent.LayoutTemporary("Failed to set value, message: "+res.Msg, 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Failed to update value: "+res.Msg, 3, TipTypeError)
 			return
 		}
-		GlobalTipComponent.LayoutTemporary("Set value successfully", 3, TipTypeSuccess)
+		GlobalTipComponent.LayoutTemporary("Value updated", 3, TipTypeSuccess)
 		c.Layout()
 	}, func() {
-		GlobalTipComponent.LayoutTemporary("Cancel set value", 3, TipTypeWarning)
+		GlobalTipComponent.LayoutTemporary("Value update cancelled", 3, TipTypeWarning)
 	}, false)
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
-		{"Switch", "<Tab>"},
+		{"Scroll", "↑/↓/j/k"},
+		{"Scroll Page", "←/→/h/l"},
 		{"Switch Format", "<f>"},
 		{"Edit", "<e>"},
 		{"Copy", "<c>"},
 		{"Paste", "<p>"},
-		{"Scroll", "↑/↓/j/k"},
-		{"Scroll Page", "←/→/h/l"},
 		{"Refresh", "<r>"},
+		{"Pane", "<Tab>"},
+		{"Conn/Quit/Help", "<Ctrl+w>/<Ctrl+q>/<?>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
@@ -348,7 +346,6 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 			ret += " | "
 		}
 		ret += fmt.Sprintf("%s: %s", v.Description, v.Key)
-		i++
 	}
 	// return "key_detail: " + ret
 	return ret

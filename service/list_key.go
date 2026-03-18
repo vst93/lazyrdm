@@ -85,7 +85,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	_, theDBComponentH := GlobalDBComponent.view.Size()
 	var err error
 	// 列表
-	c.view, err = GlobalApp.Gui.SetView(c.name, 1, theDBComponentH+4, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)
+	c.view, err = SetViewSafe(c.name, 1, theDBComponentH+4, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)
 	if err != nil && err != gocui.ErrUnknownView {
 		// PrintLn(err.Error())
 		return c
@@ -96,9 +96,11 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	if GlobalDBComponent.SelectedDB < 0 {
 		c.view.Subtitle = ""
 	} else {
-		// c.view.Title = " [db" + strconv.Itoa(GlobalDBComponent.SelectedDB) + "]" + " [" + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10) + "] "
-		// c.view.Title = " Key List [" + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10) + "] "
-		c.view.Subtitle = " " + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10) + " "
+		subtitle := " " + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10)
+		if strings.TrimSpace(c.searchKeyword) != "" {
+			subtitle += " | filtered"
+		}
+		c.view.Subtitle = subtitle + " "
 	}
 	_, c.viewMaxY = c.view.Size()
 
@@ -149,7 +151,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	// 显示搜索关键词
 	if c.searchKeyword != "" {
 		searchKeywordShow := " Search: " + c.searchKeyword + " "
-		c.searchView, err = GlobalApp.Gui.SetView("search_key", GlobalApp.maxX*2/10-len(searchKeywordShow)-1, GlobalApp.maxY-4, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)
+		c.searchView, err = SetViewSafe("search_key", GlobalApp.maxX*2/10-len(searchKeywordShow)-1, GlobalApp.maxY-4, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)
 		if err != nil && err != gocui.ErrUnknownView {
 			// PrintLn(err.Error())
 			return c
@@ -164,7 +166,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	}
 
 	// line view
-	c.lineView, err = GlobalApp.Gui.SetView("key_list_line", 0, theDBComponentH+2, 2, GlobalApp.maxY-2, 0)
+	c.lineView, err = SetViewSafe("key_list_line", 0, theDBComponentH+2, 2, GlobalApp.maxY-2, 0)
 	if err == nil || err != gocui.ErrUnknownView {
 		// c.lineView.FrameColor = gocui.NewRGBColor(149, 165, 166)
 		c.lineView.FgColor = gocui.NewRGBColor(78, 142, 166)
@@ -175,10 +177,10 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	c.lineView.FrameRunes = []rune{'─', '│', '┌', '─', '└', '─'}
 
 	// reset view x0 and x1
-	c.view, _ = GlobalApp.Gui.SetView(c.name, 1+lineViewWidth, theDBComponentH+2, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)
-	c.lineView, _ = GlobalApp.Gui.SetView("key_list_line", 0, theDBComponentH+2, 1+lineViewWidth, GlobalApp.maxY-2, 0)
+	c.view, _ = SetViewSafe(c.name, 1+lineViewWidth, theDBComponentH+2, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)
+	c.lineView, _ = SetViewSafe("key_list_line", 0, theDBComponentH+2, 1+lineViewWidth, GlobalApp.maxY-2, 0)
 
-	if GlobalApp.Gui.CurrentView().Name() == c.name {
+	if CurrentViewName() == c.name {
 		c.view.Title = " [Key List] "
 		c.lineView.FrameColor = gocui.ColorGreen
 	} else {
@@ -257,17 +259,17 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 			}
 		}
 		if deleteStaus {
-			GlobalTipComponent.LayoutTemporary("Key [ "+pendDeleteKey+"] deleted", 2, TipTypeSuccess)
+			GlobalTipComponent.LayoutTemporary("Deleted key: "+pendDeleteKey, 2, TipTypeSuccess)
 		} else {
-			GlobalTipComponent.LayoutTemporary("Key [ "+pendDeleteKey+"] not found", 2, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Key not found: "+pendDeleteKey, 2, TipTypeError)
 		}
 		GlobalKeyComponent.Layout()
 	}, func() {
-		GlobalTipComponent.LayoutTemporary("Delete Key cancelled", 2, TipTypeWarning)
+		GlobalTipComponent.LayoutTemporary("Delete key cancelled", 2, TipTypeWarning)
 	})
 
 	// 新增 key （当前仅支持 string 类型）
-	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'a'}, "Do you want to create a new temporary string key?", func() {
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'a'}, "Create a temporary string key with 10-minute TTL?", func() {
 		// 新增 key
 		theTmpKey := "layrdm_tmp_key:" + time.Now().Format("20060102150405")
 		res := services.Browser().SetKeyValue(
@@ -289,22 +291,23 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 			GlobalKeyInfoDetailComponent.viewOriginY = 0
 			GlobalKeyInfoDetailComponent.Layout()
 			c.Layout()
-			GlobalTipComponent.LayoutTemporary("Key [ "+theTmpKey+" ] added", 2, TipTypeSuccess)
+			GlobalTipComponent.LayoutTemporary("Created key: "+theTmpKey, 2, TipTypeSuccess)
 		} else {
-			GlobalTipComponent.LayoutTemporary("Failed to create key", 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Failed to create temporary key", 3, TipTypeError)
 		}
 	}, func() {
-		GlobalTipComponent.LayoutTemporary("Key creation cancelled", 2, TipTypeWarning)
+		GlobalTipComponent.LayoutTemporary("Create key cancelled", 2, TipTypeWarning)
 	})
 
 	// 搜索
-	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'s'}, "Search by keyword?", func() string {
+	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'s'}, "Update key search keyword?", func() string {
 		return c.searchKeyword
 	}, func(editorResult string) {
 		editorResult = strings.TrimSpace(editorResult)
 		c.searchKeyword = editorResult
 		c.RefreshList()
 	}, func() {
+		GlobalTipComponent.LayoutTemporary("Search update cancelled", 2, TipTypeWarning)
 	}, true)
 
 	return c
@@ -322,13 +325,14 @@ func (c *LTRListKeyComponent) RefreshList() *LTRListKeyComponent {
 
 func (c *LTRListKeyComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
-		{"Switch", "<Tab>"},
-		{"Select", "↑/↓/j/l"},
-		{"Enter", "<Enter>/l/→"},
+		{"Select", "↑/↓/j/k"},
+		{"Open Key", "<Enter>/l/→"},
 		{"Search", "<s>"},
-		{"Delete", "<d>"},
-		{"Add", "<a>"},
 		{"Refresh", "<r>"},
+		{"Add", "<a>"},
+		{"Delete", "<d>"},
+		{"Pane", "<Tab>"},
+		{"Conn/Quit/Help", "<Ctrl+w>/<Ctrl+q>/<?>"},
 	}
 	ret := ""
 	for i, v := range keyMap {

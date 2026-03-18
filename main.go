@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"tinyrdm/backend/services"
 
 	"github.com/awesome-gocui/gocui"
@@ -37,6 +36,7 @@ func main() {
 	}()
 
 	service.NewMainApp(g)
+	service.GlobalApp.StartResizeWatcher()
 
 	// 退出程序
 	if err := g.SetKeybinding("", gocui.KeyCtrlQ, gocui.ModNone, quit); err != nil {
@@ -49,9 +49,13 @@ func main() {
 		if len(service.GlobalApp.ViewNameList) < 2 {
 			return nil
 		}
+		currentView := service.GlobalApp.Gui.CurrentView()
+		if currentView == nil || currentView.Name() == "page_confirm" {
+			return nil
+		}
 		currentViewNameIndex := -1
 		for i, name := range service.GlobalApp.ViewNameList {
-			if name == service.GlobalApp.Gui.CurrentView().Name() {
+			if name == currentView.Name() {
 				currentViewNameIndex = i
 				break
 			}
@@ -66,13 +70,22 @@ func main() {
 		return nil
 	})
 
-	// 查看当前快捷键信息
-	service.GuiSetKeysbindingConfirmWithVIEditor(g, "", []any{'?'}, "", func() string {
-		infoText := service.GlobalTipComponent.GetLastTipString()
-		infoText = strings.ReplaceAll(infoText, " | ", "\n")
-		infoText = fmt.Sprintf("Shortcut Keys Reference (View Only)\n----------------------------------\n%s", infoText)
-		return infoText
-	}, nil, nil, true)
+	service.GuiSetKeysbinding(g, "", []any{gocui.KeyCtrlW}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		currentView := service.GlobalApp.Gui.CurrentView()
+		if currentView == nil {
+			return nil
+		}
+		if currentView.Name() == "connection_list" || currentView.Name() == "page_confirm" {
+			return nil
+		}
+		service.ExitCurrentConnectionToList()
+		return nil
+	})
+
+	service.GuiSetKeysbinding(g, "", []any{'?'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		service.OpenHelpPage()
+		return nil
+	})
 
 	// 发送一个访问统计, 仅用于统计使用情况
 	// go http.Get("https://finicounter.eu.org/counter?host=github.com/vst93/lazyrdm")

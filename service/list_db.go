@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"tinyrdm/backend/services"
@@ -49,16 +48,16 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 		return c
 	}
 	theY1 := GlobalApp.maxY * 3 / 10
-	if GlobalApp.Gui.CurrentView().Name() != c.name {
+	if CurrentViewName() != c.name {
 		theY1 = c.minH
 	}
 	var err error
-	c.view, err = GlobalApp.Gui.SetView(c.name, 0, 0, GlobalApp.maxX*2/10, theY1, 0)
+	c.view, err = SetViewSafe(c.name, 0, 0, GlobalApp.maxX*2/10, theY1, 0)
 	if err != nil && err != gocui.ErrUnknownView {
 		return c
 	}
 
-	if GlobalApp.Gui.CurrentView().Name() == c.name {
+	if CurrentViewName() == c.name {
 		c.view.Title = " [" + c.title + "] "
 	} else {
 		c.view.Title = " " + c.title + " "
@@ -86,7 +85,7 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 	c.view.Clear()
 	c.view.Write([]byte(printString))
 
-	if GlobalApp.Gui.CurrentView().Name() != c.name && c.SelectedDB >= 0 {
+	if CurrentViewName() != c.name && c.SelectedDB >= 0 {
 		c.view.SetOrigin(0, c.SelectedDB)
 	} else if currenLine > c.LayoutMaxH/2 {
 		originLine := currenLine - c.LayoutMaxH/2
@@ -149,33 +148,21 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 		return nil
 	})
 
-	// 获取服务信息
-	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'i'}, "", func() string {
-		result := services.Browser().ServerInfo(GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name)
-		infoText := ""
-		if result.Success {
-			resultData, err := json.Marshal(result.Data)
-			if err == nil {
-				infoText, _ = PrettyString(string(resultData))
-			} else {
-				infoText = "Failed to parse server info"
-			}
-		} else {
-			infoText = "Failed to get server info"
-		}
-		infoText = fmt.Sprintf("Server Info (View Only)\n----------------------------------\n%s", infoText)
-		return infoText
-	}, nil, nil, true)
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'i'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		OpenServerInfoPage()
+		return nil
+	})
 
 	return c
 }
 
 func (c *LTRListDBComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
-		{"Switch", "<Tab>"},
 		{"Select", "↑/↓/j/k"},
-		{"Enter", "<Enter>/l/→"},
+		{"Open DB", "<Enter>/l/→"},
 		{"Server Info", "<i>"},
+		{"Pane", "<Tab>"},
+		{"Conn/Quit/Help", "<Ctrl+w>/<Ctrl+q>/<?>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
@@ -183,7 +170,6 @@ func (c *LTRListDBComponent) KeyMapTip() string {
 			ret += " | "
 		}
 		ret += fmt.Sprintf("%s: %s", v.Description, v.Key)
-		i++
 	}
 	// return "db_list: " + ret
 	return ret

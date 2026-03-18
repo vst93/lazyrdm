@@ -37,7 +37,7 @@ func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifie
 
 // GuiSetKeysbindingConfirm set keysbinding for a view with confirm
 func GuiSetKeysbindingConfirm(g *gocui.Gui, viewname string, keys []any, tip string, handlerYes func(), handlerNo func()) {
-	tip += " (y/n)"
+	tip += " (press y to confirm, n to cancel)"
 	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		GlobalTipComponent.LayoutTemporary(tip, 10, TipTypeWarning)
 		GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
@@ -71,9 +71,9 @@ func GuiSetKeysbindingConfirm(g *gocui.Gui, viewname string, keys []any, tip str
 func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []any, tip string, handlerGetText func() string, handlerYes func(editedText string), handlerNo func(), skipConfirm bool) {
 	// 展示提示语
 	if tip == "" {
-		tip = "Change the value?"
+		tip = "Apply this change?"
 	}
-	tip += " (y/n)"
+	tip += " (press y to confirm, n to cancel)"
 	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		initialText := handlerGetText()
 		currentView := g.CurrentView()

@@ -58,7 +58,7 @@ func (c *LTRConnectionEditComponent) Layout() *LTRConnectionEditComponent {
 		theX1 = theX0 + GlobalApp.maxY - 1
 	}
 	c.viewBeginX, c.viewBeginY, c.viewEndX, c.viewEndY = theX0, theY0, theX1, theY1
-	v, _ := GlobalApp.Gui.SetView(c.name, c.viewBeginX, c.viewBeginY, c.viewEndX, c.viewEndY, 0)
+	v, _ := SetViewSafe(c.name, c.viewBeginX, c.viewBeginY, c.viewEndX, c.viewEndY, 0)
 	v.Title = c.title
 	// v.Editable = true
 	v.Wrap = true
@@ -290,7 +290,7 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 	if xEnd == 0 {
 		xEnd = c.viewEndX - 1
 	}
-	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3, 0)
+	view, _ := SetViewSafe(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3, 0)
 	view.Clear()
 	view.Title = " " + title + " "
 	view.Frame = true
@@ -336,7 +336,7 @@ func (c *LTRConnectionEditComponent) formViewRadio(config LTRConnectionEditCompo
 		xEnd = c.viewEndX - 1
 	}
 
-	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3, 0)
+	view, _ := SetViewSafe(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3, 0)
 	view.Title = " " + title + " "
 	view.Frame = true
 	view.FgColor = gocui.ColorWhite
@@ -407,7 +407,7 @@ func (c *LTRConnectionEditComponent) formBtn(name string, title string, xBeing i
 	if xBeing == 0 {
 		xBeing = c.viewBeginX
 	}
-	view, _ := GlobalApp.Gui.SetView(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xBeing+width, c.viewBeginY+c.viewNowLine*3+3, 0)
+	view, _ := SetViewSafe(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xBeing+width, c.viewBeginY+c.viewNowLine*3+3, 0)
 	view.Frame = false
 	view.FgColor = gocui.ColorWhite
 	view.Clear()
@@ -547,9 +547,10 @@ func (c *LTRConnectionEditComponent) keyBindTab(mod int) {
 
 func (c *LTRConnectionEditComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
-		{"Switch", "<Tab>/<Enter>"},
+		{"Switch Field", "<Tab>/<Enter>"},
 		{"Submit", "<Enter>"},
 		{"Cancel", "<Esc>"},
+		{"Quit/Help", "<Ctrl+q>/<?>"},
 	}
 	keyMap = append(keyMap, c.KeyMapTipExtend...)
 	ret := ""
@@ -558,7 +559,6 @@ func (c *LTRConnectionEditComponent) KeyMapTip() string {
 			ret += " | "
 		}
 		ret += fmt.Sprintf("%s: %s", v.Description, v.Key)
-		i++
 	}
 	return ret
 }
