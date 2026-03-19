@@ -12,8 +12,12 @@ import (
 type LTRTipComponent struct {
 	name               string
 	view               *gocui.View
+	temporaryName      string
+	temporaryView      *gocui.View
 	lastTipString      string
 	temporaryTipString string
+	temporaryTipType   string
+	temporaryTipSeq    int64
 	list               map[string]string
 }
 
@@ -30,8 +34,9 @@ type KeyMapStruct struct {
 
 func InitTipComponent() {
 	GlobalTipComponent = &LTRTipComponent{
-		name: "key_map_tip",
-		list: make(map[string]string, 100),
+		name:          "key_map_tip",
+		temporaryName: "operation_tip",
+		list:          make(map[string]string, 100),
 	}
 	GlobalTipComponent.Layout("")
 }
@@ -49,20 +54,69 @@ func (c *LTRTipComponent) AppendList(key string, desc string) {
 
 func (c *LTRTipComponent) LayComponentTips() {
 	theName := CurrentViewName()
-	if theName != "" && len(c.list) > 0 {
-		for key, desc := range c.list {
-			if theName == key {
-				c.Layout(desc)
-				break
-			}
+	if theName == "" {
+		return
+	}
+	tipString := strings.TrimSpace(c.tipForView(theName))
+	if tipString == "" {
+		tipString = c.defaultGlobalTip()
+	}
+	c.Layout(tipString)
+}
+
+func (c *LTRTipComponent) defaultGlobalTip() string {
+	return "Switch Pane: <Tab> | Switch Connection: <Ctrl+w> | Quit: <Ctrl+q> | Help: <?>"
+}
+
+func (c *LTRTipComponent) tipForView(viewName string) string {
+	if viewName == "" {
+		return ""
+	}
+
+	switch viewName {
+	case "connection_list":
+		if GlobalConnectionComponent != nil {
+			return GlobalConnectionComponent.KeyMapTip()
+		}
+	case "db_list":
+		if GlobalDBComponent != nil {
+			return GlobalDBComponent.KeyMapTip()
+		}
+	case "key_list", "key_list_line", "search_key":
+		if GlobalKeyComponent != nil {
+			return GlobalKeyComponent.KeyMapTip()
+		}
+	case "key_info", "key_info_ttl":
+		if GlobalKeyInfoComponent != nil {
+			return GlobalKeyInfoComponent.KeyMapTip()
+		}
+	case "key_info_detail", "key_detail_line", "key_value_format":
+		if GlobalKeyInfoDetailComponent != nil {
+			return GlobalKeyInfoDetailComponent.KeyMapTip()
 		}
 	}
+
+	if tip, ok := c.list[viewName]; ok {
+		return tip
+	}
+
+	aliasMap := map[string]string{
+		"key_list_line":    "key_list",
+		"search_key":       "key_list",
+		"key_info_ttl":     "key_info",
+		"key_detail_line":  "key_info_detail",
+		"key_value_format": "key_info_detail",
+	}
+	if alias, ok := aliasMap[viewName]; ok {
+		if tip, exists := c.list[alias]; exists {
+			return tip
+		}
+	}
+
+	return ""
 }
 
 func (c *LTRTipComponent) Layout(tipString string) *LTRTipComponent {
-	if tipString == c.lastTipString {
-		return c
-	}
 	if tipString != "" {
 		c.lastTipString = tipString
 	}
@@ -71,25 +125,134 @@ func (c *LTRTipComponent) Layout(tipString string) *LTRTipComponent {
 	if GlobalApp.maxX < 2 || GlobalApp.maxY < 2 {
 		return c
 	}
-	c.view, err = SetViewSafe(c.name, 0, GlobalApp.maxY-2, GlobalApp.maxX, GlobalApp.maxY, 0)
+	footerY0 := GlobalApp.maxY - 2
+	if footerY0 < 0 {
+		footerY0 = 0
+	}
+	c.view, err = SetViewSafe(c.name, 0, footerY0, GlobalApp.maxX, GlobalApp.maxY, 0)
 	if err != nil && err != gocui.ErrUnknownView {
 		PrintLn(err.Error())
 		return c
 	}
+	if GlobalApp != nil && GlobalApp.Gui != nil {
+		if _, errTop := GlobalApp.Gui.SetViewOnTop(c.name); errTop != nil && errTop != gocui.ErrUnknownView {
+			PrintLn(errTop.Error())
+		}
+	}
 	c.view.Editable = false
 	c.view.Frame = false
-	c.view.Wrap = true
-	c.view.FgColor = gocui.ColorBlue
+	c.view.Wrap = false
+	c.view.FgColor = gocui.ColorWhite | gocui.AttrBold
 	c.view.Clear()
 
 	theTipString := c.lastTipString
-	if c.temporaryTipString != "" {
-		theTipString = c.temporaryTipString
+	if strings.TrimSpace(theTipString) == "" {
+		theTipString = c.defaultGlobalTip()
 	}
 	maxWidth := GlobalApp.maxX - 2
 	theTipString = c.optimizedTipForWidth(theTipString, maxWidth)
+	theTipString = " " + strings.TrimSpace(theTipString)
+	theTipString = padRightDisplayWidth(theTipString, maxWidth)
 	c.view.Write([]byte(theTipString))
+	c.layoutTemporaryTip()
 	return c
+}
+
+func (c *LTRTipComponent) layoutTemporaryTip() {
+	if c == nil || GlobalApp == nil || GlobalApp.Gui == nil {
+		return
+	}
+	if strings.TrimSpace(c.temporaryTipString) == "" {
+		if c.temporaryView != nil {
+			GlobalApp.Gui.DeleteView(c.temporaryName)
+			c.temporaryView = nil
+		}
+		return
+	}
+
+	maxWidth := GlobalApp.maxX - 2
+	if maxWidth <= 0 || GlobalApp.maxY < 2 {
+		return
+	}
+
+	displayText := strings.TrimSpace(c.temporaryTipString)
+	tipWidth := DisplayWidth(displayText) + 4
+	if tipWidth > maxWidth {
+		tipWidth = maxWidth
+	}
+	if tipWidth < 28 {
+		tipWidth = 28
+		if tipWidth > maxWidth {
+			tipWidth = maxWidth
+		}
+	}
+
+	x1 := GlobalApp.maxX - 1
+	x0 := x1 - tipWidth
+	if x0 < 0 {
+		x0 = 0
+	}
+	y0 := 0
+	y1 := 4
+	if GlobalApp.maxY < 4 {
+		y1 = 1
+	}
+	if GlobalApp.maxY >= 4 && GlobalApp.maxY < 6 {
+		y1 = 2
+	}
+	if GlobalApp.maxY >= 6 && GlobalApp.maxY < 8 {
+		y1 = 3
+	}
+
+	var err error
+	c.temporaryView, err = SetViewSafe(c.temporaryName, x0, y0, x1, y1, 0)
+	if err != nil && err != gocui.ErrUnknownView {
+		PrintLn(err.Error())
+		return
+	}
+	if _, errTop := GlobalApp.Gui.SetViewOnTop(c.temporaryName); errTop != nil && errTop != gocui.ErrUnknownView {
+		PrintLn(errTop.Error())
+	}
+	c.temporaryView.Editable = false
+	c.temporaryView.Frame = true
+	c.temporaryView.Wrap = false
+	c.temporaryView.Title = " Notice "
+	c.temporaryView.FgColor = gocui.ColorWhite
+	switch c.temporaryTipType {
+	case TipTypeWarning:
+		c.temporaryView.FgColor = gocui.ColorYellow | gocui.AttrBold
+		c.temporaryView.Title = " Warning "
+	case TipTypeError:
+		c.temporaryView.FgColor = gocui.ColorRed | gocui.AttrBold
+		c.temporaryView.Title = " Error "
+	case TipTypeSuccess:
+		c.temporaryView.FgColor = gocui.ColorGreen | gocui.AttrBold
+		c.temporaryView.Title = " Success "
+	}
+	c.temporaryView.Clear()
+
+	bodyWidth := tipWidth - 2
+	theTipString := truncateByDisplayWidth(displayText, bodyWidth-1)
+	theTipString = " " + strings.TrimSpace(theTipString)
+	theTipString = padRightDisplayWidth(theTipString, bodyWidth)
+	if y1 >= 3 {
+		c.temporaryView.Write([]byte("\n"))
+	}
+	c.temporaryView.Write([]byte(theTipString))
+	if y1 >= 4 {
+		c.temporaryView.Write([]byte("\n"))
+	}
+}
+
+func padRightDisplayWidth(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	cur := DisplayWidth(s)
+	if cur >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-cur)
 }
 
 func (c *LTRTipComponent) optimizedTipForWidth(tipText string, maxWidth int) string {
@@ -168,30 +331,27 @@ func truncateByDisplayWidth(s string, maxWidth int) string {
 }
 
 func (c *LTRTipComponent) LayoutTemporary(tipString string, durationSec int, tipType string) *LTRTipComponent {
-	switch tipType {
-	case TipTypeWarning:
-		tipString = NewColorString(tipString, "yellow")
-	case TipTypeError:
-		tipString = NewColorString(tipString, "red")
-	case TipTypeSuccess:
-		tipString = NewColorString(tipString, "green")
-	}
+	tipString = strings.TrimSpace(tipString)
 	//获取当前的view的内容
 	if c.lastTipString == tipString {
 		return c
 	}
+	c.temporaryTipSeq++
+	temporaryTipSeq := c.temporaryTipSeq
 	c.temporaryTipString = tipString
-	// 修改展示的内容
-	// c.Layout("")
+	c.temporaryTipType = tipType
 	GlobalApp.Gui.Update(func(g *gocui.Gui) error {
 		c.Layout("")
 		return nil
 	})
-	// 3 s 后恢复原内容
 	go func() {
 		time.Sleep(time.Second * time.Duration(durationSec))
 		GlobalApp.Gui.Update(func(g *gocui.Gui) error {
+			if temporaryTipSeq != c.temporaryTipSeq {
+				return nil
+			}
 			c.temporaryTipString = ""
+			c.temporaryTipType = ""
 			c.Layout("")
 			return nil
 		})

@@ -44,6 +44,19 @@ func SetViewSafe(name string, x0 int, y0 int, x1 int, y1 int, overwrite byte) (*
 	if maxX < 2 || maxY < 2 {
 		return nil, fmt.Errorf("terminal too small")
 	}
+	maxContentY := maxY - 1
+	if name != "key_map_tip" && maxY >= 6 {
+		maxContentY = maxY - 2
+	}
+	if maxContentY < 1 {
+		maxContentY = maxY - 1
+	}
+	y0Max := maxContentY - 1
+	y1Max := maxContentY
+	if name == "key_map_tip" {
+		y0Max = maxY - 1
+		y1Max = maxY
+	}
 
 	if x0 < 0 {
 		x0 = 0
@@ -54,8 +67,8 @@ func SetViewSafe(name string, x0 int, y0 int, x1 int, y1 int, overwrite byte) (*
 	if x0 > maxX-2 {
 		x0 = maxX - 2
 	}
-	if y0 > maxY-2 {
-		y0 = maxY - 2
+	if y0 > y0Max {
+		y0 = y0Max
 	}
 
 	if x1 < x0+1 {
@@ -67,8 +80,8 @@ func SetViewSafe(name string, x0 int, y0 int, x1 int, y1 int, overwrite byte) (*
 	if x1 > maxX-1 {
 		x1 = maxX - 1
 	}
-	if y1 > maxY-1 {
-		y1 = maxY - 1
+	if y1 > y1Max {
+		y1 = y1Max
 	}
 	if x1 <= x0 || y1 <= y0 {
 		return nil, fmt.Errorf("invalid point")
@@ -90,6 +103,7 @@ func NewMainApp(g *gocui.Gui) {
 	GlobalApp.maxX, GlobalApp.maxY = GlobalApp.Gui.Size()
 	GlobalApp.Gui.SelFgColor = gocui.ColorGreen
 	GlobalApp.Gui.Highlight = true
+	GlobalApp.Gui.SetManagerFunc(GlobalApp.LayoutManager)
 	// GlobalApp.Gui.Cursor = true
 	InitTipComponent()
 	InitConnectionComponent()
@@ -139,6 +153,9 @@ func (app *MainApp) LayoutManager(g *gocui.Gui) error {
 	}
 	maxX, maxY := g.Size()
 	if maxX == app.maxX && maxY == app.maxY {
+		if GlobalTipComponent != nil {
+			GlobalTipComponent.LayComponentTips()
+		}
 		return nil
 	}
 	app.maxX = maxX
@@ -202,6 +219,12 @@ func (app *MainApp) StartResizeWatcher() {
 			}
 			maxX, maxY := app.Gui.Size()
 			if maxX == app.maxX && maxY == app.maxY {
+				if GlobalTipComponent != nil {
+					app.Gui.Update(func(g *gocui.Gui) error {
+						GlobalTipComponent.LayComponentTips()
+						return nil
+					})
+				}
 				continue
 			}
 			app.maxX = maxX

@@ -98,6 +98,10 @@ func main() {
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
+	if service.IsConfirmModalActive(g) {
+		_, _ = g.SetCurrentView("page_confirm")
+		return nil
+	}
 	return gocui.ErrQuit
 }
 

@@ -168,6 +168,9 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 
 	// reset view x0 and x1
 	c.lineView, _ = SetViewSafe("key_detail_line", theX0, 3, theX0+1+lineViewWidth, GlobalApp.maxY-2, 1)
+	if CurrentViewName() == c.name && GlobalTipComponent != nil {
+		GlobalTipComponent.Layout(c.KeyMapTip())
+	}
 
 	return c
 }

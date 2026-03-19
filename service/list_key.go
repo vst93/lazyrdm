@@ -183,6 +183,9 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	if CurrentViewName() == c.name {
 		c.view.Title = " [Key List] "
 		c.lineView.FrameColor = gocui.ColorGreen
+		if GlobalTipComponent != nil {
+			GlobalTipComponent.Layout(c.KeyMapTip())
+		}
 	} else {
 		c.view.Title = " Key List "
 		c.lineView.FrameColor = gocui.ColorDefault

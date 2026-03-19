@@ -100,6 +100,9 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 		c.view.SetOrigin(0, 0)
 	}
 	// c.view = v
+	if CurrentViewName() == c.name && GlobalTipComponent != nil {
+		GlobalTipComponent.Layout(c.KeyMapTip())
+	}
 
 	return c
 }

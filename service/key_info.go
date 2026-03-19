@@ -96,6 +96,9 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	}
 	c.keyViewTTL.FrameRunes = []rune{'─', '│', '─', '┐', '─', '┘'}
 	// c.keyViewTTL.Frame = false
+	if CurrentViewName() == c.name && GlobalTipComponent != nil {
+		GlobalTipComponent.Layout(c.KeyMapTip())
+	}
 
 	return c
 }

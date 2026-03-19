@@ -10,6 +10,44 @@ import (
 	"golang.org/x/term"
 )
 
+func confirmTitleFromTip(defaultTitle string, tip string) string {
+	text := strings.ToLower(strings.TrimSpace(tip))
+	if text == "" {
+		return defaultTitle
+	}
+	switch {
+	case strings.Contains(text, "delete"):
+		return "Delete Confirmation"
+	case strings.Contains(text, "rename"):
+		return "Rename Confirmation"
+	case strings.Contains(text, "ttl"):
+		return "TTL Confirmation"
+	case strings.Contains(text, "replace"):
+		return "Replace Confirmation"
+	case strings.Contains(text, "import"):
+		return "Import Confirmation"
+	case strings.Contains(text, "export"):
+		return "Export Confirmation"
+	case strings.Contains(text, "apply") || strings.Contains(text, "update"):
+		return "Apply Changes"
+	default:
+		return defaultTitle
+	}
+}
+
+func IsConfirmModalActive(g *gocui.Gui) bool {
+	if g == nil {
+		return false
+	}
+	if currentView := g.CurrentView(); currentView != nil && currentView.Name() == "page_confirm" {
+		return true
+	}
+	if _, err := g.View("page_confirm"); err == nil {
+		return true
+	}
+	return false
+}
+
 // GuiSetKeysbinding set keysbinding for a view
 func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifier, handler func(*gocui.Gui, *gocui.View) error) error {
 	// 如果 viewname 是数组,断言
@@ -28,7 +66,16 @@ func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifie
 		return nil
 	}
 	for _, key := range keys {
-		if err := g.SetKeybinding(viewnameStr, key, mod, handler); err != nil {
+		wrappedHandler := func(g *gocui.Gui, v *gocui.View) error {
+			if IsConfirmModalActive(g) && viewnameStr != "page_confirm" && viewnameStr != "page_confirm_mask" {
+				if _, err := g.SetCurrentView("page_confirm"); err != nil {
+					return nil
+				}
+				return nil
+			}
+			return handler(g, v)
+		}
+		if err := g.SetKeybinding(viewnameStr, key, mod, wrappedHandler); err != nil {
 			return err
 		}
 	}
@@ -37,32 +84,19 @@ func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifie
 
 // GuiSetKeysbindingConfirm set keysbinding for a view with confirm
 func GuiSetKeysbindingConfirm(g *gocui.Gui, viewname string, keys []any, tip string, handlerYes func(), handlerNo func()) {
-	tip += " (press y to confirm, n to cancel)"
 	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		GlobalTipComponent.LayoutTemporary(tip, 10, TipTypeWarning)
-		GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-		// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
-		GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
-		go func() {
-			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-				// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+		if tip == "" {
+			tip = "Are you sure you want to continue?"
+		}
+		NewPageComponentConfirm(confirmTitleFromTip("Action Confirmation", tip), tip, func() {
+			if handlerYes != nil {
 				handlerYes()
-				return nil
-			})
-			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-				// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
+			}
+		}, func() {
+			if handlerNo != nil {
 				handlerNo()
-				return nil
-			})
-			time.Sleep(time.Second * 10)
-			GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-			// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
-			GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
-		}()
+			}
+		})
 		return nil
 	})
 }
@@ -73,7 +107,6 @@ func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []
 	if tip == "" {
 		tip = "Apply this change?"
 	}
-	tip += " (press y to confirm, n to cancel)"
 	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		initialText := handlerGetText()
 		currentView := g.CurrentView()
@@ -136,34 +169,15 @@ func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []
 			}
 			return nil
 		}
-		GlobalTipComponent.LayoutTemporary(tip, 10, TipTypeWarning)
-		GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-		GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
-		// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
-		go func() {
-			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
-				// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
-				if handlerYes != nil {
-					handlerYes(editedText)
-				}
-				return nil
-			})
-			GuiSetKeysbinding(GlobalApp.Gui, viewname, []any{'n'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-				GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-				GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
-				// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
-				if handlerNo != nil {
-					handlerNo()
-				}
-				return nil
-			})
-			time.Sleep(time.Second * 10)
-			GlobalApp.Gui.DeleteKeybinding(viewname, 'y', gocui.ModNone)
-			GlobalApp.Gui.DeleteKeybinding(viewname, 'n', gocui.ModNone)
-			// GlobalApp.Gui.DeleteKeybinding(viewname, gocui.KeyEnter, gocui.ModNone)
-		}()
+		NewPageComponentConfirm(confirmTitleFromTip("Apply Changes", tip), tip, func() {
+			if handlerYes != nil {
+				handlerYes(editedText)
+			}
+		}, func() {
+			if handlerNo != nil {
+				handlerNo()
+			}
+		})
 		return nil
 	})
 }
