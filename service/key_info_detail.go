@@ -328,7 +328,13 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.Layout()
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("Value update cancelled", 3, TipTypeWarning)
-	}, false)
+	}, false, func() bool {
+		if strings.TrimSpace(GlobalKeyInfoComponent.keyName) == "" {
+			GlobalTipComponent.LayoutTemporary("No key selected", 3, TipTypeWarning)
+			return false
+		}
+		return true
+	})
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {

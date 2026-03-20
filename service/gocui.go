@@ -48,6 +48,32 @@ func IsConfirmModalActive(g *gocui.Gui) bool {
 	return false
 }
 
+func activeOverlayViewName(g *gocui.Gui) string {
+	if g == nil {
+		return ""
+	}
+	if _, err := g.View("page_confirm"); err == nil {
+		return "page_confirm"
+	}
+	if _, err := g.View("page_help"); err == nil {
+		return "page_help"
+	}
+	if _, err := g.View("page_server_info"); err == nil {
+		return "page_server_info"
+	}
+	return ""
+}
+
+func canHandleOverlayViewBinding(bindingView string, overlayView string) bool {
+	if bindingView == overlayView {
+		return true
+	}
+	if overlayView == "page_confirm" && bindingView == "page_confirm_mask" {
+		return true
+	}
+	return false
+}
+
 // GuiSetKeysbinding set keysbinding for a view
 func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifier, handler func(*gocui.Gui, *gocui.View) error) error {
 	// 如果 viewname 是数组,断言
@@ -67,8 +93,9 @@ func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifie
 	}
 	for _, key := range keys {
 		wrappedHandler := func(g *gocui.Gui, v *gocui.View) error {
-			if IsConfirmModalActive(g) && viewnameStr != "page_confirm" && viewnameStr != "page_confirm_mask" {
-				if _, err := g.SetCurrentView("page_confirm"); err != nil {
+			overlayView := activeOverlayViewName(g)
+			if overlayView != "" && !canHandleOverlayViewBinding(viewnameStr, overlayView) {
+				if _, err := g.SetCurrentView(overlayView); err != nil {
 					return nil
 				}
 				return nil
@@ -102,12 +129,15 @@ func GuiSetKeysbindingConfirm(g *gocui.Gui, viewname string, keys []any, tip str
 }
 
 // GuiSetKeysbindingConfirmWithVIEditor set keysbinding for a view with confirm and vi editors
-func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []any, tip string, handlerGetText func() string, handlerYes func(editedText string), handlerNo func(), skipConfirm bool) {
+func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []any, tip string, handlerGetText func() string, handlerYes func(editedText string), handlerNo func(), skipConfirm bool, canProceed func() bool) {
 	// 展示提示语
 	if tip == "" {
 		tip = "Apply this change?"
 	}
 	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if canProceed != nil && !canProceed() {
+			return nil
+		}
 		initialText := handlerGetText()
 		currentView := g.CurrentView()
 		// 保存原始终端状态
@@ -134,6 +164,10 @@ func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []
 							time.Sleep(100 * time.Millisecond)
 							enableMouseInput()
 						}()
+					}
+					if IsConfirmModalActive(g) {
+						_, _ = g.SetCurrentView("page_confirm")
+						return nil
 					}
 					// 恢复当前视图
 					if currentView != nil {

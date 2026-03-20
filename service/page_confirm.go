@@ -63,7 +63,7 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	theY1 := theY0 + viewHeight - 1
 
 	v, _ := SetViewSafe(c.name, theX0, theY0, theX1, theY1, 0)
-	v.Title = " Confirm "
+	v.Title = " Confirm"
 	v.Wrap = false
 	v.Editable = false
 	v.Frame = true
@@ -75,7 +75,7 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	for _, line := range messageLines {
 		trimmedLine := strings.TrimSpace(line)
 		trimmedLine = truncateByRuneCount(trimmedLine, bodyWidth)
-		v.Write([]byte(centerByDisplayWidth(trimmedLine, bodyWidth) + "\n"))
+		v.Write([]byte(" " + padRightDisplayWidth(trimmedLine, bodyWidth) + "\n"))
 	}
 
 	footerSpacerLines := viewHeight - len(messageLines) - 7
@@ -166,16 +166,11 @@ func (c *PageComponentConfirm) calculateDialogSize(messageLines []string) (int, 
 func (c *PageComponentConfirm) footerActionLine(bodyWidth int) string {
 	leftText := "[Enter/Y] Confirm"
 	rightText := "[Esc/N] Cancel"
-	leftWidth := DisplayWidth(leftText)
-	rightWidth := DisplayWidth(rightText)
-	gap := bodyWidth - leftWidth - rightWidth
-	if gap < 2 {
-		joined := leftText + "  " + rightText
-		joined = truncateByDisplayWidth(joined, bodyWidth)
-		return " " + padRightDisplayWidth(joined, bodyWidth)
+	joined := leftText + strings.Repeat(" ", 6) + rightText
+	if DisplayWidth(joined) > bodyWidth {
+		joined = leftText + "  " + rightText
 	}
-	line := leftText + strings.Repeat(" ", gap) + rightText
-	return " " + padRightDisplayWidth(line, bodyWidth)
+	return " " + padRightDisplayWidth(joined, bodyWidth)
 }
 
 func (c *PageComponentConfirm) KeyBind() *PageComponentConfirm {

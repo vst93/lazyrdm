@@ -59,8 +59,8 @@ func OpenServerInfoPage() {
 
 func buildServerInfoText(connectionName string, success bool, data any, errMsg string) string {
 	builder := strings.Builder{}
-	builder.WriteString("Server Information\n")
-	builder.WriteString("==================\n\n")
+	// builder.WriteString("Server Information\n")
+	// builder.WriteString("==================\n\n")
 	builder.WriteString(fmt.Sprintf("Connection : %s\n", connectionName))
 	builder.WriteString(fmt.Sprintf("Fetched At : %s\n", time.Now().Format("2006-01-02 15:04:05")))
 	builder.WriteString(fmt.Sprintf("Status     : %s\n", map[bool]string{true: "Success", false: "Failed"}[success]))

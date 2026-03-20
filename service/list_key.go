@@ -311,7 +311,7 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		c.RefreshList()
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("Search update cancelled", 2, TipTypeWarning)
-	}, true)
+	}, true, nil)
 
 	return c
 }

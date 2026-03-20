@@ -226,7 +226,13 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 		c.Layout()
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("Rename key cancelled", 3, TipTypeWarning)
-	}, false)
+	}, false, func() bool {
+		if strings.TrimSpace(c.keyName) == "" {
+			GlobalTipComponent.LayoutTemporary("No key selected", 3, TipTypeWarning)
+			return false
+		}
+		return true
+	})
 
 	// 修改 ttl
 	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'t'}, "Edit TTL (seconds)?", func() string {
@@ -270,7 +276,7 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 		c.Layout()
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("TTL update cancelled", 3, TipTypeWarning)
-	}, false)
+	}, false, nil)
 
 	// 刷新
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'r'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
