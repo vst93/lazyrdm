@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/awesome-gocui/gocui"
@@ -43,8 +44,21 @@ func NewPageComponentInput(title string, label string, initialText string, maskI
 	return ret
 }
 
+// setCursorBar 切换终端光标为闪烁竖线样式（在白底输入框中更易辨识）
+func setCursorBar() {
+	// \033[5 q = blinking bar cursor
+	fmt.Fprint(os.Stderr, "\033[5 q")
+}
+
+// setCursorDefault 恢复终端默认光标样式
+func setCursorDefault() {
+	// \033[0 q = default cursor
+	fmt.Fprint(os.Stderr, "\033[0 q")
+}
+
 func (c *PageComponentInput) Layout() *PageComponentInput {
 	GlobalApp.Gui.Cursor = true
+	setCursorBar()
 
 	// ── mask 遮罩层 ──
 	maskView, _ := SetViewSafe(c.maskName, 0, 0, GlobalApp.maxX-1, GlobalApp.maxY-1, 0)
@@ -57,13 +71,12 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	}
 
 	// ── 弹窗尺寸 ──
-	// 宽度：label + 输入框，留充足左右留白
 	labelWidth := DisplayWidth(c.label)
 	inputWidth := 50
-	if labelWidth+6 > inputWidth {
-		inputWidth = labelWidth + 6
+	if labelWidth+8 > inputWidth {
+		inputWidth = labelWidth + 8
 	}
-	maxWidth := GlobalApp.maxX - 8
+	maxWidth := GlobalApp.maxX - 10
 	if inputWidth > maxWidth {
 		inputWidth = maxWidth
 	}
@@ -71,8 +84,8 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 		inputWidth = 40
 	}
 
-	viewWidth := inputWidth + 6 // 左右各 3 格留白
-	viewHeight := 12            // 充足的垂直空间
+	viewWidth := inputWidth + 8 // 左右各 4 格留白
+	viewHeight := 11
 
 	theX0 := (GlobalApp.maxX - viewWidth) / 2
 	if theX0 < 1 {
@@ -85,8 +98,8 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	theX1 := theX0 + viewWidth - 1
 	theY1 := theY0 + viewHeight - 1
 
-	// ── 弹窗主体（不可编辑，只放 label 和 footer）──
-	dialogBodyWidth := theX1 - theX0 - 1 // 内容区宽度
+	// ── 弹窗主体 ──
+	dialogBodyWidth := theX1 - theX0 - 1
 	v, _ := SetViewSafe(c.name, theX0, theY0, theX1, theY1, 0)
 	v.Title = " " + c.title + " "
 	v.Wrap = false
@@ -94,42 +107,46 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	v.Frame = true
 	v.FgColor = gocui.ColorWhite
 	v.BgColor = gocui.ColorBlue
-	v.FrameColor = gocui.ColorCyan
+	v.FrameColor = gocui.ColorCyan | gocui.AttrBold
 	v.Clear()
 
-	// 布局（dialog 内容区 y 从 0 开始）：
+	// 内容布局（y 从 0 开始）:
 	// y=0: 空
 	// y=1: label
 	// y=2: 空
-	// y=3: 空（输入框会覆盖这里，单独 view）
+	// y=3: 输入框行（独立 view 覆盖）
 	// y=4: 空
-	// y=5: 空
-	// y=6: 分隔线
-	// y=7: footer 提示
-	// y=8+: 空
-
+	// y=5: 分隔线
+	// y=6: 空
+	// y=7: footer
 	v.Write([]byte("\n"))
 	labelLine := "  " + c.label
 	v.Write([]byte(padRightDisplayWidth(labelLine, dialogBodyWidth) + "\n"))
 	v.Write([]byte("\n"))
-	// y=3 留给输入框 view 覆盖
-	v.Write([]byte("\n"))
+	// y=3 输入框占位
 	v.Write([]byte("\n"))
 	v.Write([]byte("\n"))
 	// 分隔线
-	sep := strings.Repeat("─", dialogBodyWidth-2)
+	sepLen := dialogBodyWidth - 4
+	if sepLen < 10 {
+		sepLen = 10
+	}
+	sep := strings.Repeat("─", sepLen)
 	v.Write([]byte("  " + sep + "\n"))
+	v.Write([]byte("\n"))
 	// footer
 	footerText := "  [Enter] 确认    [Esc] 取消"
 	v.Write([]byte(padRightDisplayWidth(footerText, dialogBodyWidth) + "\n"))
 
-	// ── 输入框（独立 view，可编辑）──
-	// gocui Size() = x1-x0-1, y1-y0-1。要有 1 行内容，y1-y0 至少 = 2
+	// ── 输入框（独立 view）──
 	inputViewName := c.name + "_field"
-	inputX0 := theX0 + 4
-	inputX1 := theX1 - 4
-	// y=3 对应 dialog 内容区第 4 行
-	// dialog 的 frame 占 1 行，所以绝对 y = theY0 + 1(frame) + 3(content) = theY0 + 4
+	inputX0 := theX0 + 5
+	inputX1 := theX1 - 5
+	if inputX1 <= inputX0+5 {
+		inputX0 = theX0 + 3
+		inputX1 = theX1 - 3
+	}
+	// dialog frame 占 1 行，y=3 是内容第 4 行 → 绝对 y = theY0 + 4
 	inputY0 := theY0 + 4
 	inputY1 := inputY0 + 2 // y1-y0=2 → 内容 1 行
 
@@ -226,6 +243,7 @@ func (c *PageComponentInput) closeView() {
 	GlobalApp.Gui.DeleteView(c.maskName)
 	GlobalApp.Gui.DeleteKeybindings(c.maskName)
 	GlobalApp.Gui.Cursor = false
+	setCursorDefault()
 	delete(GlobalTipComponent.list, c.name)
 
 	if c.returnView != "" {
