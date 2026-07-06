@@ -258,7 +258,7 @@ func (e *EditorPassword) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.M
 		return
 	}
 	switch {
-	case ch != 0 && IsNormalChar(ch):
+	case ch != 0 && ch != '\n' && ch != '\r':
 		v.EditWrite('*')
 	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
 		v.EditDelete(true)

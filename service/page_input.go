@@ -46,13 +46,11 @@ func NewPageComponentInput(title string, label string, initialText string, maskI
 func (c *PageComponentInput) Layout() *PageComponentInput {
 	GlobalApp.Gui.Cursor = true
 
-	// mask — 半透明背景效果用深色
+	// mask — 用蓝色背景模拟遮罩
 	maskView, _ := SetViewSafe(c.maskName, 0, 0, GlobalApp.maxX-1, GlobalApp.maxY-1, 0)
 	maskView.Editable = false
 	maskView.Frame = false
 	maskView.Wrap = false
-	maskView.BgColor = gocui.ColorBlack
-	maskView.FgColor = gocui.ColorBlack
 	maskView.Clear()
 	if _, err := GlobalApp.Gui.SetViewOnTop(c.maskName); err == nil {
 		GlobalApp.Gui.SetCurrentView(c.maskName)
@@ -70,8 +68,8 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 		bodyWidth = maxAllowedWidth
 	}
 	viewWidth := bodyWidth + 4
-	if viewWidth < 44 {
-		viewWidth = 44
+	if viewWidth < 46 {
+		viewWidth = 46
 		if viewWidth > maxAllowedWidth+4 {
 			viewWidth = maxAllowedWidth + 4
 		}
@@ -95,9 +93,9 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	v.Wrap = false
 	v.Editable = false
 	v.Frame = true
-	v.FgColor = gocui.ColorWhite
-	v.BgColor = gocui.ColorBlack
-	v.SelBgColor = gocui.ColorBlue
+	v.FgColor = gocui.ColorWhite | gocui.AttrBold
+	v.BgColor = gocui.ColorBlue
+	v.FrameColor = gocui.ColorCyan
 	v.Clear()
 
 	// 顶部空行
@@ -119,17 +117,16 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	iv.Frame = true
 	iv.Wrap = false
 	iv.Editable = true
-	iv.BgColor = gocui.NewRGBColor(40, 40, 50)
-	iv.FgColor = gocui.ColorWhite | gocui.AttrBold
-	iv.SelBgColor = gocui.ColorBlue
-	iv.FrameColor = gocui.ColorCyan
+	iv.BgColor = gocui.ColorWhite
+	iv.FgColor = gocui.ColorBlack
+	iv.FrameColor = gocui.ColorYellow
 	if c.maskInput {
 		iv.Editor = &EditorPassword{}
 	} else {
 		iv.Editor = &EditorInput{BindValString: &c.resultText}
 	}
 	iv.Clear()
-	iv.Write([]byte(c.resultText))
+	iv.WriteRunes([]rune(c.resultText))
 	iv.SetCursor(len([]rune(c.resultText)), 0)
 	c.inputView = iv
 
@@ -138,10 +135,10 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	footerView, _ := SetViewSafe(c.name+"_footer", theX0+1, footerY, theX1-1, footerY+1, 0)
 	footerView.Frame = false
 	footerView.Editable = false
-	footerView.BgColor = gocui.ColorBlack
-	footerView.FgColor = gocui.NewRGBColor(128, 128, 128)
+	footerView.BgColor = gocui.ColorBlue
+	footerView.FgColor = gocui.ColorYellow
 	footerView.Clear()
-	footerText := "[Enter] 确认   [Esc] 取消"
+	footerText := "[Enter] 确认    [Esc] 取消"
 	footerView.Write([]byte(" " + padRightDisplayWidth(footerText, bodyWidth)))
 
 	if _, err := GlobalApp.Gui.SetViewOnTop(c.name); err != nil {
