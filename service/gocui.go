@@ -282,43 +282,57 @@ func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 	}
 	switch {
 	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
-		// 删除字符
 		v.EditDelete(true)
-		if e.BindValString != nil {
-			*e.BindValString = v.Buffer()
-		}
-		if e.BindValInt != nil {
-			*e.BindValInt = int(ch)
-		}
 	case key == gocui.KeyArrowLeft:
-		// 光标左移
 		v.MoveCursor(-1, 0)
 	case key == gocui.KeyArrowRight:
-		// 光标右移
 		v.MoveCursor(1, 0)
+	case key == gocui.KeyHome:
+		v.SetCursor(0, 0)
+	case key == gocui.KeyEnd:
+		buffer := v.Buffer()
+		v.SetCursor(len([]rune(strings.TrimRight(buffer, "\n"))), 0)
+	case key == gocui.KeyCtrlU:
+		// 删除到行首
+		cx, _ := v.Cursor()
+		for i := 0; i < cx; i++ {
+			v.EditDelete(true)
+		}
+	case key == gocui.KeyCtrlW:
+		// 删除前一个单词
+		cx, _ := v.Cursor()
+		if cx > 0 {
+			buffer := v.Buffer()
+			runes := []rune(strings.TrimRight(buffer, "\n"))
+			if cx > len(runes) {
+				cx = len(runes)
+			}
+			end := cx
+			// 跳过空格
+			for cx > 0 && (runes[cx-1] == ' ' || runes[cx-1] == '	') {
+				cx--
+			}
+			// 删除单词
+			for cx > 0 && runes[cx-1] != ' ' && runes[cx-1] != '	' {
+				cx--
+			}
+			for i := 0; i < end-cx; i++ {
+				v.EditDelete(true)
+			}
+		}
 	case key == gocui.KeyTab:
-		v.EditWrite(ch)
-		if e.BindValString != nil {
-			*e.BindValString = v.Buffer()
-		}
-		if e.BindValInt != nil {
-			*e.BindValInt = int(ch)
-		}
+		v.EditWrite('	')
 	default:
-		if IsNormalChar(ch) {
-			// 输入字符
+		// 允许所有可打印字符，不做 IsNormalChar 过滤
+		if ch != 0 && ch != '\n' && ch != '\r' {
 			v.EditWrite(ch)
-			if e.BindValString != nil {
-				*e.BindValString = v.Buffer()
-			}
-			if e.BindValInt != nil {
-				*e.BindValInt = int(ch)
-			}
 		}
-		// keyOut = key
 	}
+	// 同步绑定值
 	if e.BindValString != nil {
-		*e.BindValString = strings.TrimSpace(*e.BindValString)
+		*e.BindValString = v.Buffer()
 	}
-	// return
+	if e.BindValInt != nil {
+		*e.BindValInt = int(ch)
+	}
 }

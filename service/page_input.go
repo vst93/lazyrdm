@@ -46,60 +46,68 @@ func NewPageComponentInput(title string, label string, initialText string, maskI
 func (c *PageComponentInput) Layout() *PageComponentInput {
 	GlobalApp.Gui.Cursor = true
 
-	// mask
+	// mask — 半透明背景效果用深色
 	maskView, _ := SetViewSafe(c.maskName, 0, 0, GlobalApp.maxX-1, GlobalApp.maxY-1, 0)
 	maskView.Editable = false
 	maskView.Frame = false
 	maskView.Wrap = false
+	maskView.BgColor = gocui.ColorBlack
+	maskView.FgColor = gocui.ColorBlack
 	maskView.Clear()
 	if _, err := GlobalApp.Gui.SetViewOnTop(c.maskName); err == nil {
 		GlobalApp.Gui.SetCurrentView(c.maskName)
 	}
 
-	// calculate dialog size
+	// ── 计算弹窗尺寸 ──
 	labelWidth := DisplayWidth(c.label)
-	inputMinWidth := 30
+	inputMinWidth := 40
 	bodyWidth := labelWidth + 4
 	if bodyWidth < inputMinWidth {
 		bodyWidth = inputMinWidth
 	}
-	maxAllowedWidth := GlobalApp.maxX - 4
+	maxAllowedWidth := GlobalApp.maxX - 6
 	if bodyWidth > maxAllowedWidth {
 		bodyWidth = maxAllowedWidth
 	}
-	if bodyWidth < 34 {
-		bodyWidth = 34
-		if bodyWidth > maxAllowedWidth {
-			bodyWidth = maxAllowedWidth
+	viewWidth := bodyWidth + 4
+	if viewWidth < 44 {
+		viewWidth = 44
+		if viewWidth > maxAllowedWidth+4 {
+			viewWidth = maxAllowedWidth + 4
 		}
 	}
-	viewWidth := bodyWidth + 4
 	viewHeight := 9
 
 	theX0 := (GlobalApp.maxX - viewWidth) / 2
-	if theX0 < 0 {
-		theX0 = 0
+	if theX0 < 1 {
+		theX0 = 1
 	}
 	theY0 := (GlobalApp.maxY - viewHeight) / 2
-	if theY0 < 0 {
-		theY0 = 0
+	if theY0 < 1 {
+		theY0 = 1
 	}
 	theX1 := theX0 + viewWidth - 1
 	theY1 := theY0 + viewHeight - 1
 
+	// ── 弹窗主体 ──
 	v, _ := SetViewSafe(c.name, theX0, theY0, theX1, theY1, 0)
 	v.Title = " " + c.title + " "
 	v.Wrap = false
 	v.Editable = false
 	v.Frame = true
-	v.FgColor = gocui.ColorWhite | gocui.AttrBold
+	v.FgColor = gocui.ColorWhite
+	v.BgColor = gocui.ColorBlack
+	v.SelBgColor = gocui.ColorBlue
 	v.Clear()
+
+	// 顶部空行
 	v.Write([]byte("\n"))
+	// label 行
 	labelLine := " " + c.label
 	v.Write([]byte(padRightDisplayWidth(labelLine, bodyWidth+1) + "\n"))
 	v.Write([]byte("\n"))
 
-	// input field view
+	// ── 输入框 ──
 	inputViewName := c.name + "_field"
 	inputX0 := theX0 + 2
 	inputY0 := theY0 + 3
@@ -111,8 +119,10 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	iv.Frame = true
 	iv.Wrap = false
 	iv.Editable = true
-	iv.BgColor = gocui.ColorBlack
-	iv.FgColor = gocui.ColorWhite
+	iv.BgColor = gocui.NewRGBColor(40, 40, 50)
+	iv.FgColor = gocui.ColorWhite | gocui.AttrBold
+	iv.SelBgColor = gocui.ColorBlue
+	iv.FrameColor = gocui.ColorCyan
 	if c.maskInput {
 		iv.Editor = &EditorPassword{}
 	} else {
@@ -123,13 +133,15 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	iv.SetCursor(len([]rune(c.resultText)), 0)
 	c.inputView = iv
 
-	// footer
+	// ── 底部提示栏 ──
 	footerY := theY1 - 2
 	footerView, _ := SetViewSafe(c.name+"_footer", theX0+1, footerY, theX1-1, footerY+1, 0)
 	footerView.Frame = false
 	footerView.Editable = false
+	footerView.BgColor = gocui.ColorBlack
+	footerView.FgColor = gocui.NewRGBColor(128, 128, 128)
 	footerView.Clear()
-	footerText := "[Enter] OK  [Esc] Cancel"
+	footerText := "[Enter] 确认   [Esc] 取消"
 	footerView.Write([]byte(" " + padRightDisplayWidth(footerText, bodyWidth)))
 
 	if _, err := GlobalApp.Gui.SetViewOnTop(c.name); err != nil {
