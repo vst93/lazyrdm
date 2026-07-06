@@ -18,7 +18,7 @@ type PageComponentInput struct {
 	resultText  string
 	callbackOk  func(result string)
 	callbackNo  func()
-	maskInput   bool // 是否密码遮罩
+	maskInput   bool
 	inputView   *gocui.View
 }
 
@@ -46,7 +46,7 @@ func NewPageComponentInput(title string, label string, initialText string, maskI
 func (c *PageComponentInput) Layout() *PageComponentInput {
 	GlobalApp.Gui.Cursor = true
 
-	// mask — 用蓝色背景模拟遮罩
+	// ── mask 遮罩层 ──
 	maskView, _ := SetViewSafe(c.maskName, 0, 0, GlobalApp.maxX-1, GlobalApp.maxY-1, 0)
 	maskView.Editable = false
 	maskView.Frame = false
@@ -56,25 +56,23 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 		GlobalApp.Gui.SetCurrentView(c.maskName)
 	}
 
-	// ── 计算弹窗尺寸 ──
+	// ── 弹窗尺寸 ──
+	// 宽度：label + 输入框，留充足左右留白
 	labelWidth := DisplayWidth(c.label)
-	inputMinWidth := 40
-	bodyWidth := labelWidth + 4
-	if bodyWidth < inputMinWidth {
-		bodyWidth = inputMinWidth
+	inputWidth := 50
+	if labelWidth+6 > inputWidth {
+		inputWidth = labelWidth + 6
 	}
-	maxAllowedWidth := GlobalApp.maxX - 6
-	if bodyWidth > maxAllowedWidth {
-		bodyWidth = maxAllowedWidth
+	maxWidth := GlobalApp.maxX - 8
+	if inputWidth > maxWidth {
+		inputWidth = maxWidth
 	}
-	viewWidth := bodyWidth + 4
-	if viewWidth < 46 {
-		viewWidth = 46
-		if viewWidth > maxAllowedWidth+4 {
-			viewWidth = maxAllowedWidth + 4
-		}
+	if inputWidth < 40 {
+		inputWidth = 40
 	}
-	viewHeight := 9
+
+	viewWidth := inputWidth + 6 // 左右各 3 格留白
+	viewHeight := 12            // 充足的垂直空间
 
 	theX0 := (GlobalApp.maxX - viewWidth) / 2
 	if theX0 < 1 {
@@ -87,39 +85,63 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	theX1 := theX0 + viewWidth - 1
 	theY1 := theY0 + viewHeight - 1
 
-	// ── 弹窗主体 ──
+	// ── 弹窗主体（不可编辑，只放 label 和 footer）──
+	dialogBodyWidth := theX1 - theX0 - 1 // 内容区宽度
 	v, _ := SetViewSafe(c.name, theX0, theY0, theX1, theY1, 0)
 	v.Title = " " + c.title + " "
 	v.Wrap = false
 	v.Editable = false
 	v.Frame = true
-	v.FgColor = gocui.ColorWhite | gocui.AttrBold
+	v.FgColor = gocui.ColorWhite
 	v.BgColor = gocui.ColorBlue
 	v.FrameColor = gocui.ColorCyan
 	v.Clear()
 
-	// 顶部空行
-	v.Write([]byte("\n"))
-	// label 行
-	labelLine := " " + c.label
-	v.Write([]byte(padRightDisplayWidth(labelLine, bodyWidth+1) + "\n"))
-	v.Write([]byte("\n"))
+	// 布局（dialog 内容区 y 从 0 开始）：
+	// y=0: 空
+	// y=1: label
+	// y=2: 空
+	// y=3: 空（输入框会覆盖这里，单独 view）
+	// y=4: 空
+	// y=5: 空
+	// y=6: 分隔线
+	// y=7: footer 提示
+	// y=8+: 空
 
-	// ── 输入框 ──
+	v.Write([]byte("\n"))
+	labelLine := "  " + c.label
+	v.Write([]byte(padRightDisplayWidth(labelLine, dialogBodyWidth) + "\n"))
+	v.Write([]byte("\n"))
+	// y=3 留给输入框 view 覆盖
+	v.Write([]byte("\n"))
+	v.Write([]byte("\n"))
+	v.Write([]byte("\n"))
+	// 分隔线
+	sep := strings.Repeat("─", dialogBodyWidth-2)
+	v.Write([]byte("  " + sep + "\n"))
+	// footer
+	footerText := "  [Enter] 确认    [Esc] 取消"
+	v.Write([]byte(padRightDisplayWidth(footerText, dialogBodyWidth) + "\n"))
+
+	// ── 输入框（独立 view，可编辑）──
+	// gocui Size() = x1-x0-1, y1-y0-1。要有 1 行内容，y1-y0 至少 = 2
 	inputViewName := c.name + "_field"
-	inputX0 := theX0 + 2
-	inputY0 := theY0 + 3
-	inputX1 := theX1 - 2
-	inputY1 := inputY0 + 1
+	inputX0 := theX0 + 4
+	inputX1 := theX1 - 4
+	// y=3 对应 dialog 内容区第 4 行
+	// dialog 的 frame 占 1 行，所以绝对 y = theY0 + 1(frame) + 3(content) = theY0 + 4
+	inputY0 := theY0 + 4
+	inputY1 := inputY0 + 2 // y1-y0=2 → 内容 1 行
 
 	iv, _ := SetViewSafe(inputViewName, inputX0, inputY0, inputX1, inputY1, 0)
 	iv.Title = ""
-	iv.Frame = true
+	iv.Frame = false
 	iv.Wrap = false
 	iv.Editable = true
 	iv.BgColor = gocui.ColorWhite
-	iv.FgColor = gocui.ColorBlack
-	iv.FrameColor = gocui.ColorYellow
+	iv.FgColor = gocui.ColorBlack | gocui.AttrBold
+	iv.SelBgColor = gocui.ColorWhite
+	iv.SelFgColor = gocui.ColorBlack
 	if c.maskInput {
 		iv.Editor = &EditorPassword{}
 	} else {
@@ -130,22 +152,11 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	iv.SetCursor(len([]rune(c.resultText)), 0)
 	c.inputView = iv
 
-	// ── 底部提示栏 ──
-	footerY := theY1 - 2
-	footerView, _ := SetViewSafe(c.name+"_footer", theX0+1, footerY, theX1-1, footerY+1, 0)
-	footerView.Frame = false
-	footerView.Editable = false
-	footerView.BgColor = gocui.ColorBlue
-	footerView.FgColor = gocui.ColorYellow
-	footerView.Clear()
-	footerText := "[Enter] 确认    [Esc] 取消"
-	footerView.Write([]byte(" " + padRightDisplayWidth(footerText, bodyWidth)))
-
+	// ── 层级和焦点 ──
 	if _, err := GlobalApp.Gui.SetViewOnTop(c.name); err != nil {
 		return c
 	}
 	GlobalApp.Gui.SetViewOnTop(inputViewName)
-	GlobalApp.Gui.SetViewOnTop(c.name + "_footer")
 	GlobalApp.Gui.SetCurrentView(inputViewName)
 	c.KeyBind()
 	GlobalTipComponent.AppendList(c.name, c.KeyMapTips())
@@ -173,24 +184,20 @@ func (c *PageComponentInput) KeyBind() *PageComponentInput {
 		}
 	}
 
-	// Enter to submit
 	GuiSetKeysbinding(GlobalApp.Gui, inputViewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		submit()
 		return nil
 	})
-	// Esc to cancel
 	GuiSetKeysbinding(GlobalApp.Gui, inputViewName, []any{gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		cancel()
 		return nil
 	})
-	// Ctrl+Enter as alternative submit (Ctrl+J)
 	GuiSetKeysbinding(GlobalApp.Gui, inputViewName, []any{gocui.KeyCtrlJ}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		submit()
 		return nil
 	})
 
-	// mask and footer also respond to Enter/Esc
-	for _, vn := range []string{c.maskName, c.name, c.name + "_footer"} {
+	for _, vn := range []string{c.maskName, c.name} {
 		GuiSetKeysbinding(GlobalApp.Gui, vn, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 			submit()
 			return nil
@@ -200,7 +207,6 @@ func (c *PageComponentInput) KeyBind() *PageComponentInput {
 			return nil
 		})
 	}
-	// Click mask to focus input
 	GuiSetKeysbinding(GlobalApp.Gui, c.maskName, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		GlobalApp.Gui.SetCurrentView(inputViewName)
 		return nil
