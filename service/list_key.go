@@ -303,15 +303,14 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 	})
 
 	// 搜索
-	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'s'}, "Update key search keyword?", func() string {
+	GuiSetKeysbindingInlineInput(GlobalApp.Gui, c.name, []any{'s'}, "Search Keys", "Keyword (supports * glob)", func() string {
 		return c.searchKeyword
 	}, func(editorResult string) {
-		editorResult = strings.TrimSpace(editorResult)
 		c.searchKeyword = editorResult
 		c.RefreshList()
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("Search update cancelled", 2, TipTypeWarning)
-	}, true, nil)
+	}, nil)
 
 	return c
 }

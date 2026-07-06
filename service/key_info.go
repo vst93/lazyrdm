@@ -189,7 +189,7 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 	})
 
 	// 修改 key
-	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'e'}, "", func() string {
+	GuiSetKeysbindingInlineInput(GlobalApp.Gui, c.name, []any{'e'}, "Rename Key", "New key name", func() string {
 		return c.keyName
 	}, func(editorResult string) {
 		if editorResult == c.keyName {
@@ -197,7 +197,6 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 			return
 		}
 
-		editorResult = strings.TrimSpace(editorResult)
 		if editorResult == "" {
 			GlobalTipComponent.LayoutTemporary("Key name cannot be empty", 3, TipTypeWarning)
 			return
@@ -226,7 +225,7 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 		c.Layout()
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("Rename key cancelled", 3, TipTypeWarning)
-	}, false, func() bool {
+	}, func() bool {
 		if strings.TrimSpace(c.keyName) == "" {
 			GlobalTipComponent.LayoutTemporary("No key selected", 3, TipTypeWarning)
 			return false
@@ -235,7 +234,7 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 	})
 
 	// 修改 ttl
-	GuiSetKeysbindingConfirmWithVIEditor(GlobalApp.Gui, c.name, []any{'t'}, "Edit TTL (seconds)?", func() string {
+	GuiSetKeysbindingInlineInput(GlobalApp.Gui, c.name, []any{'t'}, "Edit TTL", "TTL (seconds, -1 = no expire)", func() string {
 		// 获取 ttl
 		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
 			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
@@ -249,12 +248,11 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 		}
 		return theTTL
 	}, func(editorResult string) {
-		editorResult = strings.TrimSpace(editorResult)
 		if editorResult == "" {
 			GlobalTipComponent.LayoutTemporary("TTL cannot be empty", 3, TipTypeWarning)
 			return
 		}
-		//判断剪切板内容是否为数字
+		//判断内容是否为数字
 		theClipboardValueInt, err := strconv.ParseInt(editorResult, 10, 64)
 		if err != nil {
 			PrintLn(err.Error())
@@ -276,7 +274,7 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 		c.Layout()
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("TTL update cancelled", 3, TipTypeWarning)
-	}, false, nil)
+	}, nil)
 
 	// 刷新
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'r'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {

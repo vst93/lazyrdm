@@ -55,6 +55,9 @@ func activeOverlayViewName(g *gocui.Gui) string {
 	if _, err := g.View("page_confirm"); err == nil {
 		return "page_confirm"
 	}
+	if _, err := g.View("page_input"); err == nil {
+		return "page_input"
+	}
 	if _, err := g.View("page_help"); err == nil {
 		return "page_help"
 	}
@@ -72,6 +75,9 @@ func canHandleOverlayViewBinding(bindingView string, overlayView string) bool {
 		return true
 	}
 	if overlayView == "page_confirm" && bindingView == "page_confirm_mask" {
+		return true
+	}
+	if overlayView == "page_input" && (bindingView == "page_input_mask" || bindingView == "page_input_field" || bindingView == "page_input_footer") {
 		return true
 	}
 	return false
@@ -131,7 +137,32 @@ func GuiSetKeysbindingConfirm(g *gocui.Gui, viewname string, keys []any, tip str
 	})
 }
 
+// GuiSetKeysbindingInlineInput uses the in-app PageComponentInput dialog instead of
+// suspending to an external editor. Suitable for short text inputs (search keywords,
+// key names, TTL values, etc.). For long multi-line content (large JSON blobs) prefer
+// GuiSetKeysbindingConfirmWithVIEditor.
+func GuiSetKeysbindingInlineInput(g *gocui.Gui, viewname string, keys []any, title string, label string, handlerGetText func() string, handlerYes func(editedText string), handlerNo func(), canProceed func() bool) {
+	GuiSetKeysbinding(g, viewname, keys, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if canProceed != nil && !canProceed() {
+			return nil
+		}
+		initialText := handlerGetText()
+		NewPageComponentInput(title, label, initialText, false, func(result string) {
+			if handlerYes != nil {
+				handlerYes(result)
+			}
+		}, func() {
+			if handlerNo != nil {
+				handlerNo()
+			}
+		})
+		return nil
+	})
+}
+
 // GuiSetKeysbindingConfirmWithVIEditor set keysbinding for a view with confirm and vi editors
+// For short text inputs (single line, small values), set useInlineInput=true to use the
+// in-app dialog instead of suspending to an external editor.
 func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []any, tip string, handlerGetText func() string, handlerYes func(editedText string), handlerNo func(), skipConfirm bool, canProceed func() bool) {
 	// 展示提示语
 	if tip == "" {
@@ -222,19 +253,20 @@ func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []
 // 密码编辑器，把每个字符替换为 '*'
 type EditorPassword struct{}
 
-func (e *EditorPassword) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) (keyOut gocui.Key, chOut rune) {
-	switch {
-	case ch != 0:
-		// 替换字符为 '*'
-		chOut = '*'
-		v.EditWrite(chOut)
-	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
-		// 删除字符
-		v.EditDelete(true)
-	default:
-		keyOut = key
+func (e *EditorPassword) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	if mod != gocui.ModNone {
+		return
 	}
-	return
+	switch {
+	case ch != 0 && IsNormalChar(ch):
+		v.EditWrite('*')
+	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
+		v.EditDelete(true)
+	case key == gocui.KeyArrowLeft:
+		v.MoveCursor(-1, 0)
+	case key == gocui.KeyArrowRight:
+		v.MoveCursor(1, 0)
+	}
 }
 
 // 输入编辑器

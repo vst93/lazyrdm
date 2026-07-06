@@ -576,12 +576,207 @@ func (c *LTRKeyInfoDetailComponent) moveDetailRowSelection(step int) {
 	}
 	c.selectedRow += step
 	c.normalizeSelectedRow()
+	// For structured (list) mode, re-render from cached rows without re-fetching
+	// from Redis. This is critical for trackpad scroll smoothness — every scroll
+	// event would otherwise trigger a GetKeyDetail API round-trip.
+	if c.structuredMode && len(c.structuredRows) > 0 {
+		c.renderFromCache()
+		return
+	}
 	c.Layout()
 }
 
+func (c *LTRKeyInfoDetailComponent) renderFromCache() {
+	if c.view == nil || len(c.structuredRows) == 0 {
+		c.Layout()
+		return
+	}
+	c.applyListFilter()
+	c.normalizeSelectedRow()
+	var theVal string
+	switch c.currentKeyType {
+	case "list":
+		theVal = c.renderListRowsFromCache()
+	case "hash":
+		theVal = c.renderHashRowsFromCache()
+	case "set":
+		theVal = c.renderSetRowsFromCache()
+	case "zset":
+		theVal = c.renderZSetRowsFromCache()
+	case "stream":
+		theVal = c.renderStreamRowsFromCache()
+	default:
+		c.Layout()
+		return
+	}
+	// update subtitle
+	rows := c.getActiveSelectionRows()
+	if len(c.structuredRows) > 0 {
+		subtitle := " Lines: " + strconv.Itoa(len(strings.Split(theVal, "\n"))-1) + " "
+		if len(rows) == 0 {
+			subtitle += " Row: 0/0 "
+		} else {
+			subtitle += " Row: " + strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(rows)) + " "
+		}
+		if c.currentKeyType == "list" && strings.TrimSpace(c.listFilter) != "" {
+			subtitle += " Filtered " + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + " "
+		}
+		if c.currentKeyType != "" {
+			subtitle = " Type: " + c.currentKeyType + " " + subtitle
+		}
+		c.view.Subtitle = subtitle
+	} else {
+		c.view.Subtitle = ""
+	}
+	c.CopyString = theVal
+	c.view.Clear()
+	c.view.Write([]byte(theVal))
+	c.view.SetOrigin(0, 0)
+}
+
+// renderListRowsFromCache renders the list detail using already-populated structuredRows.
+func (c *LTRKeyInfoDetailComponent) renderListRowsFromCache() string {
+	rows := c.getActiveSelectionRows()
+	var b strings.Builder
+	b.WriteString("Type: list (Explorer Mode)\n")
+	b.WriteString("Actions: ↑/↓ select  ←/→ jump  </> filter  <x> clear filter  <a>/<e>/<u>/<d> CRUD\n")
+	if strings.TrimSpace(c.listFilter) != "" {
+		b.WriteString("Filter: \"" + c.listFilter + "\" | matched " + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + "\n")
+	}
+	b.WriteString("================================================================================\n")
+	if len(c.structuredRows) == 0 {
+		b.WriteString("(empty)\n")
+		return b.String()
+	}
+	if len(rows) == 0 {
+		b.WriteString("No rows match current filter. Press <x> to clear or </> to update filter.\n")
+		return b.String()
+	}
+	start := c.selectedRow - 6
+	if start < 0 {
+		start = 0
+	}
+	end := start + 12
+	if end > len(rows) {
+		end = len(rows)
+		start = end - 12
+		if start < 0 {
+			start = 0
+		}
+	}
+	b.WriteString("List Rows\n")
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	b.WriteString(fmt.Sprintf("%-2s %-8s %-s\n", "", "INDEX", "VALUE(PREVIEW)"))
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	for i := start; i < end; i++ {
+		row := rows[i]
+		prefix := " "
+		if i == c.selectedRow {
+			prefix = ">"
+		}
+		preview := truncateByRuneCount(strings.ReplaceAll(row.Value, "\n", " <NL> "), 90)
+		b.WriteString(fmt.Sprintf("%s %-8d %s\n", prefix, row.Index, preview))
+	}
+	selected := rows[c.selectedRow]
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	b.WriteString(fmt.Sprintf("Selected Index: %d (row %d/%d)\n", selected.Index, c.selectedRow+1, len(rows)))
+	b.WriteString("Selected Value\n")
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	for _, line := range strings.Split(selected.Value, "\n") {
+		b.WriteString(line + "\n")
+	}
+	return b.String()
+}
+
+func (c *LTRKeyInfoDetailComponent) renderHashRowsFromCache() string {
+	var b strings.Builder
+	b.WriteString("Type: hash\n")
+	b.WriteString("Actions: <a> Add Field  <u>/<e> Edit Field  <d> Delete Field\n")
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	b.WriteString(fmt.Sprintf("%-24s %-s\n", "FIELD", "VALUE"))
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	if len(c.structuredRows) == 0 {
+		b.WriteString("(empty)\n")
+		return b.String()
+	}
+	for i, row := range c.structuredRows {
+		prefix := " "
+		if i == c.selectedRow {
+			prefix = ">"
+		}
+		b.WriteString(fmt.Sprintf("%s %-24s %s\n", prefix, row.Field, row.Value))
+	}
+	return b.String()
+}
+
+func (c *LTRKeyInfoDetailComponent) renderSetRowsFromCache() string {
+	var b strings.Builder
+	b.WriteString("Type: set\n")
+	b.WriteString("Actions: <a> Add Member  <u>/<e> Replace Member  <d> Delete Member\n")
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	b.WriteString(fmt.Sprintf("%-8s %-s\n", "ROW", "VALUE"))
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	if len(c.structuredRows) == 0 {
+		b.WriteString("(empty)\n")
+		return b.String()
+	}
+	for i, row := range c.structuredRows {
+		prefix := " "
+		if i == c.selectedRow {
+			prefix = ">"
+		}
+		b.WriteString(fmt.Sprintf("%s %-8d %s\n", prefix, row.Index, row.Value))
+	}
+	return b.String()
+}
+
+func (c *LTRKeyInfoDetailComponent) renderZSetRowsFromCache() string {
+	var b strings.Builder
+	b.WriteString("Type: zset\n")
+	b.WriteString("Actions: <a> Add Member+Score  <u>/<e> Edit Member+Score  <d> Delete Member\n")
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	b.WriteString(fmt.Sprintf("%-10s %-s\n", "SCORE", "VALUE"))
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	if len(c.structuredRows) == 0 {
+		b.WriteString("(empty)\n")
+		return b.String()
+	}
+	for i, row := range c.structuredRows {
+		prefix := " "
+		if i == c.selectedRow {
+			prefix = ">"
+		}
+		b.WriteString(fmt.Sprintf("%s %-10s %s\n", prefix, row.Score, row.Value))
+	}
+	return b.String()
+}
+
+func (c *LTRKeyInfoDetailComponent) renderStreamRowsFromCache() string {
+	var b strings.Builder
+	b.WriteString("Type: stream\n")
+	b.WriteString("Actions: <a> Add Entry  <d> Delete Entry(by ID)\n")
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	b.WriteString(fmt.Sprintf("%-26s %-s\n", "ENTRY ID", "VALUE"))
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	if len(c.structuredRows) == 0 {
+		b.WriteString("(empty)\n")
+		return b.String()
+	}
+	for i, row := range c.structuredRows {
+		prefix := " "
+		if i == c.selectedRow {
+			prefix = ">"
+		}
+		b.WriteString(fmt.Sprintf("%s %-26s %s\n", prefix, row.Field, truncateByRuneCount(strings.ReplaceAll(row.Value, "\n", " <NL> "), 80)))
+	}
+	return b.String()
+}
+
 func (c *LTRKeyInfoDetailComponent) isCurrentListType() bool {
-	if c.currentKeyType == "list" {
-		return true
+	// Use the cached key type set by Layout() to avoid a Redis API call on every
+	// scroll event. If the type hasn't been loaded yet, fall back to a one-shot fetch.
+	if c.currentKeyType != "" {
+		return c.currentKeyType == "list"
 	}
 	keyType, err := c.getCurrentSetKeyType()
 	if err != nil {
