@@ -73,7 +73,7 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 	for index, db := range GlobalConnectionComponent.dbs {
 		if c.CurrenDB == index {
 			// printString += fmt.Sprintf("\x1b[1;37;44m%s\x1b[0m\n", ""+db.Name+""+SPACE_STRING)
-			printString += NewColorString(db.Name+" ("+strconv.Itoa(db.MaxKeys)+")"+SPACE_STRING+"\n", "white", "blue")
+			printString += NewColorString(db.Name+" ("+strconv.Itoa(db.MaxKeys)+")"+SPACE_STRING+"\n", "black", "cyan", "bold")
 			totalLine++
 			currenLine = totalLine
 		} else {

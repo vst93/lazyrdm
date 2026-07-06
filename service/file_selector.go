@@ -73,8 +73,8 @@ func (fs *FileSelector) Layout(g *gocui.Gui) error {
 		if fs.filtExt != "" {
 			v.Title += fmt.Sprintf(" Filter: %s", fs.filtExt)
 		}
-		v.SelBgColor = gocui.ColorGreen
-		v.SelFgColor = gocui.ColorBlack
+		v.SelBgColor = themeSelBg
+		v.SelFgColor = themeSelFg
 		fs.renderFiles(v)
 		if _, err := g.SetCurrentView(fs.name); err != nil {
 			return err

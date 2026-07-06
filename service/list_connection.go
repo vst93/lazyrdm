@@ -208,7 +208,7 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		}
 
 		if i == c.flatCursor {
-			builder.WriteString(NewColorString(line, "white", "blue", "bold"))
+			builder.WriteString(NewColorString(line, "black", "cyan", "bold"))
 			cursorLine = totalLine
 		} else {
 			if item.isGroup {

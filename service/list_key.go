@@ -134,7 +134,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 			keyStr := fmt.Sprintf("%s", key)
 			if c.Current == index {
 				// currenLine = totalLine
-				printString += NewColorString(keyStr+""+SPACE_STRING+"\n", "white", "blue", "bold")
+				printString += NewColorString(keyStr+""+SPACE_STRING+"\n", "black", "cyan", "bold")
 			} else {
 				printString += fmt.Sprintf("%s\n", keyStr+""+SPACE_STRING)
 			}
@@ -158,7 +158,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 		}
 		c.searchView.Visible = true
 		c.searchView.Frame = false
-		c.searchView.BgColor = gocui.ColorYellow
+		c.searchView.BgColor = themeIndicatorBg
 		c.searchView.Clear()
 		c.searchView.Write([]byte(searchKeywordShow))
 	} else if c.searchView != nil {
@@ -169,7 +169,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	c.lineView, err = SetViewSafe("key_list_line", 0, theDBComponentH+2, 2, GlobalApp.maxY-2, 0)
 	if err == nil || err != gocui.ErrUnknownView {
 		// c.lineView.FrameColor = gocui.NewRGBColor(149, 165, 166)
-		c.lineView.FgColor = gocui.NewRGBColor(78, 142, 166)
+		c.lineView.FgColor = themeLineNum
 		c.lineView.Clear()
 		c.lineView.Write([]byte(lineStr))
 		c.lineView.SetOrigin(0, 0)

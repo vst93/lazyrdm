@@ -195,7 +195,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 		formatSelectView.Write([]byte(formatStr))
 	}
 	formatSelectView.Frame = false
-	formatSelectView.BgColor = gocui.ColorGreen
+	formatSelectView.BgColor = themeIndicatorBg
 	c.layoutListFilterView(theX0, len(formatStr))
 
 	if c.structuredMode {
@@ -207,7 +207,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	c.lineView, err = SetViewSafe("key_detail_line", theX0, 3, theX0+6, GlobalApp.maxY-2, 1)
 	if err == nil || err != gocui.ErrUnknownView {
 		// c.lineView.FrameColor = gocui.NewRGBColor(149, 165, 166)
-		c.lineView.FgColor = gocui.NewRGBColor(78, 142, 166)
+		c.lineView.FgColor = themeLineNum
 		c.lineView.Clear()
 		if !c.structuredMode {
 			c.lineView.Write([]byte(lineStr))
@@ -263,7 +263,7 @@ func (c *LTRKeyInfoDetailComponent) layoutListFilterView(theX0 int, formatWidth 
 	v.Frame = false
 	v.Editable = CurrentViewName() == listFilterViewName
 	if v.Editable {
-		v.BgColor = gocui.ColorYellow
+		v.BgColor = themeIndicatorBg
 		v.Editor = &EditorInput{BindValString: &c.listFilterEdit}
 		_ = v.SetCursor(len([]rune(c.listFilterEdit))+9, 0)
 	} else {
@@ -1218,7 +1218,7 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 				continue
 			}
 			if i == currentIdx {
-				view.BgColor = gocui.ColorBlue
+				view.BgColor = themeSelBg
 				GlobalApp.Gui.SetCurrentView(name)
 				GlobalApp.Gui.Cursor = true
 				view.SetCursor(0, 0)

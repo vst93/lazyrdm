@@ -8,7 +8,6 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/awesome-gocui/gocui v1.1.0
 	github.com/duke-git/lancet/v2 v2.3.7
-	github.com/nsf/termbox-go v1.1.1
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/redis/go-redis/v9 v9.11.0
 	github.com/vrischmann/userdir v0.0.0-20151206171402-20f291cebd68

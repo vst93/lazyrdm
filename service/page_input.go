@@ -105,9 +105,9 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	v.Wrap = false
 	v.Editable = false
 	v.Frame = true
-	v.FgColor = gocui.ColorWhite
-	v.BgColor = gocui.ColorBlue
-	v.FrameColor = gocui.ColorCyan | gocui.AttrBold
+	v.FgColor = themeDialogFg
+	v.BgColor = themeDialogBg
+	v.FrameColor = themeFrameDialog
 	v.Clear()
 
 	// 内容布局（y 从 0 开始）:
@@ -155,10 +155,10 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	iv.Frame = false
 	iv.Wrap = false
 	iv.Editable = true
-	iv.BgColor = gocui.ColorWhite
-	iv.FgColor = gocui.ColorBlack | gocui.AttrBold
-	iv.SelBgColor = gocui.ColorWhite
-	iv.SelFgColor = gocui.ColorBlack
+	iv.BgColor = themeInputBg
+	iv.FgColor = themeInputFg
+	iv.SelBgColor = themeInputBg
+	iv.SelFgColor = themeInputFg
 	if c.maskInput {
 		iv.Editor = &EditorPassword{}
 	} else {

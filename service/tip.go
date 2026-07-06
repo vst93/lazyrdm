@@ -142,7 +142,7 @@ func (c *LTRTipComponent) Layout(tipString string) *LTRTipComponent {
 	c.view.Editable = false
 	c.view.Frame = false
 	c.view.Wrap = false
-	c.view.FgColor = gocui.ColorWhite | gocui.AttrBold
+	c.view.FgColor = themeTextBright
 	c.view.Clear()
 
 	theTipString := c.lastTipString
@@ -217,16 +217,16 @@ func (c *LTRTipComponent) layoutTemporaryTip() {
 	c.temporaryView.Frame = true
 	c.temporaryView.Wrap = false
 	c.temporaryView.Title = " Notice "
-	c.temporaryView.FgColor = gocui.ColorWhite
+	c.temporaryView.FgColor = themeTextBright
 	switch c.temporaryTipType {
 	case TipTypeWarning:
-		c.temporaryView.FgColor = gocui.ColorYellow | gocui.AttrBold
+		c.temporaryView.FgColor = themeWarning
 		c.temporaryView.Title = " Warning "
 	case TipTypeError:
-		c.temporaryView.FgColor = gocui.ColorRed | gocui.AttrBold
+		c.temporaryView.FgColor = themeError
 		c.temporaryView.Title = " Error "
 	case TipTypeSuccess:
-		c.temporaryView.FgColor = gocui.ColorGreen | gocui.AttrBold
+		c.temporaryView.FgColor = themeSuccess
 		c.temporaryView.Title = " Success "
 	}
 	c.temporaryView.Clear()

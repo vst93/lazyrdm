@@ -7,7 +7,6 @@ import (
 	"tinyrdm/backend/types"
 
 	"github.com/awesome-gocui/gocui"
-	"github.com/nsf/termbox-go"
 )
 
 type LTRConnectionEditComponent struct {
@@ -299,7 +298,7 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 
 	view.Clear()
 	if !config.disabledEdit && (c.viewNowCurrent == name || (c.viewNowCurrent == "" && len(c.viewList) == 1)) {
-		view.BgColor = gocui.ColorBlue
+		view.BgColor = themeSelBg
 		view.Editable = true
 		view.Editor = &valueEditor
 		GlobalApp.Gui.SetCurrentView(name)
@@ -342,7 +341,7 @@ func (c *LTRConnectionEditComponent) formViewRadio(config LTRConnectionEditCompo
 	view.FgColor = gocui.ColorWhite
 	view.Clear()
 	if c.viewNowCurrent == name || (c.viewNowCurrent == "" && len(c.viewList) == 1) {
-		view.BgColor = gocui.ColorBlue
+		view.BgColor = themeSelBg
 		GlobalApp.Gui.SetCurrentView(name)
 		GlobalApp.Gui.Cursor = false
 		// 增加额外的快捷键提示
@@ -412,11 +411,10 @@ func (c *LTRConnectionEditComponent) formBtn(name string, title string, xBeing i
 	view.FgColor = gocui.ColorWhite
 	view.Clear()
 	if c.viewNowCurrent == name || (c.viewNowCurrent == "" && len(c.viewList) == 1) {
-		// view.FgColor = gocui.ColorWhite
-		view.BgColor = gocui.ColorBlue
+		view.BgColor = themeSelBg
 		GlobalApp.Gui.SetCurrentView(name)
 	} else {
-		view.BgColor = gocui.Attribute(termbox.ColorDarkGray)
+		view.BgColor = gocui.ColorBlack
 	}
 	leftSpace := (width - len(title)) / 2
 	// theTitle := " \n"

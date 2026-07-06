@@ -70,6 +70,7 @@ func (c *PageComponentHelp) Layout() *PageComponentHelp {
 	v.Wrap = false
 	v.Editable = false
 	v.Frame = true
+	v.FrameColor = themeFrameDialog
 	v.Clear()
 	v.Write([]byte(c.text))
 	v.SetOrigin(0, c.originY)
