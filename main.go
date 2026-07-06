@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"lazyrdm/service"
 	"log"
@@ -14,6 +15,16 @@ import (
 )
 
 func main() {
+	// 命令行参数解析
+	showVersion := flag.Bool("version", false, "print version and exit")
+	showVersionShort := flag.Bool("v", false, "print version and exit (shorthand)")
+	flag.Parse()
+
+	if *showVersion || *showVersionShort {
+		fmt.Println(service.APP_VERSION)
+		return
+	}
+
 	// 只在 Windows 平台检查
 	if runtime.GOOS == "windows" {
 		checkAndRelaunchInWT()

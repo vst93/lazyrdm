@@ -61,6 +61,9 @@ func activeOverlayViewName(g *gocui.Gui) string {
 	if _, err := g.View("page_server_info"); err == nil {
 		return "page_server_info"
 	}
+	if _, err := g.View("page_console_output"); err == nil {
+		return "page_console_output"
+	}
 	return ""
 }
 

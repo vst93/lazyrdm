@@ -156,6 +156,33 @@ func (c *LTRListDBComponent) KeyBind() *LTRListDBComponent {
 		return nil
 	})
 
+	// Redis Console
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{':'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		OpenConsolePage()
+		return nil
+	})
+
+	// FlushDB
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'F'}, "Flush current database? ALL keys in this DB will be deleted permanently!", func() {
+		if c.SelectedDB < 0 {
+			GlobalTipComponent.LayoutTemporary("No database selected", 3, TipTypeWarning)
+			return
+		}
+		res := services.Browser().FlushDB(
+			GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+			c.SelectedDB,
+			false,
+		)
+		if res.Success {
+			GlobalTipComponent.LayoutTemporary("Database flushed", 2, TipTypeSuccess)
+			GlobalKeyComponent.RefreshList()
+		} else {
+			GlobalTipComponent.LayoutTemporary("FlushDB failed: "+res.Msg, 5, TipTypeError)
+		}
+	}, func() {
+		GlobalTipComponent.LayoutTemporary("FlushDB cancelled", 2, TipTypeWarning)
+	})
+
 	return c
 }
 
@@ -164,6 +191,8 @@ func (c *LTRListDBComponent) KeyMapTip() string {
 		{"Select", "↑/↓/j/k"},
 		{"Open DB", "<Enter>/l/→"},
 		{"Server Info", "<i>"},
+		{"Console", "<:>"},
+		{"FlushDB", "<F>"},
 		{"Pane", "<Tab>"},
 		{"Conn/Quit/Help", "<Ctrl+w>/<Ctrl+q>/<?>"},
 	}

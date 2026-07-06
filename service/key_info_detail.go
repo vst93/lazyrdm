@@ -479,6 +479,10 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 		addDesc = "Add Item"
 		updateDesc = "Edit By Index"
 		deleteDesc = "Delete By Index"
+	case "stream":
+		addDesc = "Add Entry"
+		updateDesc = "N/A"
+		deleteDesc = "Delete Entry"
 	}
 	if keyType == "string" || keyType == "json" {
 		addDesc = "Type Add(<a>)"
@@ -893,6 +897,52 @@ func (c *LTRKeyInfoDetailComponent) buildKeyOpDialogSchema(keyType, operation, p
 		return keyOpDialogSchema{}, fmt.Errorf("unsupported key type: %s", keyType)
 	}
 
+	// stream operations handled separately below
+	if keyType == "stream" {
+		switch operation {
+		case "add":
+			base.Title = "Stream Add"
+			base.Description = "Add entry to stream"
+			base.Fields = []keyOpDialogField{{Label: "ID", Placeholder: "* (auto)", Value: "*"}, {Label: "Field", Placeholder: "field", Value: fieldDefault}, {Label: "Value", Placeholder: "value", Value: valueDefault}}
+			base.BuildJSON = func(values map[string]string) (string, error) {
+				id := strings.TrimSpace(values["ID"])
+				if id == "" {
+					id = "*"
+				}
+				field, err := requireNonEmpty(values, "Field")
+				if err != nil {
+					return "", err
+				}
+				value, err := requireNonEmpty(values, "Value")
+				if err != nil {
+					return "", err
+				}
+				obj := map[string]any{"id": id, "field": field, "value": value}
+				buf, err := json.Marshal(obj)
+				return string(buf), err
+			}
+		case "delete":
+			base.Title = "Stream Delete"
+			base.Description = "Delete stream entry by ID"
+			idDefault := "*"
+			if selected != nil && strings.TrimSpace(selected.Field) != "" {
+				idDefault = selected.Field
+			}
+			base.Fields = []keyOpDialogField{{Label: "EntryID", Placeholder: "1234567890-0", Value: idDefault}}
+			base.BuildJSON = func(values map[string]string) (string, error) {
+				id, err := requireNonEmpty(values, "EntryID")
+				if err != nil {
+					return "", err
+				}
+				obj := map[string]any{"id": id}
+				buf, err := json.Marshal(obj)
+				return string(buf), err
+			}
+		default:
+			return keyOpDialogSchema{}, fmt.Errorf("stream does not support %s operation", operation)
+		}
+	}
+
 	return base, nil
 }
 
@@ -1162,6 +1212,13 @@ func (c *LTRKeyInfoDetailComponent) getTypeOperationTemplate(operation string) s
 		default:
 			return "{\n  \"value\": \"member1\"\n}\n"
 		}
+	case "stream":
+		switch operation {
+		case "add":
+			return "{\n  \"id\": \"*\",\n  \"field\": \"field1\",\n  \"value\": \"value1\"\n}\n"
+		default:
+			return "{\n  \"id\": \"1234567890-0\"\n}\n"
+		}
 	default:
 		return "{}"
 	}
@@ -1202,6 +1259,8 @@ func (c *LTRKeyInfoDetailComponent) applyTypeOperation(operation, editorInput st
 		return c.applySetOperation(operation, trimmed)
 	case "zset":
 		return c.applyZSetOperation(operation, trimmed)
+	case "stream":
+		return c.applyStreamOperation(operation, trimmed)
 	default:
 		return fmt.Errorf("key type %q does not support type operations", keyType)
 	}
@@ -1466,6 +1525,67 @@ func (c *LTRKeyInfoDetailComponent) applyZSetOperation(operation, raw string) er
 	}
 }
 
+func (c *LTRKeyInfoDetailComponent) applyStreamOperation(operation, raw string) error {
+	switch operation {
+	case "add":
+		var payload struct {
+			ID    string `json:"id"`
+			Field string `json:"field"`
+			Value string `json:"value"`
+		}
+		if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+			return fmt.Errorf("stream add requires {id,field,value}")
+		}
+		id := strings.TrimSpace(payload.ID)
+		if id == "" {
+			id = "*"
+		}
+		field := strings.TrimSpace(payload.Field)
+		if field == "" {
+			return fmt.Errorf("field is required")
+		}
+		value := strings.TrimSpace(payload.Value)
+		if value == "" {
+			return fmt.Errorf("value is required")
+		}
+		fieldItems := []any{field, value}
+		res := services.Browser().AddStreamValue(
+			GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+			GlobalDBComponent.SelectedDB,
+			GlobalKeyInfoComponent.keyName,
+			id,
+			fieldItems,
+		)
+		if !res.Success {
+			return fmt.Errorf("%s", res.Msg)
+		}
+		return nil
+	case "delete":
+		var payload struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+			return fmt.Errorf("stream delete requires {id}")
+		}
+		entryID := strings.TrimSpace(payload.ID)
+		if entryID == "" {
+			return fmt.Errorf("entry id is required")
+		}
+		res := services.Browser().RemoveStreamValues(
+			GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+			GlobalDBComponent.SelectedDB,
+			GlobalKeyInfoComponent.keyName,
+			[]string{entryID},
+		)
+		if !res.Success {
+			return fmt.Errorf("%s", res.Msg)
+		}
+		return nil
+	default:
+		return fmt.Errorf("stream does not support %s operation", operation)
+	}
+}
+
 func parseHashFieldItems(raw string) ([]any, error) {
 	var listPayload []map[string]any
 	if err := json.Unmarshal([]byte(raw), &listPayload); err == nil {
@@ -1647,6 +1767,13 @@ func (c *LTRKeyInfoDetailComponent) buildDisplayValue(detail types.KeyDetail) st
 	if keyType == "zset" {
 		c.structuredMode = true
 		if rendered, ok := c.renderZSetDetail(detail.Value); ok {
+			return rendered
+		}
+	}
+
+	if keyType == "stream" {
+		c.structuredMode = true
+		if rendered, ok := c.renderStreamDetail(detail.Value); ok {
 			return rendered
 		}
 	}
@@ -1834,6 +1961,49 @@ func (c *LTRKeyInfoDetailComponent) renderZSetDetail(value any) (string, bool) {
 	return b.String(), true
 }
 
+func (c *LTRKeyInfoDetailComponent) renderStreamDetail(value any) (string, bool) {
+	items := []types.StreamEntryItem{}
+	if !decodeTypedEntries(value, &items) {
+		return "", false
+	}
+	c.structuredRows = make([]keyDetailRow, 0, len(items))
+	for i, item := range items {
+		displayVal := item.DisplayValue
+		if strings.TrimSpace(displayVal) == "" {
+			if vb, err := json.Marshal(item.Value); err == nil {
+				displayVal = string(vb)
+			} else {
+				displayVal = fmt.Sprintf("%v", item.Value)
+			}
+		}
+		c.structuredRows = append(c.structuredRows, keyDetailRow{
+			Index: i,
+			Field: item.ID,
+			Value: displayVal,
+		})
+	}
+	c.normalizeSelectedRow()
+
+	var b strings.Builder
+	b.WriteString("Type: stream\n")
+	b.WriteString("Actions: <a> Add Entry  <d> Delete Entry(by ID)\n")
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	b.WriteString(fmt.Sprintf("%-26s %-s\n", "ENTRY ID", "VALUE"))
+	b.WriteString("--------------------------------------------------------------------------------\n")
+	if len(items) == 0 {
+		b.WriteString("(empty)\n")
+		return b.String(), true
+	}
+	for i, row := range c.structuredRows {
+		prefix := " "
+		if i == c.selectedRow {
+			prefix = ">"
+		}
+		b.WriteString(fmt.Sprintf("%s %-26s %s\n", prefix, row.Field, truncateByRuneCount(strings.ReplaceAll(row.Value, "\n", " <NL> "), 80)))
+	}
+	return b.String(), true
+}
+
 func decodeTypedEntries(value any, out any) bool {
 	buf, err := json.Marshal(value)
 	if err != nil {
@@ -1918,7 +2088,7 @@ func normalizeSetKeyType(keyType string) string {
 
 func isCollectionKeyType(keyType string) bool {
 	switch keyType {
-	case "list", "hash", "set", "zset":
+	case "list", "hash", "set", "zset", "stream":
 		return true
 	default:
 		return false

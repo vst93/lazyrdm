@@ -179,6 +179,10 @@ func (app *MainApp) LayoutManager(g *gocui.Gui) error {
 		if GlobalServerInfoPageComponent != nil {
 			GlobalServerInfoPageComponent.Layout()
 		}
+	case "page_console":
+		if GlobalConsoleComponent != nil {
+			GlobalConsoleComponent.Layout()
+		}
 	case "page_confirm":
 		return nil
 	case "connection_list":
@@ -253,6 +257,10 @@ func (app *MainApp) relayoutCurrentViewOnResize() {
 	case "page_server_info":
 		if GlobalServerInfoPageComponent != nil {
 			GlobalServerInfoPageComponent.Layout()
+		}
+	case "page_console":
+		if GlobalConsoleComponent != nil {
+			GlobalConsoleComponent.Layout()
 		}
 	case "page_confirm":
 		return
