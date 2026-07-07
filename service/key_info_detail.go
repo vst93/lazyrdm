@@ -461,7 +461,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			return
 		}
 		if isCollectionKeyType(keyType) {
-			GlobalTipComponent.LayoutTemporary("Use <e>/<a>/<u>/<d> form dialog for this key type", 4, TipTypeWarning)
+			GlobalTipComponent.LayoutTemporary("Use <e>/<a>/<d> for this key type", 4, TipTypeWarning)
 			return
 		}
 		if err := c.applyPrimaryEdit(theClipboardValue); err != nil {
@@ -513,34 +513,33 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	keyType, _ := c.getCurrentSetKeyType()
 	editDesc := "Edit/Save"
 	addDesc := "Add Row"
-	updateDesc := "Edit Row"
 	deleteDesc := "Delete Row"
 	switch keyType {
 	case "hash":
 		addDesc = "Add Field"
-		updateDesc = "Edit Field"
+		editDesc = "Edit Field"
 		deleteDesc = "Delete Field"
 	case "set":
 		addDesc = "Add Member"
-		updateDesc = "Replace Member"
+		editDesc = "Replace Member"
 		deleteDesc = "Delete Member"
 	case "zset":
 		addDesc = "Add Member+Score"
-		updateDesc = "Edit Member+Score"
+		editDesc = "Edit Member+Score"
 		deleteDesc = "Delete Member"
 	case "list":
 		addDesc = "Add Item"
-		updateDesc = "Edit By Index"
+		editDesc = "Edit By Index"
 		deleteDesc = "Delete By Index"
 	case "stream":
 		addDesc = "Add Entry"
-		updateDesc = "N/A"
+		editDesc = "N/A"
 		deleteDesc = "Delete Entry"
 	}
 	if keyType == "string" || keyType == "json" {
-		addDesc = "Type Add(<a>)"
-		updateDesc = "Primary Edit"
-		deleteDesc = "Type Del(<d>)"
+		addDesc = "Add(<a>)"
+		editDesc = "Primary Edit"
+		deleteDesc = "Del(<d>)"
 	}
 
 	keyMap := []KeyMapStruct{
@@ -550,7 +549,7 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 		{"Filter", "</>/<x>"},
 		{"Switch Format", "<f>"},
 		{editDesc, "<e>"},
-		{addDesc + "/" + updateDesc + "/" + deleteDesc, "<a>/<u>/<d>"},
+		{addDesc + "/" + deleteDesc, "<a>/<d>"},
 		{"Copy", "<c>"},
 		{"Paste", "<p>"},
 		{"Refresh", "<r>"},
@@ -1025,18 +1024,18 @@ func (c *LTRKeyInfoDetailComponent) bindTypeOperationKeys() {
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'u'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if err := c.openTypeOperationDialog("update", ""); err != nil {
-			GlobalTipComponent.LayoutTemporary("Open update dialog failed: "+err.Error(), 4, TipTypeError)
+	// 'd' deletes the currently selected row with a confirmation prompt.
+	// No input dialog needed — the row identity (index/field/value/id) is
+	// taken directly from the selection.
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'d'}, "", func() {
+		if err := c.deleteSelectedRow(); err != nil {
+			GlobalTipComponent.LayoutTemporary("Delete failed: "+err.Error(), 4, TipTypeError)
+			return
 		}
-		return nil
-	})
-
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'d'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if err := c.openTypeOperationDialog("delete", ""); err != nil {
-			GlobalTipComponent.LayoutTemporary("Open delete dialog failed: "+err.Error(), 4, TipTypeError)
-		}
-		return nil
+		GlobalTipComponent.LayoutTemporary("Row deleted", 3, TipTypeSuccess)
+		c.Layout()
+	}, func() {
+		GlobalTipComponent.LayoutTemporary("Delete cancelled", 2, TipTypeWarning)
 	})
 }
 
@@ -1637,6 +1636,53 @@ func (c *LTRKeyInfoDetailComponent) getCurrentSetKeyType() (string, error) {
 	keySummaryData := keySummary.Data.(types.KeySummary)
 	keyType := strings.ToLower(strings.TrimSpace(keySummaryData.Type))
 	return normalizeSetKeyType(keyType), nil
+}
+
+// deleteSelectedRow deletes the currently selected row based on key type.
+// It builds the appropriate delete payload from the selected row's identity
+// and delegates to the existing applyXxxOperation("delete", ...) methods.
+func (c *LTRKeyInfoDetailComponent) deleteSelectedRow() error {
+	if !c.canEditCurrentKey() {
+		return fmt.Errorf("no key selected")
+	}
+	keyType, err := c.getCurrentSetKeyType()
+	if err != nil {
+		return err
+	}
+	if !isCollectionKeyType(keyType) {
+		return fmt.Errorf("delete row is only for collection types")
+	}
+	row := c.getSelectedStructuredRow()
+	if row == nil {
+		return fmt.Errorf("no row selected")
+	}
+
+	var payload string
+	switch keyType {
+	case "list":
+		obj := map[string]any{"index": row.Index}
+		buf, _ := json.Marshal(obj)
+		payload = string(buf)
+	case "hash":
+		obj := map[string]any{"field": row.Field}
+		buf, _ := json.Marshal(obj)
+		payload = string(buf)
+	case "set":
+		buf, _ := json.Marshal([]string{row.Value})
+		payload = string(buf)
+	case "zset":
+		obj := map[string]any{"value": row.Value}
+		buf, _ := json.Marshal(obj)
+		payload = string(buf)
+	case "stream":
+		obj := map[string]any{"id": row.Field}
+		buf, _ := json.Marshal(obj)
+		payload = string(buf)
+	default:
+		return fmt.Errorf("unsupported type for delete: %s", keyType)
+	}
+
+	return c.applyTypeOperation("delete", payload)
 }
 
 func (c *LTRKeyInfoDetailComponent) applyTypeOperation(operation, editorInput string) error {
