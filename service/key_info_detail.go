@@ -1444,6 +1444,7 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		}
 		GlobalApp.Gui.Cursor = false
 		GlobalApp.Gui.SetCurrentView(c.name)
+		GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil })
 	}
 
 	submit := func() {
