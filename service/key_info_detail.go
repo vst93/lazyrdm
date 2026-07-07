@@ -709,7 +709,7 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	} else {
 		headerLine += strconv.Itoa(totalCount) + " item(s) "
 	}
-	headerLine += "| ↑/↓ select  ←/→ page  </> filter  <Enter> expand  <a>/<e>/<u>/<d> CRUD"
+	headerLine += "| ↑/↓ select  ←/→ page  </> filter  <Enter> expand  <a>/<e>/<d> CRUD"
 	b.WriteString(truncateByDisplayWidth(headerLine, viewW) + "\n")
 
 	// separator

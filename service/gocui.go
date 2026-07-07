@@ -71,7 +71,12 @@ func activeOverlayViewName(g *gocui.Gui) string {
 		return "key_op_dialog"
 	}
 	if _, err := g.View(listFilterViewName); err == nil {
-		return listFilterViewName
+		// Only treat filter view as overlay when it's actively being edited
+		// (i.e. it's the current focused view). In display mode it's just a
+		// passive status bar that shouldn't intercept global keybindings.
+		if cv := g.CurrentView(); cv != nil && cv.Name() == listFilterViewName {
+			return listFilterViewName
+		}
 	}
 	return ""
 }
