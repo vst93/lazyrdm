@@ -92,6 +92,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	}
 	c.view.Editable = false
 	c.view.Frame = true
+	c.view.TitleColor = gocui.ColorCyan
 	c.view.Title = " Key List "
 	if GlobalDBComponent.SelectedDB < 0 {
 		c.view.Subtitle = ""
