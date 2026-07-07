@@ -2,10 +2,10 @@ package service
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/awesome-gocui/gocui"
+	"github.com/gdamore/tcell/v2"
 )
 
 // PageComponentInput 是一个内联文本输入弹窗，替代 vim 外部编辑器用于短文本输入。
@@ -45,15 +45,15 @@ func NewPageComponentInput(title string, label string, initialText string, maskI
 }
 
 // setCursorBar 切换终端光标为闪烁竖线样式（在白底输入框中更易辨识）
+// 使用 tcell 的 SetCursorStyle API，这样光标样式会在 tcell 每帧
+// redraw 时保持，不会被默认的 \033[0 q 覆盖。
 func setCursorBar() {
-	// \033[5 q = blinking bar cursor
-	fmt.Fprint(os.Stderr, "\033[5 q")
+	gocuiScreen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
 }
 
 // setCursorDefault 恢复终端默认光标样式
 func setCursorDefault() {
-	// \033[0 q = default cursor
-	fmt.Fprint(os.Stderr, "\033[0 q")
+	gocuiScreen.SetCursorStyle(tcell.CursorStyleDefault)
 }
 
 func (c *PageComponentInput) Layout() *PageComponentInput {
