@@ -251,15 +251,8 @@ func (c *LTRKeyInfoDetailComponent) layoutListFilterView(theX0 int, formatWidth 
 		return
 	}
 
-	// Don't recreate the view if it's currently focused (being edited)
+	// Don't recreate/reposition the view if it's currently focused (being edited)
 	if CurrentViewName() == listFilterViewName {
-		// just reposition, don't clear content
-		x0 := theX0 + 2
-		x1 := GlobalApp.maxX - formatWidth - 4
-		if x1 <= x0+10 {
-			x1 = GlobalApp.maxX - 3
-		}
-		SetViewSafe(listFilterViewName, x0, GlobalApp.maxY-4, x1, GlobalApp.maxY-2, 0)
 		return
 	}
 
@@ -276,15 +269,11 @@ func (c *LTRKeyInfoDetailComponent) layoutListFilterView(theX0 int, formatWidth 
 	if err != nil && err != gocui.ErrUnknownView {
 		return
 	}
-	showText := c.listFilterEdit
-	if strings.TrimSpace(showText) == "" {
-		showText = "(type / to filter, Enter to apply)"
-	}
-	v.Clear()
-	v.Write([]byte(" Filter: " + showText + " "))
 	v.Frame = false
-	v.Editable = false
 	v.BgColor = gocui.ColorBlack
+	v.Editable = false
+	v.Clear()
+	v.Write([]byte(" Filter: " + c.listFilter + " "))
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyBind() {
@@ -348,15 +337,23 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			return nil
 		}
 		c.listFilterEdit = c.listFilter
+		// Ensure the filter view exists via Layout, then switch to edit mode
 		c.Layout()
-		if fv, ferr := GlobalApp.Gui.View(listFilterViewName); ferr == nil {
-			fv.Editable = true
-			fv.Editor = &EditorInput{BindValString: &c.listFilterEdit}
-			fv.BgColor = themeIndicatorBg
-			fv.Clear()
-			fv.Write([]byte(" Filter: " + c.listFilterEdit + " "))
-			_ = fv.SetCursor(len([]rune(c.listFilterEdit))+9, 0)
+		fv, ferr := GlobalApp.Gui.View(listFilterViewName)
+		if ferr != nil {
+			GlobalTipComponent.LayoutTemporary("Open filter input failed", 3, TipTypeError)
+			return nil
 		}
+		// Switch to edit mode: buffer contains ONLY the raw input text (no prefix)
+		fv.Editable = true
+		fv.Editor = &EditorInput{BindValString: &c.listFilterEdit}
+		fv.BgColor = themeIndicatorBg
+		fv.Frame = true
+		fv.Title = " Filter (Enter=apply Esc=cancel) "
+		fv.TitleColor = gocui.ColorCyan
+		fv.Clear()
+		fv.Write([]byte(c.listFilterEdit))
+		_ = fv.SetCursor(len([]rune(c.listFilterEdit)), 0)
 		if _, err := GlobalApp.Gui.SetCurrentView(listFilterViewName); err != nil {
 			GlobalTipComponent.LayoutTemporary("Open filter input failed", 3, TipTypeError)
 			return nil
@@ -373,6 +370,14 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.applyListFilter()
 		c.selectedRow = 0
 		c.scrollOffset = 0
+		// Update the filter display view
+		if fv, ferr := GlobalApp.Gui.View(listFilterViewName); ferr == nil {
+			fv.Editable = false
+			fv.Frame = false
+			fv.BgColor = gocui.ColorBlack
+			fv.Clear()
+			fv.Write([]byte(" Filter: (none) "))
+		}
 		c.renderFromCache()
 		GlobalTipComponent.LayoutTemporary("Filter cleared", 2, TipTypeSuccess)
 		return nil
@@ -392,34 +397,27 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.selectedRow = 0
 		c.scrollOffset = 0
 		// Restore filter view to non-editable display state
-		if fv, ferr := GlobalApp.Gui.View(listFilterViewName); ferr == nil {
-			fv.Editable = false
-			fv.BgColor = gocui.ColorBlack
-			fv.Clear()
-			showText := c.listFilter
-			if showText == "" {
-				showText = "(type / to filter, Enter to apply)"
-			}
-			fv.Write([]byte(" Filter: " + showText + " "))
-		}
+		v.Editable = false
+		v.Frame = false
+		v.BgColor = gocui.ColorBlack
+		v.Clear()
+		v.Write([]byte(" Filter: " + c.listFilter + " "))
 		GlobalApp.Gui.Cursor = false
 		_, _ = GlobalApp.Gui.SetCurrentView(c.name)
 		c.renderFromCache()
+		if c.listFilter != "" {
+			GlobalTipComponent.LayoutTemporary("Filter applied: "+c.listFilter, 2, TipTypeSuccess)
+		}
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, listFilterViewName, []any{gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.listFilterEdit = c.listFilter
 		// Restore filter view to non-editable display state
-		if fv, ferr := GlobalApp.Gui.View(listFilterViewName); ferr == nil {
-			fv.Editable = false
-			fv.BgColor = gocui.ColorBlack
-			fv.Clear()
-			showText := c.listFilter
-			if showText == "" {
-				showText = "(type / to filter, Enter to apply)"
-			}
-			fv.Write([]byte(" Filter: " + showText + " "))
-		}
+		v.Editable = false
+		v.Frame = false
+		v.BgColor = gocui.ColorBlack
+		v.Clear()
+		v.Write([]byte(" Filter: " + c.listFilter + " "))
 		GlobalApp.Gui.Cursor = false
 		_, _ = GlobalApp.Gui.SetCurrentView(c.name)
 		c.renderFromCache()
