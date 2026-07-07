@@ -101,12 +101,7 @@ func NewMainApp(g *gocui.Gui) {
 
 	// GlobalApp = &mainApp
 	GlobalApp.maxX, GlobalApp.maxY = GlobalApp.Gui.Size()
-	GlobalApp.Gui.FgColor = gocui.ColorWhite
-	GlobalApp.Gui.BgColor = gocui.ColorDefault
-	GlobalApp.Gui.FrameColor = gocui.ColorWhite
 	GlobalApp.Gui.SelFgColor = themeSelFg
-	GlobalApp.Gui.SelBgColor = themeSelBg
-	GlobalApp.Gui.SelFrameColor = themeFrameActive
 	GlobalApp.Gui.Highlight = true
 	GlobalApp.Gui.SetManagerFunc(GlobalApp.LayoutManager)
 	// GlobalApp.Gui.Cursor = true
