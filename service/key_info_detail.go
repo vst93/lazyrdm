@@ -1178,7 +1178,7 @@ func (c *LTRKeyInfoDetailComponent) buildKeyOpDialogSchema(keyType, operation, p
 		case "update":
 			base.Title = "Hash Update"
 			base.Description = "Edit field/value"
-			base.Fields = []keyOpDialogField{{Label: "Field", Placeholder: "old field", Value: fieldDefault}, {Label: "NewField", Placeholder: "same as field", Value: ""}, {Label: "Value", Placeholder: "new value", Value: valueDefault}}
+			base.Fields = []keyOpDialogField{{Label: "Field", Placeholder: "field", Value: fieldDefault}, {Label: "Value", Placeholder: "new value", Value: valueDefault}}
 			base.BuildJSON = func(values map[string]string) (string, error) {
 				field, err := requireNonEmpty(values, "Field")
 				if err != nil {
@@ -1188,11 +1188,9 @@ func (c *LTRKeyInfoDetailComponent) buildKeyOpDialogSchema(keyType, operation, p
 				if err != nil {
 					return "", err
 				}
-				newField := strings.TrimSpace(values["NewField"])
-				if newField == "" {
-					newField = field
-				}
-				obj := map[string]any{"field": field, "newField": newField, "value": value}
+				// old field from selection, newField = edited field
+				oldField := fieldDefault
+				obj := map[string]any{"field": oldField, "newField": field, "value": value}
 				buf, err := json.Marshal(obj)
 				return string(buf), err
 			}
@@ -1227,17 +1225,14 @@ func (c *LTRKeyInfoDetailComponent) buildKeyOpDialogSchema(keyType, operation, p
 		case "update":
 			base.Title = "Set Update"
 			base.Description = "Replace member"
-			base.Fields = []keyOpDialogField{{Label: "Value", Placeholder: "old member", Value: valueDefault}, {Label: "NewValue", Placeholder: "new member", Value: valueDefault}}
+			base.Fields = []keyOpDialogField{{Label: "Value", Placeholder: "new member", Value: valueDefault}}
 			base.BuildJSON = func(values map[string]string) (string, error) {
-				value, err := requireNonEmpty(values, "Value")
+				newValue, err := requireNonEmpty(values, "Value")
 				if err != nil {
 					return "", err
 				}
-				newValue, err := requireNonEmpty(values, "NewValue")
-				if err != nil {
-					return "", err
-				}
-				obj := map[string]any{"value": value, "newValue": newValue}
+				// old value from selection
+				obj := map[string]any{"value": valueDefault, "newValue": newValue}
 				buf, err := json.Marshal(obj)
 				return string(buf), err
 			}
@@ -1276,13 +1271,9 @@ func (c *LTRKeyInfoDetailComponent) buildKeyOpDialogSchema(keyType, operation, p
 		case "update":
 			base.Title = "ZSet Update"
 			base.Description = "Edit member/score"
-			base.Fields = []keyOpDialogField{{Label: "Value", Placeholder: "old member", Value: valueDefault}, {Label: "NewValue", Placeholder: "new member", Value: valueDefault}, {Label: "Score", Placeholder: "1", Value: scoreDefault}}
+			base.Fields = []keyOpDialogField{{Label: "Value", Placeholder: "member", Value: valueDefault}, {Label: "Score", Placeholder: "1", Value: scoreDefault}}
 			base.BuildJSON = func(values map[string]string) (string, error) {
-				value, err := requireNonEmpty(values, "Value")
-				if err != nil {
-					return "", err
-				}
-				newValue, err := requireNonEmpty(values, "NewValue")
+				newValue, err := requireNonEmpty(values, "Value")
 				if err != nil {
 					return "", err
 				}
@@ -1290,7 +1281,8 @@ func (c *LTRKeyInfoDetailComponent) buildKeyOpDialogSchema(keyType, operation, p
 				if err != nil {
 					return "", err
 				}
-				obj := map[string]any{"value": value, "newValue": newValue, "score": score}
+				// old value from selection
+				obj := map[string]any{"value": valueDefault, "newValue": newValue, "score": score}
 				buf, err := json.Marshal(obj)
 				return string(buf), err
 			}
