@@ -16,22 +16,24 @@ import (
 )
 
 type LTRKeyInfoDetailComponent struct {
-	name           string
-	title          string
-	LayoutMaxY     int
-	view           *gocui.View
-	keyValueFormat string
-	viewOriginY    int // view origin y
-	keyValueMaxY   int // value real total height
-	CopyString     string
-	lineView       *gocui.View
-	selectedRow    int
-	structuredRows []keyDetailRow
-	structuredMode bool
-	currentKeyType string
-	listFilter     string
-	listFiltered   []keyDetailRow
-	listFilterEdit string
+	name            string
+	title           string
+	LayoutMaxY      int
+	view            *gocui.View
+	keyValueFormat  string
+	viewOriginY     int // view origin y
+	keyValueMaxY    int // value real total height
+	CopyString      string
+	lineView        *gocui.View
+	selectedRow     int
+	structuredRows  []keyDetailRow
+	structuredMode  bool
+	currentKeyType  string
+	listFilter      string
+	listFiltered    []keyDetailRow
+	listFilterEdit  string
+	scrollOffset    int // scroll offset for structured row window
+	detailExpanded  bool // whether the detail pane is expanded (full value)
 }
 
 const listFilterViewName = "key_detail_list_filter"
@@ -169,7 +171,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 			} else {
 				subtitle += " Row: " + strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(rows)) + " "
 			}
-			if c.currentKeyType == "list" && strings.TrimSpace(c.listFilter) != "" {
+			if strings.TrimSpace(c.listFilter) != "" {
 				subtitle += " Filtered " + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + " "
 			}
 		}
@@ -236,7 +238,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 }
 
 func (c *LTRKeyInfoDetailComponent) layoutListFilterView(theX0 int, formatWidth int) {
-	if c.currentKeyType != "list" {
+	if !c.isStructuredType() {
 		GlobalApp.Gui.DeleteKeybindings(listFilterViewName)
 		GlobalApp.Gui.DeleteView(listFilterViewName)
 		return
@@ -295,7 +297,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 	})
 	// scroll
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp, 'k'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if c.isCurrentListType() {
+		if c.isStructuredType() {
 			c.moveDetailRowSelection(-1)
 			return nil
 		}
@@ -303,7 +305,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown, 'j'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if c.isCurrentListType() {
+		if c.isStructuredType() {
 			c.moveDetailRowSelection(1)
 			return nil
 		}
@@ -312,7 +314,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 	})
 	// scroll page
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowLeft, 'h'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if c.isCurrentListType() {
+		if c.isStructuredType() {
 			c.moveDetailRowSelection(-10)
 			return nil
 		}
@@ -320,7 +322,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowRight, 'l'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if c.isCurrentListType() {
+		if c.isStructuredType() {
 			c.moveDetailRowSelection(10)
 			return nil
 		}
@@ -328,8 +330,8 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'/'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if !c.isCurrentListType() {
-			GlobalTipComponent.LayoutTemporary("Filter is available in list detail mode", 2, TipTypeWarning)
+		if !c.isStructuredType() {
+			GlobalTipComponent.LayoutTemporary("Filter is available in structured detail mode", 2, TipTypeWarning)
 			return nil
 		}
 		c.listFilterEdit = c.listFilter
@@ -347,13 +349,22 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'x'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if !c.isCurrentListType() {
+		if !c.isStructuredType() {
 			return nil
 		}
 		c.listFilter = ""
 		c.applyListFilter()
 		c.Layout()
-		GlobalTipComponent.LayoutTemporary("List filter cleared", 2, TipTypeSuccess)
+		GlobalTipComponent.LayoutTemporary("Filter cleared", 2, TipTypeSuccess)
+		return nil
+	})
+	// toggle detail pane expansion
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if !c.isStructuredType() {
+			return nil
+		}
+		c.detailExpanded = !c.detailExpanded
+		c.renderFromCache()
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, listFilterViewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
@@ -494,7 +505,7 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Scroll/Select", "↑/↓/j/k"},
 		{"Scroll Page/Jump", "←/→/h/l"},
-		{"Select Row", "j/k"},
+		{"Expand Detail", "<Enter>"},
 		{"Filter", "</>/<x>"},
 		{"Switch Format", "<f>"},
 		{editDesc, "<e>"},
@@ -549,6 +560,7 @@ func (c *LTRKeyInfoDetailComponent) normalizeSelectedRow() {
 	rows := c.getActiveSelectionRows()
 	if len(rows) == 0 {
 		c.selectedRow = 0
+		c.scrollOffset = 0
 		return
 	}
 	if c.selectedRow < 0 {
@@ -594,22 +606,8 @@ func (c *LTRKeyInfoDetailComponent) renderFromCache() {
 	}
 	c.applyListFilter()
 	c.normalizeSelectedRow()
-	var theVal string
-	switch c.currentKeyType {
-	case "list":
-		theVal = c.renderListRowsFromCache()
-	case "hash":
-		theVal = c.renderHashRowsFromCache()
-	case "set":
-		theVal = c.renderSetRowsFromCache()
-	case "zset":
-		theVal = c.renderZSetRowsFromCache()
-	case "stream":
-		theVal = c.renderStreamRowsFromCache()
-	default:
-		c.Layout()
-		return
-	}
+	theVal := c.renderStructuredRows()
+
 	// update subtitle
 	rows := c.getActiveSelectionRows()
 	if len(c.structuredRows) > 0 {
@@ -619,8 +617,11 @@ func (c *LTRKeyInfoDetailComponent) renderFromCache() {
 		} else {
 			subtitle += " Row: " + strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(rows)) + " "
 		}
-		if c.currentKeyType == "list" && strings.TrimSpace(c.listFilter) != "" {
+		if strings.TrimSpace(c.listFilter) != "" {
 			subtitle += " Filtered " + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + " "
+		}
+		if c.detailExpanded {
+			subtitle += " [Expanded] "
 		}
 		if c.currentKeyType != "" {
 			subtitle = " Type: " + c.currentKeyType + " " + subtitle
@@ -635,166 +636,310 @@ func (c *LTRKeyInfoDetailComponent) renderFromCache() {
 	c.view.SetOrigin(0, 0)
 }
 
-// renderListRowsFromCache renders the list detail using already-populated structuredRows.
-func (c *LTRKeyInfoDetailComponent) renderListRowsFromCache() string {
+// renderStructuredRows is the unified renderer for all collection types
+// (list/hash/set/zset/stream). It produces a two-section layout:
+//   1. A columnar table with windowed scrolling showing all rows
+//   2. A detail pane showing the full value of the selected row
+//
+// Column widths are dynamically computed from the available terminal width.
+func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	rows := c.getActiveSelectionRows()
-	var b strings.Builder
-	b.WriteString("Type: list (Explorer Mode)\n")
-	b.WriteString("Actions: ↑/↓ select  ←/→ jump  </> filter  <x> clear filter  <a>/<e>/<u>/<d> CRUD\n")
-	if strings.TrimSpace(c.listFilter) != "" {
-		b.WriteString("Filter: \"" + c.listFilter + "\" | matched " + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + "\n")
+	viewW, viewH := 0, 0
+	if c.view != nil {
+		viewW, viewH = c.view.Size()
 	}
-	b.WriteString("================================================================================\n")
+	if viewW < 20 {
+		viewW = 60
+	}
+	if viewH < 6 {
+		viewH = 20
+	}
+
+	var b strings.Builder
+	kt := c.currentKeyType
+	b.WriteString("Type: " + kt + "  |  ")
+	b.WriteString("↑/↓ select  ←/→ page  </> filter  <x> clear  <Enter> expand  <a>/<e>/<u>/<d> CRUD\n")
+
+	filterStr := ""
+	if strings.TrimSpace(c.listFilter) != "" {
+		filterStr = "Filter: \"" + c.listFilter + "\" | matched " + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + "\n"
+		b.WriteString(filterStr)
+	}
+
+	// separator
+	sep := strings.Repeat("─", viewW)
+	b.WriteString(sep + "\n")
+
 	if len(c.structuredRows) == 0 {
-		b.WriteString("(empty)\n")
+		b.WriteString("(empty — press <a> to add)\n")
 		return b.String()
 	}
 	if len(rows) == 0 {
-		b.WriteString("No rows match current filter. Press <x> to clear or </> to update filter.\n")
+		b.WriteString("No rows match current filter.\nPress <x> to clear or </> to update filter.\n")
 		return b.String()
 	}
-	start := c.selectedRow - 6
-	if start < 0 {
-		start = 0
+
+	// Determine column layout based on key type
+	cols := c.getColumnLayout(kt, viewW)
+
+	// header
+	b.WriteString(c.renderColumnHeader(cols))
+	b.WriteString(strings.Repeat("─", viewW) + "\n")
+
+	// calculate visible row window
+	// Reserve: 2 header lines + 1 separator + 1 separator before detail + detail lines
+	detailLines := c.getDetailPaneHeight(viewH, rows)
+	tableHeight := viewH - 3 - detailLines
+	if tableHeight < 3 {
+		tableHeight = 3
 	}
-	end := start + 12
+
+	// adjust scrollOffset so selectedRow is always visible
+	c.adjustScrollOffset(len(rows), tableHeight)
+	start := c.scrollOffset
+	end := start + tableHeight
 	if end > len(rows) {
 		end = len(rows)
-		start = end - 12
-		if start < 0 {
-			start = 0
-		}
 	}
-	b.WriteString("List Rows\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("%-2s %-8s %-s\n", "", "INDEX", "VALUE(PREVIEW)"))
-	b.WriteString("--------------------------------------------------------------------------------\n")
+
 	for i := start; i < end; i++ {
 		row := rows[i]
 		prefix := " "
 		if i == c.selectedRow {
 			prefix = ">"
 		}
-		preview := truncateByRuneCount(strings.ReplaceAll(row.Value, "\n", " <NL> "), 90)
-		b.WriteString(fmt.Sprintf("%s %-8d %s\n", prefix, row.Index, preview))
+		b.WriteString(c.renderRowLine(prefix, i, row, cols))
+	}
+
+	// detail pane
+	b.WriteString(strings.Repeat("─", viewW) + "\n")
+	selected := rows[c.selectedRow]
+	b.WriteString(c.renderDetailPane(selected, kt, viewW, detailLines))
+	return b.String()
+}
+
+// columnDef defines a column in the structured table
+type columnDef struct {
+	header   string
+	width    int
+	getValue func(row keyDetailRow, idx int) string
+}
+
+func (c *LTRKeyInfoDetailComponent) getColumnLayout(keyType string, viewW int) []columnDef {
+	// prefix ">" takes 1 char + 1 space = 2 chars reserved
+	availW := viewW - 2
+	switch keyType {
+	case "list":
+		idxW := 8
+		if availW < 20 {
+			idxW = 4
+		}
+		valW := availW - idxW
+		if valW < 10 {
+			valW = 10
+		}
+		return []columnDef{
+			{"INDEX", idxW, func(r keyDetailRow, i int) string { return strconv.Itoa(r.Index) }},
+			{"VALUE", valW, func(r keyDetailRow, i int) string { return r.Value }},
+		}
+	case "hash":
+		fieldW := 24
+		if availW < 40 {
+			fieldW = availW / 3
+			if fieldW < 8 {
+				fieldW = 8
+			}
+		}
+		valW := availW - fieldW
+		if valW < 10 {
+			valW = 10
+		}
+		return []columnDef{
+			{"FIELD", fieldW, func(r keyDetailRow, i int) string { return r.Field }},
+			{"VALUE", valW, func(r keyDetailRow, i int) string { return r.Value }},
+		}
+	case "set":
+		rowW := 6
+		valW := availW - rowW
+		if valW < 10 {
+			valW = 10
+		}
+		return []columnDef{
+			{"#", rowW, func(r keyDetailRow, i int) string { return strconv.Itoa(i) }},
+			{"VALUE", valW, func(r keyDetailRow, i int) string { return r.Value }},
+		}
+	case "zset":
+		scoreW := 12
+		valW := availW - scoreW
+		if valW < 10 {
+			valW = 10
+		}
+		return []columnDef{
+			{"SCORE", scoreW, func(r keyDetailRow, i int) string { return r.Score }},
+			{"VALUE", valW, func(r keyDetailRow, i int) string { return r.Value }},
+		}
+	case "stream":
+		idW := 26
+		if availW < 40 {
+			idW = availW / 3
+			if idW < 10 {
+				idW = 10
+			}
+		}
+		valW := availW - idW
+		if valW < 10 {
+			valW = 10
+		}
+		return []columnDef{
+			{"ENTRY ID", idW, func(r keyDetailRow, i int) string { return r.Field }},
+			{"VALUE", valW, func(r keyDetailRow, i int) string { return r.Value }},
+		}
+	default:
+		valW := availW
+		return []columnDef{
+			{"VALUE", valW, func(r keyDetailRow, i int) string { return r.Value }},
+		}
+	}
+}
+
+func (c *LTRKeyInfoDetailComponent) renderColumnHeader(cols []columnDef) string {
+	var b strings.Builder
+	b.WriteString("  ") // prefix space
+	for i, col := range cols {
+		if i > 0 {
+			b.WriteString(" ")
+		}
+		b.WriteString(padRightDisplayWidth(col.header, col.width))
+	}
+	b.WriteString("\n")
+	return b.String()
+}
+
+func (c *LTRKeyInfoDetailComponent) renderRowLine(prefix string, idx int, row keyDetailRow, cols []columnDef) string {
+	var b strings.Builder
+	b.WriteString(prefix)
+	b.WriteString(" ")
+	for i, col := range cols {
+		if i > 0 {
+			b.WriteString(" ")
+		}
+		val := col.getValue(row, idx)
+		val = strings.ReplaceAll(val, "\n", " <NL> ")
+		val = strings.ReplaceAll(val, "\r", "")
+		b.WriteString(padRightDisplayWidth(truncateByDisplayWidth(val, col.width), col.width))
+	}
+	b.WriteString("\n")
+	return b.String()
+}
+
+func (c *LTRKeyInfoDetailComponent) getDetailPaneHeight(viewH int, rows []keyDetailRow) int {
+	if len(rows) == 0 {
+		return 0
 	}
 	selected := rows[c.selectedRow]
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("Selected Index: %d (row %d/%d)\n", selected.Index, c.selectedRow+1, len(rows)))
-	b.WriteString("Selected Value\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	for _, line := range strings.Split(selected.Value, "\n") {
-		b.WriteString(line + "\n")
-	}
-	return b.String()
-}
-
-func (c *LTRKeyInfoDetailComponent) renderHashRowsFromCache() string {
-	var b strings.Builder
-	b.WriteString("Type: hash\n")
-	b.WriteString("Actions: <a> Add Field  <u>/<e> Edit Field  <d> Delete Field\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("%-24s %-s\n", "FIELD", "VALUE"))
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	if len(c.structuredRows) == 0 {
-		b.WriteString("(empty)\n")
-		return b.String()
-	}
-	for i, row := range c.structuredRows {
-		prefix := " "
-		if i == c.selectedRow {
-			prefix = ">"
+	valLines := len(strings.Split(selected.Value, "\n"))
+	if c.detailExpanded {
+		if valLines > viewH/2 {
+			return viewH / 2
 		}
-		b.WriteString(fmt.Sprintf("%s %-24s %s\n", prefix, row.Field, row.Value))
-	}
-	return b.String()
-}
-
-func (c *LTRKeyInfoDetailComponent) renderSetRowsFromCache() string {
-	var b strings.Builder
-	b.WriteString("Type: set\n")
-	b.WriteString("Actions: <a> Add Member  <u>/<e> Replace Member  <d> Delete Member\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("%-8s %-s\n", "ROW", "VALUE"))
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	if len(c.structuredRows) == 0 {
-		b.WriteString("(empty)\n")
-		return b.String()
-	}
-	for i, row := range c.structuredRows {
-		prefix := " "
-		if i == c.selectedRow {
-			prefix = ">"
+		if valLines < 3 {
+			return 4
 		}
-		b.WriteString(fmt.Sprintf("%s %-8d %s\n", prefix, row.Index, row.Value))
+		return valLines + 1
 	}
-	return b.String()
+	// collapsed: show 1-2 preview lines
+	preview := truncateByDisplayWidth(strings.ReplaceAll(selected.Value, "\n", " <NL> "), 200)
+	if DisplayWidth(preview) > 200 || strings.Contains(selected.Value, "\n") {
+		return 3
+	}
+	return 2
 }
 
-func (c *LTRKeyInfoDetailComponent) renderZSetRowsFromCache() string {
+func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType string, viewW int, maxLines int) string {
 	var b strings.Builder
-	b.WriteString("Type: zset\n")
-	b.WriteString("Actions: <a> Add Member+Score  <u>/<e> Edit Member+Score  <d> Delete Member\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("%-10s %-s\n", "SCORE", "VALUE"))
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	if len(c.structuredRows) == 0 {
-		b.WriteString("(empty)\n")
-		return b.String()
+	// label line
+	label := "Selected"
+	switch keyType {
+	case "list":
+		label += " Index: " + strconv.Itoa(row.Index)
+	case "hash":
+		label += " Field: " + row.Field
+	case "zset":
+		label += " Score: " + row.Score
+	case "stream":
+		label += " ID: " + row.Field
+	case "set":
+		label += " #" + strconv.Itoa(row.Index)
 	}
-	for i, row := range c.structuredRows {
-		prefix := " "
-		if i == c.selectedRow {
-			prefix = ">"
+	label += "  (row " + strconv.Itoa(c.selectedRow+1) + ")"
+	b.WriteString(truncateByDisplayWidth(label, viewW) + "\n")
+
+	val := row.Value
+	if c.detailExpanded {
+		// show full value, line by line
+		lines := strings.Split(val, "\n")
+		for i, line := range lines {
+			if i >= maxLines-1 {
+				remaining := len(lines) - i
+				b.WriteString(fmt.Sprintf("... (%d more lines, press <Enter> to collapse)\n", remaining))
+				break
+			}
+			b.WriteString(line + "\n")
 		}
-		b.WriteString(fmt.Sprintf("%s %-10s %s\n", prefix, row.Score, row.Value))
+	} else {
+		// collapsed: single-line preview
+		preview := strings.ReplaceAll(val, "\n", " <NL> ")
+		preview = strings.ReplaceAll(preview, "\r", "")
+		b.WriteString(truncateByDisplayWidth(preview, viewW) + "\n")
 	}
 	return b.String()
 }
 
-func (c *LTRKeyInfoDetailComponent) renderStreamRowsFromCache() string {
-	var b strings.Builder
-	b.WriteString("Type: stream\n")
-	b.WriteString("Actions: <a> Add Entry  <d> Delete Entry(by ID)\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("%-26s %-s\n", "ENTRY ID", "VALUE"))
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	if len(c.structuredRows) == 0 {
-		b.WriteString("(empty)\n")
-		return b.String()
+func (c *LTRKeyInfoDetailComponent) adjustScrollOffset(totalRows, visibleHeight int) {
+	if visibleHeight <= 0 {
+		visibleHeight = 1
 	}
-	for i, row := range c.structuredRows {
-		prefix := " "
-		if i == c.selectedRow {
-			prefix = ">"
+	if c.scrollOffset < 0 {
+		c.scrollOffset = 0
+	}
+	if c.scrollOffset > totalRows-visibleHeight {
+		c.scrollOffset = totalRows - visibleHeight
+		if c.scrollOffset < 0 {
+			c.scrollOffset = 0
 		}
-		b.WriteString(fmt.Sprintf("%s %-26s %s\n", prefix, row.Field, truncateByRuneCount(strings.ReplaceAll(row.Value, "\n", " <NL> "), 80)))
 	}
-	return b.String()
+	// if selected row is above the window, scroll up
+	if c.selectedRow < c.scrollOffset {
+		c.scrollOffset = c.selectedRow
+	}
+	// if selected row is below the window, scroll down
+	if c.selectedRow >= c.scrollOffset+visibleHeight {
+		c.scrollOffset = c.selectedRow - visibleHeight + 1
+	}
 }
 
-func (c *LTRKeyInfoDetailComponent) isCurrentListType() bool {
+func (c *LTRKeyInfoDetailComponent) isStructuredType() bool {
 	// Use the cached key type set by Layout() to avoid a Redis API call on every
 	// scroll event. If the type hasn't been loaded yet, fall back to a one-shot fetch.
 	if c.currentKeyType != "" {
-		return c.currentKeyType == "list"
+		return isCollectionKeyType(c.currentKeyType)
 	}
 	keyType, err := c.getCurrentSetKeyType()
 	if err != nil {
 		return false
 	}
-	return keyType == "list"
+	return isCollectionKeyType(keyType)
 }
 
 func (c *LTRKeyInfoDetailComponent) getActiveSelectionRows() []keyDetailRow {
-	if c.currentKeyType == "list" && strings.TrimSpace(c.listFilter) != "" {
+	if strings.TrimSpace(c.listFilter) != "" {
 		return c.listFiltered
 	}
 	return c.structuredRows
 }
 
 func (c *LTRKeyInfoDetailComponent) applyListFilter() {
-	if c.currentKeyType != "list" {
+	if !isCollectionKeyType(c.currentKeyType) {
 		c.listFiltered = nil
 		return
 	}
@@ -807,7 +952,11 @@ func (c *LTRKeyInfoDetailComponent) applyListFilter() {
 	needle := strings.ToLower(keyword)
 	filtered := make([]keyDetailRow, 0, len(c.structuredRows))
 	for _, row := range c.structuredRows {
-		if strings.Contains(strings.ToLower(row.Value), needle) || strings.Contains(strconv.Itoa(row.Index), keyword) {
+		// search in value, field, score, and index
+		if strings.Contains(strings.ToLower(row.Value), needle) ||
+			strings.Contains(strings.ToLower(row.Field), needle) ||
+			strings.Contains(strings.ToLower(row.Score), needle) ||
+			strings.Contains(strconv.Itoa(row.Index), keyword) {
 			filtered = append(filtered, row)
 		}
 	}
@@ -1919,6 +2068,8 @@ func (c *LTRKeyInfoDetailComponent) buildDisplayValue(detail types.KeyDetail) st
 	c.currentKeyType = keyType
 	c.structuredMode = false
 	c.structuredRows = nil
+	c.scrollOffset = 0
+	c.detailExpanded = false
 	if keyType == "string" {
 		theVal := fmt.Sprintln(detail.Value)
 		if c.keyValueFormat == "JSON" && validator.IsJSON(theVal) {
@@ -1997,60 +2148,7 @@ func (c *LTRKeyInfoDetailComponent) renderListDetail(value any) (string, bool) {
 	}
 	c.applyListFilter()
 	c.normalizeSelectedRow()
-	rows := c.getActiveSelectionRows()
-
-	var b strings.Builder
-	b.WriteString("Type: list (Explorer Mode)\n")
-	b.WriteString("Actions: ↑/↓ select  ←/→ jump  </> filter  <x> clear filter  <a>/<e>/<u>/<d> CRUD\n")
-	if strings.TrimSpace(c.listFilter) != "" {
-		b.WriteString("Filter: \"" + c.listFilter + "\" | matched " + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + "\n")
-	}
-	b.WriteString("================================================================================\n")
-	if len(c.structuredRows) == 0 {
-		b.WriteString("(empty)\n")
-		return b.String(), true
-	}
-	if len(rows) == 0 {
-		b.WriteString("No rows match current filter. Press <x> to clear or </> to update filter.\n")
-		return b.String(), true
-	}
-
-	start := c.selectedRow - 6
-	if start < 0 {
-		start = 0
-	}
-	end := start + 12
-	if end > len(rows) {
-		end = len(rows)
-		start = end - 12
-		if start < 0 {
-			start = 0
-		}
-	}
-
-	b.WriteString("List Rows\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("%-2s %-8s %-s\n", "", "INDEX", "VALUE(PREVIEW)"))
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	for i := start; i < end; i++ {
-		row := rows[i]
-		prefix := " "
-		if i == c.selectedRow {
-			prefix = ">"
-		}
-		preview := truncateByRuneCount(strings.ReplaceAll(row.Value, "\n", " <NL> "), 90)
-		b.WriteString(fmt.Sprintf("%s %-8d %s\n", prefix, row.Index, preview))
-	}
-
-	selected := rows[c.selectedRow]
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("Selected Index: %d (row %d/%d)\n", selected.Index, c.selectedRow+1, len(rows)))
-	b.WriteString("Selected Value\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	for _, line := range strings.Split(selected.Value, "\n") {
-		b.WriteString(line + "\n")
-	}
-	return b.String(), true
+	return c.renderStructuredRows(), true
 }
 
 func (c *LTRKeyInfoDetailComponent) renderHashDetail(value any) (string, bool) {
@@ -2065,26 +2163,9 @@ func (c *LTRKeyInfoDetailComponent) renderHashDetail(value any) (string, bool) {
 			Value: displayEntryValue(item.Value, item.DisplayValue),
 		})
 	}
+	c.applyListFilter()
 	c.normalizeSelectedRow()
-
-	var b strings.Builder
-	b.WriteString("Type: hash\n")
-	b.WriteString("Actions: <a> Add Field  <u>/<e> Edit Field  <d> Delete Field\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("%-24s %-s\n", "FIELD", "VALUE"))
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	if len(items) == 0 {
-		b.WriteString("(empty)\n")
-		return b.String(), true
-	}
-	for i, row := range c.structuredRows {
-		prefix := " "
-		if i == c.selectedRow {
-			prefix = ">"
-		}
-		b.WriteString(fmt.Sprintf("%s %-24s %s\n", prefix, row.Field, row.Value))
-	}
-	return b.String(), true
+	return c.renderStructuredRows(), true
 }
 
 func (c *LTRKeyInfoDetailComponent) renderSetDetail(value any) (string, bool) {
@@ -2099,26 +2180,9 @@ func (c *LTRKeyInfoDetailComponent) renderSetDetail(value any) (string, bool) {
 			Value: displayEntryValue(item.Value, item.DisplayValue),
 		})
 	}
+	c.applyListFilter()
 	c.normalizeSelectedRow()
-
-	var b strings.Builder
-	b.WriteString("Type: set\n")
-	b.WriteString("Actions: <a> Add Member  <u>/<e> Replace Member  <d> Delete Member\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("%-8s %-s\n", "ROW", "VALUE"))
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	if len(items) == 0 {
-		b.WriteString("(empty)\n")
-		return b.String(), true
-	}
-	for i, row := range c.structuredRows {
-		prefix := " "
-		if i == c.selectedRow {
-			prefix = ">"
-		}
-		b.WriteString(fmt.Sprintf("%s %-8d %s\n", prefix, row.Index, row.Value))
-	}
-	return b.String(), true
+	return c.renderStructuredRows(), true
 }
 
 func (c *LTRKeyInfoDetailComponent) renderZSetDetail(value any) (string, bool) {
@@ -2137,26 +2201,9 @@ func (c *LTRKeyInfoDetailComponent) renderZSetDetail(value any) (string, bool) {
 			Value: displayEntryValue(item.Value, item.DisplayValue),
 		})
 	}
+	c.applyListFilter()
 	c.normalizeSelectedRow()
-
-	var b strings.Builder
-	b.WriteString("Type: zset\n")
-	b.WriteString("Actions: <a> Add Member+Score  <u>/<e> Edit Member+Score  <d> Delete Member\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("%-10s %-s\n", "SCORE", "VALUE"))
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	if len(items) == 0 {
-		b.WriteString("(empty)\n")
-		return b.String(), true
-	}
-	for i, row := range c.structuredRows {
-		prefix := " "
-		if i == c.selectedRow {
-			prefix = ">"
-		}
-		b.WriteString(fmt.Sprintf("%s %-10s %s\n", prefix, row.Score, row.Value))
-	}
-	return b.String(), true
+	return c.renderStructuredRows(), true
 }
 
 func (c *LTRKeyInfoDetailComponent) renderStreamDetail(value any) (string, bool) {
@@ -2180,26 +2227,9 @@ func (c *LTRKeyInfoDetailComponent) renderStreamDetail(value any) (string, bool)
 			Value: displayVal,
 		})
 	}
+	c.applyListFilter()
 	c.normalizeSelectedRow()
-
-	var b strings.Builder
-	b.WriteString("Type: stream\n")
-	b.WriteString("Actions: <a> Add Entry  <d> Delete Entry(by ID)\n")
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	b.WriteString(fmt.Sprintf("%-26s %-s\n", "ENTRY ID", "VALUE"))
-	b.WriteString("--------------------------------------------------------------------------------\n")
-	if len(items) == 0 {
-		b.WriteString("(empty)\n")
-		return b.String(), true
-	}
-	for i, row := range c.structuredRows {
-		prefix := " "
-		if i == c.selectedRow {
-			prefix = ">"
-		}
-		b.WriteString(fmt.Sprintf("%s %-26s %s\n", prefix, row.Field, truncateByRuneCount(strings.ReplaceAll(row.Value, "\n", " <NL> "), 80)))
-	}
-	return b.String(), true
+	return c.renderStructuredRows(), true
 }
 
 func decodeTypedEntries(value any, out any) bool {

@@ -2,3 +2,4 @@ go_log.txt
 build/*
 .DS_Store
 .vscode/lazyrdm
+lazyrdm
