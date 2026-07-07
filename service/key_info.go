@@ -49,6 +49,7 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	var theTTL int64
 	// show key info
 	c.keyView, err = SetViewSafe(c.name, theX0, 0, GlobalApp.maxX-1, 2, 0)
+	c.keyView.TitleColor = gocui.ColorCyan
 	if err == nil || err != gocui.ErrUnknownView {
 		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
 			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,

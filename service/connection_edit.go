@@ -293,6 +293,7 @@ func (c *LTRConnectionEditComponent) formView(config LTRConnectionEditComponentF
 	view.Clear()
 	view.Title = " " + title + " "
 	view.Frame = true
+	view.TitleColor = gocui.ColorCyan
 
 	view.FgColor = gocui.ColorWhite
 
@@ -338,6 +339,7 @@ func (c *LTRConnectionEditComponent) formViewRadio(config LTRConnectionEditCompo
 	view, _ := SetViewSafe(name, xBeing, c.viewBeginY+c.viewNowLine*3+1, xEnd, c.viewBeginY+c.viewNowLine*3+3, 0)
 	view.Title = " " + title + " "
 	view.Frame = true
+	view.TitleColor = gocui.ColorCyan
 	view.FgColor = gocui.ColorWhite
 	view.Clear()
 	if c.viewNowCurrent == name || (c.viewNowCurrent == "" && len(c.viewList) == 1) {

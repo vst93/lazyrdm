@@ -70,6 +70,7 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	v.Highlight = true
 	v.FgColor = themeDialogFg
 	v.FrameColor = themeFrameDialog
+	v.TitleColor = gocui.ColorWhite
 
 	v.Clear()
 	v.Write([]byte("\n"))

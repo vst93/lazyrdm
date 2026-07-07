@@ -109,6 +109,7 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	v.FgColor = themeDialogFg
 	v.BgColor = themeDialogBg
 	v.FrameColor = themeFrameDialog
+	v.TitleColor = gocui.ColorWhite
 	v.Clear()
 
 	// 内容布局（y 从 0 开始）:

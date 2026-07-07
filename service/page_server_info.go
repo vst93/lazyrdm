@@ -122,6 +122,7 @@ func (c *PageComponentServerInfo) Layout() *PageComponentServerInfo {
 	v.Wrap = false
 	v.Editable = false
 	v.Frame = true
+	v.TitleColor = gocui.ColorWhite
 	v.Clear()
 	v.Write([]byte(c.text))
 	v.SetOrigin(0, c.originY)

@@ -217,6 +217,7 @@ func (c *LTRTipComponent) layoutTemporaryTip() {
 	c.temporaryView.Frame = true
 	c.temporaryView.Wrap = false
 	c.temporaryView.Title = " Notice "
+	c.temporaryView.TitleColor = gocui.ColorWhite
 	c.temporaryView.FgColor = themeTextBright
 	switch c.temporaryTipType {
 	case TipTypeWarning:

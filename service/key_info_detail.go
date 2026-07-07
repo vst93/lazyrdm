@@ -93,6 +93,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	lineViewWidthStr := "1"
 	// show key detail
 	c.view, err = SetViewSafe(c.name, theX0+1, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
+	c.view.TitleColor = gocui.ColorCyan
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyValueMaxY = 0
 		c.view.Wrap = true
@@ -1174,6 +1175,7 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		return err
 	}
 	dlg.Title = " " + schema.Title + " "
+	dlg.TitleColor = gocui.ColorWhite
 	dlg.Clear()
 	dlg.Wrap = true
 	dlg.Write([]byte(schema.Description + "\n"))
@@ -1190,6 +1192,7 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 			return ferr
 		}
 		fv.Title = " " + field.Label + " "
+		fv.TitleColor = gocui.ColorCyan
 		fv.Clear()
 		val := strings.TrimSpace(field.Value)
 		if val == "" {

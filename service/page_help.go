@@ -71,6 +71,7 @@ func (c *PageComponentHelp) Layout() *PageComponentHelp {
 	v.Editable = false
 	v.Frame = true
 	v.FrameColor = themeFrameDialog
+	v.TitleColor = gocui.ColorWhite
 	v.Clear()
 	v.Write([]byte(c.text))
 	v.SetOrigin(0, c.originY)
