@@ -80,8 +80,10 @@ func canHandleOverlayViewBinding(bindingView string, overlayView string) bool {
 	if bindingView == overlayView {
 		return true
 	}
-	if overlayView == "page_confirm" && bindingView == "page_confirm_mask" {
-		return true
+	if overlayView == "page_confirm" {
+		return bindingView == "page_confirm_mask" ||
+			bindingView == "page_confirm_yes" ||
+			bindingView == "page_confirm_no"
 	}
 	if overlayView == "page_input" && (bindingView == "page_input_mask" || bindingView == "page_input_field" || bindingView == "page_input_footer") {
 		return true

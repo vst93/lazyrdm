@@ -1027,15 +1027,33 @@ func (c *LTRKeyInfoDetailComponent) bindTypeOperationKeys() {
 	// 'd' deletes the currently selected row with a confirmation prompt.
 	// No input dialog needed — the row identity (index/field/value/id) is
 	// taken directly from the selection.
-	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'d'}, "", func() {
-		if err := c.deleteSelectedRow(); err != nil {
-			GlobalTipComponent.LayoutTemporary("Delete failed: "+err.Error(), 4, TipTypeError)
-			return
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'d'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if !c.canEditCurrentKey() {
+			return nil
 		}
-		GlobalTipComponent.LayoutTemporary("Row deleted", 3, TipTypeSuccess)
-		c.Layout()
-	}, func() {
-		GlobalTipComponent.LayoutTemporary("Delete cancelled", 2, TipTypeWarning)
+		keyType, err := c.getCurrentSetKeyType()
+		if err != nil || !isCollectionKeyType(keyType) {
+			GlobalTipComponent.LayoutTemporary("Delete row is for collection types", 2, TipTypeWarning)
+			return nil
+		}
+		row := c.getSelectedStructuredRow()
+		if row == nil {
+			GlobalTipComponent.LayoutTemporary("No row selected", 2, TipTypeWarning)
+			return nil
+		}
+		// Build a descriptive confirmation message
+		msg := c.buildDeleteConfirmMessage(keyType, row)
+		NewPageComponentConfirm("Delete Confirmation", msg, func() {
+			if err := c.deleteSelectedRow(); err != nil {
+				GlobalTipComponent.LayoutTemporary("Delete failed: "+err.Error(), 4, TipTypeError)
+				return
+			}
+			GlobalTipComponent.LayoutTemporary("Row deleted", 3, TipTypeSuccess)
+			c.Layout()
+		}, func() {
+			GlobalTipComponent.LayoutTemporary("Delete cancelled", 2, TipTypeWarning)
+		})
+		return nil
 	})
 }
 
@@ -1636,6 +1654,27 @@ func (c *LTRKeyInfoDetailComponent) getCurrentSetKeyType() (string, error) {
 	keySummaryData := keySummary.Data.(types.KeySummary)
 	keyType := strings.ToLower(strings.TrimSpace(keySummaryData.Type))
 	return normalizeSetKeyType(keyType), nil
+}
+
+// buildDeleteConfirmMessage creates a descriptive confirmation message
+// for deleting the selected row, including the row's identity and a
+// truncated preview of its value.
+func (c *LTRKeyInfoDetailComponent) buildDeleteConfirmMessage(keyType string, row *keyDetailRow) string {
+	preview := truncateByDisplayWidth(strings.ReplaceAll(row.Value, "\n", " ⏎ "), 50)
+	switch keyType {
+	case "list":
+		return fmt.Sprintf("Delete list item at index %d?\nValue: %s", row.Index, preview)
+	case "hash":
+		return fmt.Sprintf("Delete hash field %q?\nValue: %s", row.Field, preview)
+	case "set":
+		return fmt.Sprintf("Delete set member?\nValue: %s", preview)
+	case "zset":
+		return fmt.Sprintf("Delete zset member (score: %s)?\nValue: %s", row.Score, preview)
+	case "stream":
+		return fmt.Sprintf("Delete stream entry %q?\nValue: %s", row.Field, preview)
+	default:
+		return "Delete selected row?\nValue: " + preview
+	}
 }
 
 // deleteSelectedRow deletes the currently selected row based on key type.

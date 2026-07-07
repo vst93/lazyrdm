@@ -9,13 +9,16 @@ import (
 )
 
 type PageComponentConfirm struct {
-	name        string
-	maskName    string
-	title       string
-	text        string
-	returnView  string
-	callbackYes func()
-	callbackNo  func()
+	name         string
+	maskName     string
+	yesBtnName   string
+	noBtnName    string
+	title        string
+	text         string
+	returnView   string
+	callbackYes  func()
+	callbackNo   func()
+	mouseHoverYn bool // true=hover on Yes, false=hover on No
 }
 
 func NewPageComponentConfirm(title string, text string, callbackYes func(), callbackNo func()) *PageComponentConfirm {
@@ -23,14 +26,23 @@ func NewPageComponentConfirm(title string, text string, callbackYes func(), call
 	if currentView := GlobalApp.Gui.CurrentView(); currentView != nil && currentView.Name() != "page_confirm" {
 		returnView = currentView.Name()
 	}
+	if strings.TrimSpace(title) == "" {
+		title = "Confirmation"
+	}
+	if strings.TrimSpace(text) == "" {
+		text = "Are you sure?"
+	}
 	ret := &PageComponentConfirm{
 		name:        "page_confirm",
 		maskName:    "page_confirm_mask",
+		yesBtnName:  "page_confirm_yes",
+		noBtnName:   "page_confirm_no",
 		title:       title,
 		text:        text,
 		returnView:  returnView,
 		callbackYes: callbackYes,
 		callbackNo:  callbackNo,
+		mouseHoverYn: true, // default hover on Yes
 	}
 	ret.Layout()
 	return ret
@@ -63,11 +75,11 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	theY1 := theY0 + viewHeight - 1
 
 	v, _ := SetViewSafe(c.name, theX0, theY0, theX1, theY1, 0)
-	v.Title = " Confirm"
+	v.Title = " " + c.title + " "
 	v.Wrap = false
 	v.Editable = false
 	v.Frame = true
-	v.Highlight = true
+	v.Highlight = false
 	v.FgColor = themeDialogFg
 	v.FrameColor = themeFrameDialog
 	v.TitleColor = gocui.ColorWhite
@@ -76,26 +88,107 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	v.Write([]byte("\n"))
 	for _, line := range messageLines {
 		trimmedLine := strings.TrimSpace(line)
-		trimmedLine = truncateByRuneCount(trimmedLine, bodyWidth)
+		trimmedLine = truncateByDisplayWidth(trimmedLine, bodyWidth)
 		v.Write([]byte(" " + padRightDisplayWidth(trimmedLine, bodyWidth) + "\n"))
 	}
 
-	footerSpacerLines := viewHeight - len(messageLines) - 7
-	if footerSpacerLines < 2 {
-		footerSpacerLines = 2
+	// spacer between message and buttons
+	footerSpacerLines := viewHeight - len(messageLines) - 6
+	if footerSpacerLines < 1 {
+		footerSpacerLines = 1
 	}
 	for i := 0; i < footerSpacerLines; i++ {
 		v.Write([]byte("\n"))
 	}
 
-	v.Write([]byte(c.footerActionLine(bodyWidth)))
+	// button area: two clickable buttons side by side
+	// ┌─────────────┐  ┌──────────────┐
+	// │  [Y] Confirm│  │  [N] Cancel  │
+	// └─────────────┘  └──────────────┘
+	btnLabelYes := " [Y] Confirm "
+	btnLabelNo := " [N] Cancel "
+	btnWYes := DisplayWidth(btnLabelYes) + 2 // +2 for frame
+	btnWNo := DisplayWidth(btnLabelNo) + 2
+	btnH := 3 // 1 content row + 2 frame lines
+	gap := 3
+	totalBtnW := btnWYes + gap + btnWNo
+	btnX0Start := theX0 + (viewWidth-totalBtnW)/2
+	if btnX0Start < theX0+2 {
+		btnX0Start = theX0 + 2
+	}
+	btnY0 := theY0 + viewHeight - 4
+	btnY1 := btnY0 + btnH - 1
+
+	// Yes button
+	yesX0 := btnX0Start
+	yesX1 := yesX0 + btnWYes - 1
+	yesV, _ := SetViewSafe(c.yesBtnName, yesX0, btnY0, yesX1, btnY1, 0)
+	yesV.Frame = true
+	yesV.Wrap = false
+	yesV.Editable = false
+	yesV.Highlight = false
+	yesV.TitleColor = gocui.ColorWhite
+
+	// No button
+	noX0 := yesX1 + gap + 1
+	noX1 := noX0 + btnWNo - 1
+	if noX1 > theX1-1 {
+		noX1 = theX1 - 1
+	}
+	noV, _ := SetViewSafe(c.noBtnName, noX0, btnY0, noX1, btnY1, 0)
+	noV.Frame = true
+	noV.Wrap = false
+	noV.Editable = false
+	noV.Highlight = false
+	noV.TitleColor = gocui.ColorWhite
+
+	c.renderButtons()
+
 	if _, err := GlobalApp.Gui.SetViewOnTop(c.name); err != nil {
 		return c
 	}
+	GlobalApp.Gui.SetViewOnTop(c.yesBtnName)
+	GlobalApp.Gui.SetViewOnTop(c.noBtnName)
 	GlobalApp.Gui.SetCurrentView(c.name)
 	c.KeyBind()
 	GlobalTipComponent.AppendList(c.name, c.KeyMapTips())
 	return c
+}
+
+// renderButtons draws the Yes/No buttons with highlight on the hovered one.
+func (c *PageComponentConfirm) renderButtons() {
+	btnLabelYes := " [Y] Confirm "
+	btnLabelNo := " [N] Cancel "
+
+	yesV, errY := GlobalApp.Gui.View(c.yesBtnName)
+	if errY == nil {
+		yesV.Clear()
+		if c.mouseHoverYn {
+			yesV.BgColor = themeSelBg
+			yesV.FgColor = themeSelFg
+			yesV.FrameColor = themeFrameActive
+		} else {
+			yesV.BgColor = gocui.ColorDefault
+			yesV.FgColor = gocui.ColorDefault
+			yesV.FrameColor = themeFrameDialog
+		}
+		yesV.Write([]byte(btnLabelYes))
+	}
+
+	noV, errN := GlobalApp.Gui.View(c.noBtnName)
+	if errN == nil {
+		noV.Clear()
+		if !c.mouseHoverYn {
+			noV.BgColor = themeSelBg
+			noV.FgColor = themeSelFg
+			noV.FrameColor = themeFrameActive
+		} else {
+			noV.BgColor = gocui.ColorDefault
+			noV.FgColor = gocui.ColorDefault
+			noV.FrameColor = themeFrameDialog
+		}
+		noV.Write([]byte(btnLabelNo))
+	}
 }
 
 func (c *PageComponentConfirm) normalizedMessageLines() []string {
@@ -123,31 +216,29 @@ func (c *PageComponentConfirm) calculateDialogSize(messageLines []string) (int, 
 		}
 	}
 	titleWidth := DisplayWidth(strings.TrimSpace(c.title)) + 6
-	leftAction := "[Enter/Y] Confirm"
-	rightAction := "[Esc/N] Cancel"
-	actionWidth := DisplayWidth(leftAction) + DisplayWidth(rightAction) + 4
+	btnWidth := DisplayWidth(" [Y] Confirm ") + DisplayWidth(" [N] Cancel ") + 8
 
 	bodyWidth := maxMessageWidth
 	if bodyWidth < titleWidth {
 		bodyWidth = titleWidth
 	}
-	if bodyWidth < actionWidth {
-		bodyWidth = actionWidth
+	if bodyWidth < btnWidth {
+		bodyWidth = btnWidth
 	}
-	if bodyWidth < 28 {
-		bodyWidth = 28
+	if bodyWidth < 30 {
+		bodyWidth = 30
 	}
 
 	viewWidth := bodyWidth + 4
 	maxAllowedWidth := GlobalApp.maxX - 4
-	if maxAllowedWidth < 34 {
+	if maxAllowedWidth < 36 {
 		maxAllowedWidth = GlobalApp.maxX - 2
 	}
 	if viewWidth > maxAllowedWidth {
 		viewWidth = maxAllowedWidth
 	}
-	if viewWidth < 34 {
-		viewWidth = 34
+	if viewWidth < 36 {
+		viewWidth = 36
 		if viewWidth > maxAllowedWidth {
 			viewWidth = maxAllowedWidth
 		}
@@ -165,46 +256,69 @@ func (c *PageComponentConfirm) calculateDialogSize(messageLines []string) (int, 
 	return viewWidth, viewHeight
 }
 
-func (c *PageComponentConfirm) footerActionLine(bodyWidth int) string {
-	leftText := "[Enter/Y] Confirm"
-	rightText := "[Esc/N] Cancel"
-	joined := leftText + strings.Repeat(" ", 6) + rightText
-	if DisplayWidth(joined) > bodyWidth {
-		joined = leftText + "  " + rightText
-	}
-	return " " + padRightDisplayWidth(joined, bodyWidth)
-}
-
 func (c *PageComponentConfirm) KeyBind() *PageComponentConfirm {
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'y', 'Y', gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// keyboard: Enter = activate hovered button, Y = confirm, N/Esc = cancel
+	activateHovered := func() {
+		if c.mouseHoverYn {
+			c.closeView()
+			if c.callbackYes != nil {
+				c.callbackYes()
+			}
+		} else {
+			c.closeView()
+			if c.callbackNo != nil {
+				c.callbackNo()
+			}
+		}
+	}
+	confirm := func() {
 		c.closeView()
 		if c.callbackYes != nil {
 			c.callbackYes()
 		}
-		return nil
-	})
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'n', 'N', gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	}
+	cancel := func() {
 		c.closeView()
 		if c.callbackNo != nil {
 			c.callbackNo()
 		}
-		return nil
-	})
+	}
 
-	GuiSetKeysbinding(GlobalApp.Gui, c.maskName, []any{'y', 'Y', gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		c.closeView()
-		if c.callbackYes != nil {
-			c.callbackYes()
-		}
+	for _, viewName := range []string{c.name, c.maskName, c.yesBtnName, c.noBtnName} {
+		// Y/Enter = confirm (Enter also works as "activate hovered" below)
+		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{'y', 'Y'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			confirm()
+			return nil
+		})
+		// N/Esc = cancel
+		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{'n', 'N', gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			cancel()
+			return nil
+		})
+		// Enter = activate hovered button
+		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			activateHovered()
+			return nil
+		})
+		// Tab / Left / Right to toggle hover between buttons
+		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyTab, gocui.KeyArrowRight, gocui.KeyArrowLeft, 'h', 'l'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			c.mouseHoverYn = !c.mouseHoverYn
+			c.renderButtons()
+			return nil
+		})
+	}
+
+	// mouse click on Yes button
+	GuiSetKeysbinding(GlobalApp.Gui, c.yesBtnName, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		confirm()
 		return nil
 	})
-	GuiSetKeysbinding(GlobalApp.Gui, c.maskName, []any{'n', 'N', gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		c.closeView()
-		if c.callbackNo != nil {
-			c.callbackNo()
-		}
+	// mouse click on No button
+	GuiSetKeysbinding(GlobalApp.Gui, c.noBtnName, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		cancel()
 		return nil
 	})
+	// click on mask = focus confirm dialog
 	GuiSetKeysbinding(GlobalApp.Gui, c.maskName, []any{gocui.MouseLeft}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		_, _ = g.SetCurrentView(c.name)
 		return nil
@@ -218,8 +332,13 @@ func (c *PageComponentConfirm) closeView() {
 	GlobalApp.Gui.DeleteKeybindings(c.name)
 	GlobalApp.Gui.DeleteView(c.maskName)
 	GlobalApp.Gui.DeleteKeybindings(c.maskName)
+	GlobalApp.Gui.DeleteView(c.yesBtnName)
+	GlobalApp.Gui.DeleteKeybindings(c.yesBtnName)
+	GlobalApp.Gui.DeleteView(c.noBtnName)
+	GlobalApp.Gui.DeleteKeybindings(c.noBtnName)
 	if c.returnView != "" {
 		if _, err := GlobalApp.Gui.SetCurrentView(c.returnView); err == nil {
+			GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil })
 			return
 		}
 	}
@@ -230,6 +349,7 @@ func (c *PageComponentConfirm) closeView() {
 	for _, view := range views {
 		if view != nil {
 			GlobalApp.Gui.SetCurrentView(view.Name())
+			GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil })
 			return
 		}
 	}
@@ -237,8 +357,9 @@ func (c *PageComponentConfirm) closeView() {
 
 func (c *PageComponentConfirm) KeyMapTips() string {
 	keyMap := []KeyMapStruct{
-		{"Confirm", "<y>/<Enter>"},
-		{"Cancel", "<n>/<Esc>"},
+		{"Confirm", "Y/Enter/Click"},
+		{"Cancel", "N/Esc/Click"},
+		{"Switch", "Tab/←/→"},
 	}
 	ret := ""
 	for i, v := range keyMap {
