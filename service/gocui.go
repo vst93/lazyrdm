@@ -67,6 +67,9 @@ func activeOverlayViewName(g *gocui.Gui) string {
 	if _, err := g.View("page_console_output"); err == nil {
 		return "page_console_output"
 	}
+	if _, err := g.View(listFilterViewName); err == nil {
+		return listFilterViewName
+	}
 	return ""
 }
 
@@ -79,6 +82,9 @@ func canHandleOverlayViewBinding(bindingView string, overlayView string) bool {
 	}
 	if overlayView == "page_input" && (bindingView == "page_input_mask" || bindingView == "page_input_field" || bindingView == "page_input_footer") {
 		return true
+	}
+	if overlayView == listFilterViewName {
+		return bindingView == "key_info_detail"
 	}
 	return false
 }

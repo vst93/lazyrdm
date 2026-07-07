@@ -99,7 +99,6 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyValueMaxY = 0
 		c.view.Wrap = true
-		// c.view.Title = " " + c.title + " "
 		if CurrentViewName() == c.name {
 			c.view.Title = " [" + c.title + "] "
 		} else {
@@ -113,70 +112,78 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 		if keyDetail.Success {
 			keyDetailData := keyDetail.Data.(types.KeyDetail)
 			theVal = c.buildDisplayValue(keyDetailData)
-			theValSlice := strings.Split(theVal, "\n")
-			maxLine = len(theValSlice) - 1
-			if maxLine < 0 {
-				maxLine = 0
-			}
-			lineViewWidth = len(strconv.Itoa(maxLine))
-			lineViewWidthStr = strconv.Itoa(lineViewWidth)
+			// structured mode: no wrap, no line numbers, full width
 			if c.structuredMode {
-				lineViewWidth = 0
-				lineViewWidthStr = "1"
 				c.view.Wrap = false
-				c.view, _ = SetViewSafe(c.name, theX0+1, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
+				c.keyValueMaxY = len(strings.Split(theVal, "\n"))
 			} else {
-				// reset view x0 , later affects the view width
+				theValSlice := strings.Split(theVal, "\n")
+				maxLine = len(theValSlice) - 1
+				if maxLine < 0 {
+					maxLine = 0
+				}
+				lineViewWidth = len(strconv.Itoa(maxLine))
+				lineViewWidthStr = strconv.Itoa(lineViewWidth)
+				// reset view x0 for line number gutter
 				c.view, _ = SetViewSafe(c.name, theX0+1+lineViewWidth, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
-			}
-			theViewX, _ := c.view.Size()
-			for k, line := range theValSlice {
-				if k == maxLine {
-					// 跳过最后一行
-					break
-				}
-				lineLen := DisplayWidth(line)
-
-				if lineLen > theViewX {
-					theRealHeight := 0
-					theRealHeight = lineLen / theViewX
-					if lineLen%theViewX > 0 {
-						theRealHeight++
-					}
-					c.keyValueMaxY += theRealHeight
-					for i := 0; i < theRealHeight; i++ {
-						if i == 0 {
-							lineStr += fmt.Sprintf("%"+lineViewWidthStr+"d", lineStrNo) + "\n"
-						} else {
-							lineStr += "\n"
-						}
-					}
+				c.view.TitleColor = gocui.ColorCyan
+				c.view.Wrap = true
+				if CurrentViewName() == c.name {
+					c.view.Title = " [" + c.title + "] "
 				} else {
-					c.keyValueMaxY++
-					lineStr += fmt.Sprintf("%"+lineViewWidthStr+"d", lineStrNo) + "\n"
+					c.view.Title = " " + c.title + " "
 				}
-				lineStrNo++
+				theViewX, _ := c.view.Size()
+				for k, line := range theValSlice {
+					if k == maxLine {
+						break
+					}
+					lineLen := DisplayWidth(line)
+					if lineLen > theViewX {
+						theRealHeight := lineLen / theViewX
+						if lineLen%theViewX > 0 {
+							theRealHeight++
+						}
+						c.keyValueMaxY += theRealHeight
+						for i := 0; i < theRealHeight; i++ {
+							if i == 0 {
+								lineStr += fmt.Sprintf("%"+lineViewWidthStr+"d", lineStrNo) + "\n"
+							} else {
+								lineStr += "\n"
+							}
+						}
+					} else {
+						c.keyValueMaxY++
+						lineStr += fmt.Sprintf("%"+lineViewWidthStr+"d", lineStrNo) + "\n"
+					}
+					lineStrNo++
+				}
 			}
-			// PrintLn(c.keyValueMaxY)
 		} else {
 			theVal = fmt.Sprintln("")
 		}
 	}
 	if maxLine > 0 {
-		subtitle := " Lines: " + strconv.Itoa(maxLine) + " "
+		subtitle := ""
 		if len(c.structuredRows) > 0 {
 			rows := c.getActiveSelectionRows()
+			subtitle += " Row: "
 			if len(rows) == 0 {
-				subtitle += " Row: 0/0 "
+				subtitle += "0/0 "
 			} else {
-				subtitle += " Row: " + strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(rows)) + " "
+				subtitle += strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(rows)) + " "
 			}
 			if strings.TrimSpace(c.listFilter) != "" {
-				subtitle += " Filtered " + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + " "
+				subtitle += "Filtered:" + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + " "
 			}
+			if c.detailExpanded {
+				subtitle += "[Expanded] "
+			}
+		} else {
+			subtitle = " Lines: " + strconv.Itoa(maxLine) + " "
 		}
 		if c.currentKeyType != "" {
-			subtitle = " Type: " + c.currentKeyType + " " + subtitle
+			subtitle = " " + c.currentKeyType + " " + subtitle
 		}
 		c.view.Subtitle = subtitle
 	} else {
@@ -244,6 +251,18 @@ func (c *LTRKeyInfoDetailComponent) layoutListFilterView(theX0 int, formatWidth 
 		return
 	}
 
+	// Don't recreate the view if it's currently focused (being edited)
+	if CurrentViewName() == listFilterViewName {
+		// just reposition, don't clear content
+		x0 := theX0 + 2
+		x1 := GlobalApp.maxX - formatWidth - 4
+		if x1 <= x0+10 {
+			x1 = GlobalApp.maxX - 3
+		}
+		SetViewSafe(listFilterViewName, x0, GlobalApp.maxY-4, x1, GlobalApp.maxY-2, 0)
+		return
+	}
+
 	if strings.TrimSpace(c.listFilterEdit) == "" {
 		c.listFilterEdit = c.listFilter
 	}
@@ -259,19 +278,13 @@ func (c *LTRKeyInfoDetailComponent) layoutListFilterView(theX0 int, formatWidth 
 	}
 	showText := c.listFilterEdit
 	if strings.TrimSpace(showText) == "" {
-		showText = "(type keyword then Enter)"
+		showText = "(type / to filter, Enter to apply)"
 	}
 	v.Clear()
 	v.Write([]byte(" Filter: " + showText + " "))
 	v.Frame = false
-	v.Editable = CurrentViewName() == listFilterViewName
-	if v.Editable {
-		v.BgColor = themeIndicatorBg
-		v.Editor = &EditorInput{BindValString: &c.listFilterEdit}
-		_ = v.SetCursor(len([]rune(c.listFilterEdit))+9, 0)
-	} else {
-		v.BgColor = gocui.ColorBlack
-	}
+	v.Editable = false
+	v.BgColor = gocui.ColorBlack
 }
 
 func (c *LTRKeyInfoDetailComponent) KeyBind() {
@@ -336,14 +349,17 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		}
 		c.listFilterEdit = c.listFilter
 		c.Layout()
-		if _, err := GlobalApp.Gui.SetCurrentView(listFilterViewName); err != nil {
-			GlobalTipComponent.LayoutTemporary("Open filter input failed", 3, TipTypeError)
-			return nil
-		}
 		if fv, ferr := GlobalApp.Gui.View(listFilterViewName); ferr == nil {
 			fv.Editable = true
 			fv.Editor = &EditorInput{BindValString: &c.listFilterEdit}
+			fv.BgColor = themeIndicatorBg
+			fv.Clear()
+			fv.Write([]byte(" Filter: " + c.listFilterEdit + " "))
 			_ = fv.SetCursor(len([]rune(c.listFilterEdit))+9, 0)
+		}
+		if _, err := GlobalApp.Gui.SetCurrentView(listFilterViewName); err != nil {
+			GlobalTipComponent.LayoutTemporary("Open filter input failed", 3, TipTypeError)
+			return nil
 		}
 		GlobalApp.Gui.Cursor = true
 		return nil
@@ -353,8 +369,11 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			return nil
 		}
 		c.listFilter = ""
+		c.listFilterEdit = ""
 		c.applyListFilter()
-		c.Layout()
+		c.selectedRow = 0
+		c.scrollOffset = 0
+		c.renderFromCache()
 		GlobalTipComponent.LayoutTemporary("Filter cleared", 2, TipTypeSuccess)
 		return nil
 	})
@@ -370,16 +389,40 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 	GuiSetKeysbinding(GlobalApp.Gui, listFilterViewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.listFilter = strings.TrimSpace(c.listFilterEdit)
 		c.applyListFilter()
-		c.Layout()
-		_, _ = GlobalApp.Gui.SetCurrentView(c.name)
+		c.selectedRow = 0
+		c.scrollOffset = 0
+		// Restore filter view to non-editable display state
+		if fv, ferr := GlobalApp.Gui.View(listFilterViewName); ferr == nil {
+			fv.Editable = false
+			fv.BgColor = gocui.ColorBlack
+			fv.Clear()
+			showText := c.listFilter
+			if showText == "" {
+				showText = "(type / to filter, Enter to apply)"
+			}
+			fv.Write([]byte(" Filter: " + showText + " "))
+		}
 		GlobalApp.Gui.Cursor = false
+		_, _ = GlobalApp.Gui.SetCurrentView(c.name)
+		c.renderFromCache()
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, listFilterViewName, []any{gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.listFilterEdit = c.listFilter
-		c.Layout()
-		_, _ = GlobalApp.Gui.SetCurrentView(c.name)
+		// Restore filter view to non-editable display state
+		if fv, ferr := GlobalApp.Gui.View(listFilterViewName); ferr == nil {
+			fv.Editable = false
+			fv.BgColor = gocui.ColorBlack
+			fv.Clear()
+			showText := c.listFilter
+			if showText == "" {
+				showText = "(type / to filter, Enter to apply)"
+			}
+			fv.Write([]byte(" Filter: " + showText + " "))
+		}
 		GlobalApp.Gui.Cursor = false
+		_, _ = GlobalApp.Gui.SetCurrentView(c.name)
+		c.renderFromCache()
 		return nil
 	})
 
@@ -611,20 +654,20 @@ func (c *LTRKeyInfoDetailComponent) renderFromCache() {
 	// update subtitle
 	rows := c.getActiveSelectionRows()
 	if len(c.structuredRows) > 0 {
-		subtitle := " Lines: " + strconv.Itoa(len(strings.Split(theVal, "\n"))-1) + " "
+		subtitle := " Row: "
 		if len(rows) == 0 {
-			subtitle += " Row: 0/0 "
+			subtitle += "0/0 "
 		} else {
-			subtitle += " Row: " + strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(rows)) + " "
+			subtitle += strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(rows)) + " "
 		}
 		if strings.TrimSpace(c.listFilter) != "" {
-			subtitle += " Filtered " + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + " "
+			subtitle += " Filtered:" + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + " "
 		}
 		if c.detailExpanded {
 			subtitle += " [Expanded] "
 		}
 		if c.currentKeyType != "" {
-			subtitle = " Type: " + c.currentKeyType + " " + subtitle
+			subtitle = " " + c.currentKeyType + " " + subtitle
 		}
 		c.view.Subtitle = subtitle
 	} else {
@@ -648,6 +691,8 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	if c.view != nil {
 		viewW, viewH = c.view.Size()
 	}
+	// Size() returns content area (frame excluded). For structured mode the view
+	// spans full width, so viewW should be correct. Add safety floor.
 	if viewW < 20 {
 		viewW = 60
 	}
@@ -657,25 +702,29 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 
 	var b strings.Builder
 	kt := c.currentKeyType
-	b.WriteString("Type: " + kt + "  |  ")
-	b.WriteString("↑/↓ select  ←/→ page  </> filter  <x> clear  <Enter> expand  <a>/<e>/<u>/<d> CRUD\n")
 
-	filterStr := ""
+	// header line: type + count + filter status (single line, compact)
+	headerLine := " " + NewTypeWord(kt) + " "
+	totalCount := len(c.structuredRows)
+	shownCount := len(rows)
 	if strings.TrimSpace(c.listFilter) != "" {
-		filterStr = "Filter: \"" + c.listFilter + "\" | matched " + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + "\n"
-		b.WriteString(filterStr)
+		headerLine += "Filter: \"" + c.listFilter + "\" → " + strconv.Itoa(shownCount) + "/" + strconv.Itoa(totalCount) + " "
+	} else {
+		headerLine += strconv.Itoa(totalCount) + " item(s) "
 	}
+	headerLine += "| ↑/↓ select  ←/→ page  </> filter  <Enter> expand  <a>/<e>/<u>/<d> CRUD"
+	b.WriteString(truncateByDisplayWidth(headerLine, viewW) + "\n")
 
 	// separator
 	sep := strings.Repeat("─", viewW)
 	b.WriteString(sep + "\n")
 
 	if len(c.structuredRows) == 0 {
-		b.WriteString("(empty — press <a> to add)\n")
+		b.WriteString(" (empty — press <a> to add)\n")
 		return b.String()
 	}
 	if len(rows) == 0 {
-		b.WriteString("No rows match current filter.\nPress <x> to clear or </> to update filter.\n")
+		b.WriteString(" No rows match filter.\n Press <x> to clear or </> to update.\n")
 		return b.String()
 	}
 
@@ -684,12 +733,13 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 
 	// header
 	b.WriteString(c.renderColumnHeader(cols))
-	b.WriteString(strings.Repeat("─", viewW) + "\n")
+	b.WriteString(sep + "\n")
 
 	// calculate visible row window
-	// Reserve: 2 header lines + 1 separator + 1 separator before detail + detail lines
+	// Reserve: 1 header + 1 separator + 1 column-header + 1 separator + 1 detail-separator + detail lines
 	detailLines := c.getDetailPaneHeight(viewH, rows)
-	tableHeight := viewH - 3 - detailLines
+	// fixed overhead: 2 (header+sep) + 2 (col-header+sep) + 1 (detail-sep) = 5
+	tableHeight := viewH - 5 - detailLines
 	if tableHeight < 3 {
 		tableHeight = 3
 	}
@@ -712,7 +762,7 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	}
 
 	// detail pane
-	b.WriteString(strings.Repeat("─", viewW) + "\n")
+	b.WriteString(sep + "\n")
 	selected := rows[c.selectedRow]
 	b.WriteString(c.renderDetailPane(selected, kt, viewW, detailLines))
 	return b.String()
@@ -824,7 +874,7 @@ func (c *LTRKeyInfoDetailComponent) renderRowLine(prefix string, idx int, row ke
 			b.WriteString(" ")
 		}
 		val := col.getValue(row, idx)
-		val = strings.ReplaceAll(val, "\n", " <NL> ")
+		val = strings.ReplaceAll(val, "\n", " ⏎ ")
 		val = strings.ReplaceAll(val, "\r", "")
 		b.WriteString(padRightDisplayWidth(truncateByDisplayWidth(val, col.width), col.width))
 	}
@@ -848,7 +898,7 @@ func (c *LTRKeyInfoDetailComponent) getDetailPaneHeight(viewH int, rows []keyDet
 		return valLines + 1
 	}
 	// collapsed: show 1-2 preview lines
-	preview := truncateByDisplayWidth(strings.ReplaceAll(selected.Value, "\n", " <NL> "), 200)
+	preview := truncateByDisplayWidth(strings.ReplaceAll(selected.Value, "\n", " ⏎ "), 200)
 	if DisplayWidth(preview) > 200 || strings.Contains(selected.Value, "\n") {
 		return 3
 	}
@@ -858,20 +908,25 @@ func (c *LTRKeyInfoDetailComponent) getDetailPaneHeight(viewH int, rows []keyDet
 func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType string, viewW int, maxLines int) string {
 	var b strings.Builder
 	// label line
-	label := "Selected"
+	label := "▸ "
 	switch keyType {
 	case "list":
-		label += " Index: " + strconv.Itoa(row.Index)
+		label += "Index " + strconv.Itoa(row.Index)
 	case "hash":
-		label += " Field: " + row.Field
+		label += "Field: " + row.Field
 	case "zset":
-		label += " Score: " + row.Score
+		label += "Score: " + row.Score + "  Value: " + truncateByDisplayWidth(row.Value, 40)
 	case "stream":
-		label += " ID: " + row.Field
+		label += "ID: " + row.Field
 	case "set":
-		label += " #" + strconv.Itoa(row.Index)
+		label += "#" + strconv.Itoa(row.Index)
 	}
-	label += "  (row " + strconv.Itoa(c.selectedRow+1) + ")"
+	label += "  [" + strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(c.getActiveSelectionRows())) + "]"
+	if c.detailExpanded {
+		label += "  (Enter to collapse)"
+	} else {
+		label += "  (Enter to expand)"
+	}
 	b.WriteString(truncateByDisplayWidth(label, viewW) + "\n")
 
 	val := row.Value
@@ -881,16 +936,16 @@ func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType s
 		for i, line := range lines {
 			if i >= maxLines-1 {
 				remaining := len(lines) - i
-				b.WriteString(fmt.Sprintf("... (%d more lines, press <Enter> to collapse)\n", remaining))
+				b.WriteString(fmt.Sprintf("  ... (%d more lines)\n", remaining))
 				break
 			}
-			b.WriteString(line + "\n")
+			b.WriteString("  " + line + "\n")
 		}
 	} else {
 		// collapsed: single-line preview
-		preview := strings.ReplaceAll(val, "\n", " <NL> ")
+		preview := strings.ReplaceAll(val, "\n", " ⏎ ")
 		preview = strings.ReplaceAll(preview, "\r", "")
-		b.WriteString(truncateByDisplayWidth(preview, viewW) + "\n")
+		b.WriteString("  " + truncateByDisplayWidth(preview, viewW-2) + "\n")
 	}
 	return b.String()
 }
