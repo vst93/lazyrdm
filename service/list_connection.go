@@ -177,7 +177,6 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		v.Title = " " + c.title + " "
 		v.Editable = false
 		v.Frame = true
-		v.FrameColor = gocui.ColorCyan
 		_, c.LayoutMaxY = v.Size()
 	}
 	GlobalApp.Gui.SetCurrentView(c.Name)

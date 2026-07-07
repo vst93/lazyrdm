@@ -101,6 +101,8 @@ func NewMainApp(g *gocui.Gui) {
 
 	// GlobalApp = &mainApp
 	GlobalApp.maxX, GlobalApp.maxY = GlobalApp.Gui.Size()
+	GlobalApp.Gui.FrameColor = gocui.ColorCyan
+	GlobalApp.Gui.SelFrameColor = themeFrameActive
 	GlobalApp.Gui.SelFgColor = themeSelFg
 	GlobalApp.Gui.Highlight = true
 	GlobalApp.Gui.SetManagerFunc(GlobalApp.LayoutManager)
