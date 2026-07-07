@@ -44,12 +44,12 @@ func NewPageComponentInput(title string, label string, initialText string, maskI
 	return ret
 }
 
-// setCursorBar 切换终端光标为不闪烁竖线样式（在白底输入框中更易辨识）。
-// 使用 steady bar 而非 blinking bar，因为部分终端不支持闪烁，
-// 会导致光标完全不可见。同时设置光标颜色为黑色，在白底输入框上对比度最高。
+// setCursorBar 切换终端光标为不闪烁方块样式（在白底输入框中最显眼）。
+// 使用 steady block 而非 bar，因为竖线太细在某些终端下几乎不可见。
+// 设置光标颜色为黑色，在白底输入框上对比度最高。
 // 通过 tcell 的 SetCursorStyle API 设置，光标样式会在每帧 redraw 时保持。
 func setCursorBar() {
-	gocuiScreen.SetCursorStyle(tcell.CursorStyleSteadyBar, tcell.ColorBlack)
+	gocuiScreen.SetCursorStyle(tcell.CursorStyleSteadyBlock, tcell.ColorBlack)
 }
 
 // setCursorDefault 恢复终端默认光标样式
