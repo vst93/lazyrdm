@@ -65,6 +65,7 @@ type keyOpDialogSchema struct {
 	Description string
 	Fields      []keyOpDialogField
 	BuildJSON   func(values map[string]string) (string, error)
+	ReturnView  string // optional: view to focus after dialog closes (default: c.name)
 }
 
 var keyValueFormatList = []string{"Raw", "JSON", "Unicode JSON"}
@@ -717,9 +718,11 @@ func (c *LTRKeyInfoDetailComponent) switchKeyValueFormat() {
 	}
 	if c.structuredMode && len(c.structuredRows) > 0 {
 		c.renderFromCache()
+		GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil })
 		return
 	}
 	c.Layout()
+	GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil })
 }
 
 func (c *LTRKeyInfoDetailComponent) normalizeSelectedRow() {
@@ -1385,6 +1388,131 @@ func (c *LTRKeyInfoDetailComponent) openTypeOperationDialog(operation, prefillVa
 	})
 }
 
+// openCreateKeyDialog opens a dialog for creating a new Redis key with
+// selectable type (string/list/hash/set/zset/stream), key name, and value.
+func (c *LTRKeyInfoDetailComponent) openCreateKeyDialog() {
+	keyTypes := []string{"string", "list", "hash", "set", "zset", "stream"}
+	schema := keyOpDialogSchema{
+		Title:       "Create Key",
+		Description:  "Enter key name, select type, and provide initial value",
+		ReturnView:  GlobalKeyComponent.name,
+		Fields: []keyOpDialogField{
+			{Label: "Key Name", Placeholder: "new:key", Value: "new:key"},
+			{Label: "Type", SelectOpts: keyTypes, Value: "string"},
+			{Label: "Value", Placeholder: "(empty for string, JSON for collections)"},
+		},
+	}
+	schema.BuildJSON = func(values map[string]string) (string, error) {
+		keyName := strings.TrimSpace(values["Key Name"])
+		if keyName == "" {
+			return "", fmt.Errorf("key name is required")
+		}
+		keyType := strings.TrimSpace(values["Type"])
+		if keyType == "" {
+			keyType = "string"
+		}
+		// Check if key already exists
+		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
+			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+			DB:     GlobalDBComponent.SelectedDB,
+			Key:    keyName,
+		})
+		if keySummary.Success {
+			return "", fmt.Errorf("key already exists: %s", keyName)
+		}
+
+		// Parse value based on type
+		valStr := values["Value"]
+		var value any
+		if keyType == "string" {
+			value = valStr
+		} else if keyType == "stream" {
+			// Stream always uses the placeholder, ignore user input
+			value = map[string]any{"id": "*", "field": "field", "value": ""}
+		} else if valStr == "" {
+			// Empty collection: create with single empty placeholder item
+			switch keyType {
+			case "list":
+				value = []any{""}
+			case "hash":
+				value = []map[string]any{{"field": "field", "value": ""}}
+			case "set":
+				value = []string{"member"}
+			case "zset":
+				value = []map[string]any{{"value": "member", "score": 0}}
+			}
+		} else {
+			// Try to parse as JSON for collection types
+			parsed, err := parseEditorValueByKeyType(keyType, valStr)
+			if err != nil {
+				return "", fmt.Errorf("invalid value: %s", err.Error())
+			}
+			value = parsed
+		}
+
+		// Build result as a JSON command (not sent to Redis here; sent in onSubmit)
+		obj := map[string]any{"keyName": keyName, "keyType": keyType, "value": value}
+		buf, err := json.Marshal(obj)
+		return string(buf), err
+	}
+	_ = c.showKeyOpDialog(schema, func(values map[string]string) error {
+		// Re-parse values and actually create the key
+		keyName := strings.TrimSpace(values["Key Name"])
+		keyType := strings.TrimSpace(values["Type"])
+		if keyType == "" {
+			keyType = "string"
+		}
+		valStr := values["Value"]
+		var value any
+		if keyType == "string" {
+			value = valStr
+		} else if keyType == "stream" {
+			value = map[string]any{"id": "*", "field": "field", "value": ""}
+		} else if valStr == "" {
+			switch keyType {
+			case "list":
+				value = []any{""}
+			case "hash":
+				value = []map[string]any{{"field": "field", "value": ""}}
+			case "set":
+				value = []string{"member"}
+			case "zset":
+				value = []map[string]any{{"value": "member", "score": 0}}
+			}
+		} else {
+			parsed, err := parseEditorValueByKeyType(keyType, valStr)
+			if err != nil {
+				return fmt.Errorf("invalid value: %s", err.Error())
+			}
+			value = parsed
+		}
+		res := services.Browser().SetKeyValue(
+			types.SetKeyParam{
+				Server:  GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+				DB:      GlobalDBComponent.SelectedDB,
+				Key:     keyName,
+				KeyType: keyType,
+				Value:   value,
+				TTL:     -1,
+			},
+		)
+		if !res.Success {
+			return fmt.Errorf("%s", res.Msg)
+		}
+		// Success: add key to list and show it
+		GlobalKeyComponent.keys = append([]any{keyName}, GlobalKeyComponent.keys...)
+		GlobalKeyComponent.Current = 0
+		GlobalKeyInfoComponent.keyName = keyName
+		GlobalKeyInfoComponent.Layout()
+		GlobalKeyInfoDetailComponent.viewOriginY = 0
+		GlobalKeyInfoDetailComponent.keyValueFormat = "Raw"
+		GlobalKeyInfoDetailComponent.Layout()
+		GlobalKeyComponent.Layout()
+		GlobalTipComponent.LayoutTemporary("Created key: "+keyName+" ("+keyType+")", 3, TipTypeSuccess)
+		return nil
+	})
+}
+
 func (c *LTRKeyInfoDetailComponent) buildKeyOpDialogSchema(keyType, operation, prefillValue string) (keyOpDialogSchema, error) {
 	base := keyOpDialogSchema{}
 	selected := c.getSelectedStructuredRow()
@@ -1798,7 +1926,11 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		}
 		delete(GlobalTipComponent.list, dialogName)
 		GlobalApp.Gui.Cursor = false
-		GlobalApp.Gui.SetCurrentView(c.name)
+		returnTo := schema.ReturnView
+		if returnTo == "" {
+			returnTo = c.name
+		}
+		GlobalApp.Gui.SetCurrentView(returnTo)
 		GlobalTipComponent.LayComponentTips()
 		GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil })
 	}
@@ -2629,6 +2761,12 @@ func (c *LTRKeyInfoDetailComponent) buildDisplayValue(detail types.KeyDetail) st
 	if keyType == "json" {
 		jsonStr, ok := detail.Value.(string)
 		if ok {
+			if c.keyValueFormat == "Raw" {
+				return jsonStr + "\n"
+			}
+			if c.keyValueFormat == "Unicode JSON" && validator.IsJSON(jsonStr) {
+				jsonStr, _ = UnicodeSequenceToString(jsonStr)
+			}
 			if validator.IsJSON(jsonStr) {
 				pretty, _ := PrettyString(jsonStr)
 				return pretty + "\n"

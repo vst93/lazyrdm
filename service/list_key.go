@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"tinyrdm/backend/services"
-	"tinyrdm/backend/types"
 
 	"github.com/awesome-gocui/gocui"
 )
@@ -305,49 +304,11 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		return nil
 	})
 
-	// 新增 key — prompts for key name and type
-	GuiSetKeysbindingInlineInput(GlobalApp.Gui, c.name, []any{'a'}, "New Key", "Key name", func() string {
-		return "new:key"
-	}, func(keyName string) {
-		if keyName == "" {
-			GlobalTipComponent.LayoutTemporary("Key name cannot be empty", 3, TipTypeWarning)
-			return
-		}
-		// Check if key already exists
-		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
-			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
-			DB:     GlobalDBComponent.SelectedDB,
-			Key:    keyName,
-		})
-		if keySummary.Success {
-			GlobalTipComponent.LayoutTemporary("Key already exists: "+keyName, 3, TipTypeWarning)
-			return
-		}
-		res := services.Browser().SetKeyValue(
-			types.SetKeyParam{
-				Server:  GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
-				DB:      GlobalDBComponent.SelectedDB,
-				Key:     keyName,
-				KeyType: "string",
-				Value:   "",
-				TTL:     -1,
-			},
-		)
-		if res.Success {
-			GlobalKeyComponent.keys = append([]any{keyName}, GlobalKeyComponent.keys...)
-			GlobalKeyComponent.Current = 0
-			GlobalKeyInfoComponent.keyName = keyName
-			GlobalKeyInfoComponent.Layout()
-			GlobalKeyInfoDetailComponent.viewOriginY = 0
-			GlobalKeyInfoDetailComponent.Layout()
-			c.Layout()
-			GlobalTipComponent.LayoutTemporary("Created key: "+keyName, 2, TipTypeSuccess)
-		} else {
-			GlobalTipComponent.LayoutTemporary("Failed to create key: "+res.Msg, 3, TipTypeError)
-		}
-	}, func() {
-		GlobalTipComponent.LayoutTemporary("Create key cancelled", 2, TipTypeWarning)
-	}, nil)
+	// 新增 key - opens a dialog with key name, type selector, and value field
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'a'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		GlobalKeyInfoDetailComponent.openCreateKeyDialog()
+		return nil
+	})
 
 	// 搜索
 	GuiSetKeysbindingInlineInput(GlobalApp.Gui, c.name, []any{'s'}, "Search Keys", "Keyword (supports * glob)", func() string {
