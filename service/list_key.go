@@ -201,6 +201,9 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 
 func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown, 'j'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if len(c.keys) == 0 {
+			return nil
+		}
 		c.Current++
 		if c.Current > len(c.keys)-1 {
 			c.Current = 0
@@ -211,6 +214,9 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 	})
 
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp, 'k'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if len(c.keys) == 0 {
+			return nil
+		}
 		c.Current--
 		if c.Current < 0 {
 			c.Current = len(c.keys) - 1

@@ -364,6 +364,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		GlobalApp.Gui.Cursor = true
 		return nil
 	})
+	// 'x' clears the filter
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'x'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if !c.isStructuredType() {
 			return nil
@@ -373,7 +374,6 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.applyListFilter()
 		c.selectedRow = 0
 		c.scrollOffset = 0
-		// Update the filter display view
 		if fv, ferr := GlobalApp.Gui.View(listFilterViewName); ferr == nil {
 			fv.Editable = false
 			fv.Frame = false
@@ -691,8 +691,6 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	if c.view != nil {
 		viewW, viewH = c.view.Size()
 	}
-	// Size() returns content area (frame excluded). For structured mode the view
-	// spans full width, so viewW should be correct. Add safety floor.
 	if viewW < 20 {
 		viewW = 60
 	}
@@ -703,16 +701,18 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	var b strings.Builder
 	kt := c.currentKeyType
 
-	// header line: type + count + filter status (single line, compact)
-	headerLine := " " + NewTypeWord(kt) + " "
+	// header line: colored type badge + count + filter status
+	badge := NewTypeWord(kt)
 	totalCount := len(c.structuredRows)
 	shownCount := len(rows)
+	headerLine := " " + badge + " "
 	if strings.TrimSpace(c.listFilter) != "" {
-		headerLine += "Filter: \"" + c.listFilter + "\" → " + strconv.Itoa(shownCount) + "/" + strconv.Itoa(totalCount) + " "
+		headerLine += NewColorString("Filter: \""+c.listFilter+"\" → "+strconv.Itoa(shownCount)+"/"+strconv.Itoa(totalCount), "yellow", "", "bold") + " "
 	} else {
-		headerLine += strconv.Itoa(totalCount) + " item(s) "
+		headerLine += NewColorString(strconv.Itoa(totalCount)+" items", "white", "", "bold") + " "
 	}
-	headerLine += "| ↑/↓ select  ←/→ page  </> filter  <Enter> expand  <a>/<e>/<d> CRUD"
+	keyHint := NewColorString("↑/↓ select  ←/→ page  </>filter  <Enter>expand  <a>/<e>/<d> CRUD", "cyan", "", "")
+	headerLine += keyHint
 	b.WriteString(truncateByDisplayWidth(headerLine, viewW) + "\n")
 
 	// separator
@@ -720,31 +720,29 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	b.WriteString(sep + "\n")
 
 	if len(c.structuredRows) == 0 {
-		b.WriteString(" (empty — press <a> to add)\n")
+		b.WriteString(NewColorString(" (empty — press <a> to add)", "yellow", "", "bold") + "\n")
 		return b.String()
 	}
 	if len(rows) == 0 {
-		b.WriteString(" No rows match filter.\n Press <x> to clear or </> to update.\n")
+		b.WriteString(NewColorString(" No rows match filter.", "yellow", "", "bold") + "\n")
+		b.WriteString(" Press <x> to clear or </> to update.\n")
 		return b.String()
 	}
 
 	// Determine column layout based on key type
 	cols := c.getColumnLayout(kt, viewW)
 
-	// header
+	// column header — dim cyan
 	b.WriteString(c.renderColumnHeader(cols))
 	b.WriteString(sep + "\n")
 
 	// calculate visible row window
-	// Reserve: 1 header + 1 separator + 1 column-header + 1 separator + 1 detail-separator + detail lines
 	detailLines := c.getDetailPaneHeight(viewH, rows)
-	// fixed overhead: 2 (header+sep) + 2 (col-header+sep) + 1 (detail-sep) = 5
 	tableHeight := viewH - 5 - detailLines
 	if tableHeight < 3 {
 		tableHeight = 3
 	}
 
-	// adjust scrollOffset so selectedRow is always visible
 	c.adjustScrollOffset(len(rows), tableHeight)
 	start := c.scrollOffset
 	end := start + tableHeight
@@ -754,15 +752,18 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 
 	for i := start; i < end; i++ {
 		row := rows[i]
-		prefix := " "
-		if i == c.selectedRow {
-			prefix = ">"
-		}
-		b.WriteString(c.renderRowLine(prefix, i, row, cols))
+		isSelected := i == c.selectedRow
+		b.WriteString(c.renderRowLine(isSelected, i, row, cols))
 	}
 
-	// detail pane
+	// detail pane separator
 	b.WriteString(sep + "\n")
+	if c.selectedRow < 0 || c.selectedRow >= len(rows) {
+		c.selectedRow = 0
+	}
+	if len(rows) == 0 {
+		return b.String()
+	}
 	selected := rows[c.selectedRow]
 	b.WriteString(c.renderDetailPane(selected, kt, viewW, detailLines))
 	return b.String()
@@ -859,15 +860,21 @@ func (c *LTRKeyInfoDetailComponent) renderColumnHeader(cols []columnDef) string 
 		if i > 0 {
 			b.WriteString(" ")
 		}
-		b.WriteString(padRightDisplayWidth(col.header, col.width))
+		header := padRightDisplayWidth(col.header, col.width)
+		b.WriteString(NewColorString(header, "cyan", "", ""))
 	}
 	b.WriteString("\n")
 	return b.String()
 }
 
-func (c *LTRKeyInfoDetailComponent) renderRowLine(prefix string, idx int, row keyDetailRow, cols []columnDef) string {
+func (c *LTRKeyInfoDetailComponent) renderRowLine(selected bool, idx int, row keyDetailRow, cols []columnDef) string {
 	var b strings.Builder
-	b.WriteString(prefix)
+	// Selection indicator: "▶" for selected, " " for unselected
+	if selected {
+		b.WriteString(NewColorString("▶", "green", "", "bold"))
+	} else {
+		b.WriteString(" ")
+	}
 	b.WriteString(" ")
 	for i, col := range cols {
 		if i > 0 {
@@ -876,7 +883,14 @@ func (c *LTRKeyInfoDetailComponent) renderRowLine(prefix string, idx int, row ke
 		val := col.getValue(row, idx)
 		val = strings.ReplaceAll(val, "\n", " ⏎ ")
 		val = strings.ReplaceAll(val, "\r", "")
-		b.WriteString(padRightDisplayWidth(truncateByDisplayWidth(val, col.width), col.width))
+		val = truncateByDisplayWidth(val, col.width)
+		padded := padRightDisplayWidth(val, col.width)
+		if selected {
+			// Highlight selected row with cyan background
+			b.WriteString(NewColorString(padded, "black", "cyan", "bold"))
+		} else {
+			b.WriteString(padded)
+		}
 	}
 	b.WriteString("\n")
 	return b.String()
@@ -885,6 +899,9 @@ func (c *LTRKeyInfoDetailComponent) renderRowLine(prefix string, idx int, row ke
 func (c *LTRKeyInfoDetailComponent) getDetailPaneHeight(viewH int, rows []keyDetailRow) int {
 	if len(rows) == 0 {
 		return 0
+	}
+	if c.selectedRow < 0 || c.selectedRow >= len(rows) {
+		c.selectedRow = 0
 	}
 	selected := rows[c.selectedRow]
 	valLines := len(strings.Split(selected.Value, "\n"))
@@ -907,42 +924,42 @@ func (c *LTRKeyInfoDetailComponent) getDetailPaneHeight(viewH int, rows []keyDet
 
 func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType string, viewW int, maxLines int) string {
 	var b strings.Builder
-	// label line
-	label := "▸ "
+	// label line with colored type-specific prefix
+	label := ""
 	switch keyType {
 	case "list":
-		label += "Index " + strconv.Itoa(row.Index)
+		label = NewColorString("Index ", "cyan", "", "") + strconv.Itoa(row.Index)
 	case "hash":
-		label += "Field: " + row.Field
+		label = NewColorString("Field: ", "cyan", "", "") + row.Field
 	case "zset":
-		label += "Score: " + row.Score + "  Value: " + truncateByDisplayWidth(row.Value, 40)
+		label = NewColorString("Score: ", "cyan", "", "") + row.Score + NewColorString("  Value: ", "cyan", "", "") + truncateByDisplayWidth(row.Value, 40)
 	case "stream":
-		label += "ID: " + row.Field
+		label = NewColorString("ID: ", "cyan", "", "") + row.Field
 	case "set":
-		label += "#" + strconv.Itoa(row.Index)
+		label = NewColorString("#", "cyan", "", "") + strconv.Itoa(row.Index)
 	}
-	label += "  [" + strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(c.getActiveSelectionRows())) + "]"
+	posInfo := NewColorString("  ["+strconv.Itoa(c.selectedRow+1)+"/"+strconv.Itoa(len(c.getActiveSelectionRows()))+"]", "yellow", "", "")
+	label += posInfo
 	if c.detailExpanded {
-		label += "  (Enter to collapse)"
+		label += NewColorString("  (Enter to collapse)", "green", "", "")
 	} else {
-		label += "  (Enter to expand)"
+		label += NewColorString("  (Enter to expand)", "green", "", "")
 	}
 	b.WriteString(truncateByDisplayWidth(label, viewW) + "\n")
 
 	val := row.Value
 	if c.detailExpanded {
-		// show full value, line by line
 		lines := strings.Split(val, "\n")
 		for i, line := range lines {
 			if i >= maxLines-1 {
 				remaining := len(lines) - i
-				b.WriteString(fmt.Sprintf("  ... (%d more lines)\n", remaining))
+				b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines)", remaining), "yellow", "", ""))
+				b.WriteString("\n")
 				break
 			}
 			b.WriteString("  " + line + "\n")
 		}
 	} else {
-		// collapsed: single-line preview
 		preview := strings.ReplaceAll(val, "\n", " ⏎ ")
 		preview = strings.ReplaceAll(preview, "\r", "")
 		b.WriteString("  " + truncateByDisplayWidth(preview, viewW-2) + "\n")

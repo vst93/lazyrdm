@@ -377,9 +377,17 @@ func splitRedisCommand(cmd string) []string {
 	var current strings.Builder
 	inQuotes := false
 	quoteChar := byte(' ')
+	escaped := false
 	for i := 0; i < len(cmd); i++ {
 		ch := cmd[i]
+		if escaped {
+			current.WriteByte(ch)
+			escaped = false
+			continue
+		}
 		switch {
+		case ch == '\\' && inQuotes:
+			escaped = true
 		case ch == '"' || ch == '\'':
 			if !inQuotes {
 				inQuotes = true
