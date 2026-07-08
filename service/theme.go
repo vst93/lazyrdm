@@ -63,6 +63,3 @@ var (
 
 // NewColorString 选中色统一用 cyan（替代 blue）
 // 为了向后兼容，保留 "blue" 映射但实际输出 cyan
-func themeSelColorString(text string) string {
-	return NewColorString(text, "black", "cyan", "bold")
-}

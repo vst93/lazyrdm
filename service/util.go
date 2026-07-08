@@ -41,7 +41,7 @@ func IsNormalChar(r rune) bool {
 	return false
 }
 
-// DisposeMultibyteString 处理多字节字符
+// DisposeMultibyteString 处理多字节字符 — DEPRECATED/UNUSED, kept for potential future use
 func DisposeMultibyteString(text string) []byte {
 	if len(text) == 0 {
 		return []byte("")

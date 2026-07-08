@@ -203,7 +203,6 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	// theVal = string(theValRune)
 	// theVal = text.TrimSpace(theVal)
 	c.CopyString = theVal
-	// c.view.Write(DisposeMultibyteString(theVal))
 	c.view.Write([]byte(theVal))
 
 	// show format select

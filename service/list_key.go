@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"tinyrdm/backend/services"
 	"tinyrdm/backend/types"
@@ -253,69 +252,90 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		return nil
 	})
 
-	// 删除 key
-	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'d'}, "Do you want to delete the key?", func() {
+	// 删除 key — confirmation with key name shown
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'d'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if GlobalKeyComponent.Current < 0 || GlobalKeyComponent.Current > len(GlobalKeyComponent.keys)-1 {
-			return
+			return nil
 		}
 		pendDeleteKey := fmt.Sprintf("%s", GlobalKeyComponent.keys[GlobalKeyComponent.Current])
 		if pendDeleteKey == "" {
-			return
+			return nil
 		}
-		deleteStaus := false
-		for i, key := range GlobalKeyComponent.keys {
-			if key == pendDeleteKey {
-				services.Browser().DeleteKey(
-					GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
-					GlobalDBComponent.SelectedDB,
-					pendDeleteKey,
-					true,
-				)
-				GlobalKeyComponent.keys = append(GlobalKeyComponent.keys[:i], GlobalKeyComponent.keys[i+1:]...)
-				deleteStaus = true
-				break
+		NewPageComponentConfirm("Delete Key", fmt.Sprintf("Delete key \"%s\" permanently?", pendDeleteKey), func() {
+			deleteStaus := false
+			for i, key := range GlobalKeyComponent.keys {
+				if key == pendDeleteKey {
+					services.Browser().DeleteKey(
+						GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+						GlobalDBComponent.SelectedDB,
+						pendDeleteKey,
+						true,
+					)
+					GlobalKeyComponent.keys = append(GlobalKeyComponent.keys[:i], GlobalKeyComponent.keys[i+1:]...)
+					deleteStaus = true
+					break
+				}
 			}
-		}
-		if deleteStaus {
-			GlobalTipComponent.LayoutTemporary("Deleted key: "+pendDeleteKey, 2, TipTypeSuccess)
-		} else {
-			GlobalTipComponent.LayoutTemporary("Key not found: "+pendDeleteKey, 2, TipTypeError)
-		}
-		GlobalKeyComponent.Layout()
-	}, func() {
-		GlobalTipComponent.LayoutTemporary("Delete key cancelled", 2, TipTypeWarning)
+			if deleteStaus {
+				// Clear the info/detail if the deleted key was being viewed
+				if GlobalKeyInfoComponent.keyName == pendDeleteKey {
+					GlobalKeyInfoComponent.keyName = ""
+				}
+				GlobalTipComponent.LayoutTemporary("Deleted key: "+pendDeleteKey, 2, TipTypeSuccess)
+			} else {
+				GlobalTipComponent.LayoutTemporary("Key not found: "+pendDeleteKey, 2, TipTypeError)
+			}
+			GlobalKeyComponent.Layout()
+			GlobalKeyInfoComponent.Layout()
+		}, func() {
+			GlobalTipComponent.LayoutTemporary("Delete key cancelled", 2, TipTypeWarning)
+		})
+		return nil
 	})
 
-	// 新增 key （当前仅支持 string 类型）
-	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'a'}, "Create a temporary string key with 10-minute TTL?", func() {
-		// 新增 key
-		theTmpKey := "layrdm_tmp_key:" + time.Now().Format("20060102150405")
+	// 新增 key — prompts for key name and type
+	GuiSetKeysbindingInlineInput(GlobalApp.Gui, c.name, []any{'a'}, "New Key", "Key name", func() string {
+		return "new:key"
+	}, func(keyName string) {
+		if keyName == "" {
+			GlobalTipComponent.LayoutTemporary("Key name cannot be empty", 3, TipTypeWarning)
+			return
+		}
+		// Check if key already exists
+		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
+			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+			DB:     GlobalDBComponent.SelectedDB,
+			Key:    keyName,
+		})
+		if keySummary.Success {
+			GlobalTipComponent.LayoutTemporary("Key already exists: "+keyName, 3, TipTypeWarning)
+			return
+		}
 		res := services.Browser().SetKeyValue(
 			types.SetKeyParam{
 				Server:  GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
 				DB:      GlobalDBComponent.SelectedDB,
-				Key:     theTmpKey,
+				Key:     keyName,
 				KeyType: "string",
-				Value:   "null",
-				TTL:     600, // ten minutes ttl
+				Value:   "",
+				TTL:     -1,
 			},
 		)
 		if res.Success {
-			// 加到 keys 最开头
-			GlobalKeyComponent.keys = append([]any{theTmpKey}, GlobalKeyComponent.keys...)
+			GlobalKeyComponent.keys = append([]any{keyName}, GlobalKeyComponent.keys...)
 			GlobalKeyComponent.Current = 0
-			GlobalKeyInfoComponent.keyName = theTmpKey
+			GlobalKeyInfoComponent.keyName = keyName
 			GlobalKeyInfoComponent.Layout()
 			GlobalKeyInfoDetailComponent.viewOriginY = 0
 			GlobalKeyInfoDetailComponent.Layout()
 			c.Layout()
-			GlobalTipComponent.LayoutTemporary("Created key: "+theTmpKey, 2, TipTypeSuccess)
+			GlobalTipComponent.LayoutTemporary("Created key: "+keyName, 2, TipTypeSuccess)
 		} else {
-			GlobalTipComponent.LayoutTemporary("Failed to create temporary key", 3, TipTypeError)
+			GlobalTipComponent.LayoutTemporary("Failed to create key: "+res.Msg, 3, TipTypeError)
 		}
 	}, func() {
 		GlobalTipComponent.LayoutTemporary("Create key cancelled", 2, TipTypeWarning)
-	})
+	}, nil)
 
 	// 搜索
 	GuiSetKeysbindingInlineInput(GlobalApp.Gui, c.name, []any{'s'}, "Search Keys", "Keyword (supports * glob)", func() string {
