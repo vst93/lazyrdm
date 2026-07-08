@@ -1388,19 +1388,19 @@ func (c *LTRKeyInfoDetailComponent) openTypeOperationDialog(operation, prefillVa
 	})
 }
 
-// openCreateKeyDialog opens a dialog for creating a new Redis key with
-// selectable type (string/list/hash/set/zset/stream). Only string type
-// accepts an initial value; collection types are created with a placeholder
-// item that can be edited afterwards via <e>/<a>.
+// openCreateKeyDialog opens a dialog for creating a new Redis key.
+// Fields: Key Name + Type selector + Value (used by string/list/set,
+// ignored for hash/zset/stream which use placeholders).
 func (c *LTRKeyInfoDetailComponent) openCreateKeyDialog() {
 	keyTypes := []string{"string", "list", "hash", "set", "zset", "stream"}
 	schema := keyOpDialogSchema{
 		Title:       "Create Key",
-		Description:  "Enter key name and select type",
+		Description:  "Enter key name, select type, and optional value",
 		ReturnView:  GlobalKeyComponent.name,
 		Fields: []keyOpDialogField{
 			{Label: "Key Name", Placeholder: "new:key", Value: "new:key"},
 			{Label: "Type", SelectOpts: keyTypes, Value: "string"},
+			{Label: "Value", Placeholder: "(string/list/set, empty=placeholder)"},
 		},
 	}
 	_ = c.showKeyOpDialog(schema, func(values map[string]string) error {
@@ -1421,8 +1421,8 @@ func (c *LTRKeyInfoDetailComponent) openCreateKeyDialog() {
 		if keySummary.Success {
 			return fmt.Errorf("key already exists: %s", keyName)
 		}
-		// Build placeholder value by type
-		value := buildCreateKeyValue(keyType)
+		valStr := values["Value"]
+		value := buildCreateKeyValue(keyType, valStr)
 		res := services.Browser().SetKeyValue(
 			types.SetKeyParam{
 				Server:  GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
@@ -1450,24 +1450,31 @@ func (c *LTRKeyInfoDetailComponent) openCreateKeyDialog() {
 	})
 }
 
-// buildCreateKeyValue returns a minimal placeholder value for each key type.
-// string -> empty string, collections -> single placeholder element.
-func buildCreateKeyValue(keyType string) any {
+// buildCreateKeyValue builds the value for SetKeyValue based on key type.
+// string/list/set use valStr if provided; hash/zset/stream use placeholders.
+// Backend expects: string→string, collections→[]any flat array.
+func buildCreateKeyValue(keyType, valStr string) any {
 	switch keyType {
 	case "string":
-		return ""
+		return valStr
 	case "list":
-		return []any{""}
-	case "hash":
-		return []map[string]any{{"field": "field", "value": ""}}
+		return []any{valStr} // LPush single item
 	case "set":
-		return []string{"member"}
+		if strings.TrimSpace(valStr) == "" {
+			return []any{"member"}
+		}
+		return []any{valStr} // SAdd single member
+	case "hash":
+		// HSet needs [field, value] pairs
+		return []any{"field", ""} // placeholder, edit via <a> afterwards
 	case "zset":
-		return []map[string]any{{"value": "member", "score": 0}}
+		// ZAdd needs [member, score] pairs (score as string)
+		return []any{"member", "0"} // placeholder
 	case "stream":
-		return map[string]any{"id": "*", "field": "field", "value": ""}
+		// XAdd needs [id, field, value, ...]
+		return []any{"*", "field", ""} // placeholder
 	default:
-		return ""
+		return valStr
 	}
 }
 
