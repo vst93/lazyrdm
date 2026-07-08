@@ -709,7 +709,7 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	var b strings.Builder
 	kt := c.currentKeyType
 
-	// header line: colored type badge + count + filter status
+	// Header line 1: type badge + count + filter status + scroll indicator
 	badge := NewTypeWord(kt)
 	totalCount := len(c.structuredRows)
 	shownCount := len(rows)
@@ -719,9 +719,11 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	} else {
 		headerLine += NewColorString(strconv.Itoa(totalCount)+" items", "white", "", "bold") + " "
 	}
-	keyHint := NewColorString("↑/↓ select  ←/→ page  </>filter  <Enter>expand  <a>/<e>/<d> CRUD", "cyan", "", "")
-	headerLine += keyHint
 	b.WriteString(truncateByDisplayWidth(headerLine, viewW) + "\n")
+
+	// Header line 2: key hints (full, not truncated)
+	hintLine := NewColorString("</>filter  <Enter>expand  <a>add  <e>edit  <d>del  <x>clear  <f>fmt  <c>copy  <r>refresh", "cyan", "", "")
+	b.WriteString(truncateByDisplayWidth(" "+hintLine, viewW) + "\n")
 
 	// separator
 	sep := strings.Repeat("─", viewW)
@@ -744,9 +746,24 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	b.WriteString(c.renderColumnHeader(cols))
 	b.WriteString(sep + "\n")
 
-	// calculate visible row window
+	// Calculate layout: fixed overhead = 2 (header lines) + 2 (col header + sep) + 1 (detail sep)
+	// Plus 1 line for scroll indicator when rows exceed visible window.
+	// Reserve at least 40% of view for the table, at least 3 lines for detail
 	detailLines := c.getDetailPaneHeight(viewH, rows)
 	tableHeight := viewH - 5 - detailLines
+	// Account for scroll indicator line
+	if len(rows) > tableHeight {
+		tableHeight--
+	}
+	// Ensure detail pane doesn't eat more than 50% of the view
+	maxDetail := viewH / 2
+	if detailLines > maxDetail {
+		detailLines = maxDetail
+		tableHeight = viewH - 5 - detailLines
+		if len(rows) > tableHeight {
+			tableHeight--
+		}
+	}
 	if tableHeight < 3 {
 		tableHeight = 3
 	}
@@ -762,6 +779,25 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 		row := rows[i]
 		isSelected := i == c.selectedRow
 		b.WriteString(c.renderRowLine(isSelected, i, row, cols))
+	}
+
+	// Scroll position indicator (only show if there are more rows than visible)
+	if len(rows) > tableHeight {
+		scrollInfo := ""
+		if start == 0 {
+			scrollInfo = fmt.Sprintf(" [%d-%d/%d ↓]", start+1, end, len(rows))
+		} else if end == len(rows) {
+			scrollInfo = fmt.Sprintf(" [%d-%d/%d ↑]", start+1, end, len(rows))
+		} else {
+			scrollInfo = fmt.Sprintf(" [%d-%d/%d ↕]", start+1, end, len(rows))
+		}
+		scrollInfo = NewColorString(scrollInfo, "yellow", "", "")
+		// Right-pad the line to fill width
+		padLen := viewW - DisplayWidth(scrollInfo)
+		if padLen > 0 {
+			scrollInfo += strings.Repeat(" ", padLen)
+		}
+		b.WriteString(truncateByDisplayWidth(scrollInfo, viewW) + "\n")
 	}
 
 	// detail pane separator
