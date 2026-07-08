@@ -455,19 +455,20 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.renderFromCache()
 		return nil
 	})
-	// Scroll detail pane content with Ctrl+Up/Down (gocui strips ModShift from char keys,
-	// but Ctrl modifier is preserved for non-character keys like arrows).
-	// Actually gocui strips Ctrl too for arrows. Let's use PgUp/PgDn for detail scroll.
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyPgup}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// Scroll detail pane content with Shift+↑/↓
+	// Note: gocui only strips ModShift from character keys (rune), not from
+	// arrow key codes. So Shift+ArrowUp/Down preserves ModShift and can be
+	// matched with ModShift binding.
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isStructuredType() {
-			c.scrollDetailPane(-5)
+			c.scrollDetailPane(-1)
 			return nil
 		}
 		return nil
 	})
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyPgdn}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isStructuredType() {
-			c.scrollDetailPane(5)
+			c.scrollDetailPane(1)
 			return nil
 		}
 		return nil
@@ -628,7 +629,7 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Scroll/Select", "↑/↓/j/k"},
 		{"Scroll Page/Jump", "←/->/h/l"},
-		{"Scroll Detail", "PgUp/PgDn"},
+		{"Scroll Detail", "Shift+↑/↓"},
 		{"Expand Detail", "<Enter>"},
 		{"Filter", "</>/<x>"},
 		{"Switch Format", "<f>"},
@@ -749,6 +750,12 @@ func (c *LTRKeyInfoDetailComponent) renderFromCache() {
 	c.CopyString = theVal
 	c.view.Write([]byte(theVal))
 	c.view.SetOrigin(0, c.viewOriginY)
+	// Update format indicator
+	if formatSelectView, err := GlobalApp.Gui.View("key_value_format"); err == nil {
+		formatSelectView.Clear()
+		formatSelectView.Write([]byte(" Format: " + c.keyValueFormat + " "))
+		GlobalApp.Gui.SetViewOnTop("key_value_format")
+	}
 }
 
 // buildStructuredSubtitle generates the subtitle string for structured detail mode.
@@ -1179,10 +1186,10 @@ func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType s
 		b.WriteString("  " + allLines[i] + "\n")
 	}
 	if end < len(allLines) {
-		b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines, PgUp/PgDn to scroll)", len(allLines)-end), "yellow", "", "") + "\n")
+		b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines, Shift+↑/↓ to scroll)", len(allLines)-end), "yellow", "", "") + "\n")
 	}
 	if start > 0 {
-		b.WriteString(NewColorString("  ... (PgUp to scroll up)", "yellow", "", "") + "\n")
+		b.WriteString(NewColorString("  ... (Shift+↑ to scroll up)", "yellow", "", "") + "\n")
 	}
 	return b.String()
 }
