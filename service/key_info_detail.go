@@ -175,19 +175,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	if maxLine > 0 {
 		subtitle := ""
 		if len(c.structuredRows) > 0 {
-			rows := c.getActiveSelectionRows()
-			subtitle += " Row: "
-			if len(rows) == 0 {
-				subtitle += "0/0 "
-			} else {
-				subtitle += strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(rows)) + " "
-			}
-			if strings.TrimSpace(c.listFilter) != "" {
-				subtitle += "Filtered:" + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + " "
-			}
-			if c.detailExpanded {
-				subtitle += "[Expanded] "
-			}
+			subtitle = c.buildStructuredSubtitle()
 		} else {
 			subtitle = " Lines: " + strconv.Itoa(maxLine) + " "
 		}
@@ -656,33 +644,36 @@ func (c *LTRKeyInfoDetailComponent) renderFromCache() {
 	c.applyListFilter()
 	c.normalizeSelectedRow()
 	theVal := c.renderStructuredRows()
-
-	// update subtitle
-	rows := c.getActiveSelectionRows()
-	if len(c.structuredRows) > 0 {
-		subtitle := " Row: "
-		if len(rows) == 0 {
-			subtitle += "0/0 "
-		} else {
-			subtitle += strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(rows)) + " "
-		}
-		if strings.TrimSpace(c.listFilter) != "" {
-			subtitle += " Filtered:" + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + " "
-		}
-		if c.detailExpanded {
-			subtitle += " [Expanded] "
-		}
-		if c.currentKeyType != "" {
-			subtitle = " " + c.currentKeyType + " " + subtitle
-		}
-		c.view.Subtitle = subtitle
-	} else {
-		c.view.Subtitle = ""
-	}
-	c.CopyString = theVal
+	c.view.Subtitle = c.buildStructuredSubtitle()
 	c.view.Clear()
+	c.CopyString = theVal
 	c.view.Write([]byte(theVal))
-	c.view.SetOrigin(0, 0)
+	c.view.SetOrigin(0, c.viewOriginY)
+	if CurrentViewName() == c.name && GlobalTipComponent != nil {
+		GlobalTipComponent.Layout(c.KeyMapTip())
+	}
+}
+
+// buildStructuredSubtitle generates the subtitle string for structured detail mode.
+// Shared between Layout() and renderFromCache() to avoid duplication.
+func (c *LTRKeyInfoDetailComponent) buildStructuredSubtitle() string {
+	rows := c.getActiveSelectionRows()
+	subtitle := " Row: "
+	if len(rows) == 0 {
+		subtitle += "0/0 "
+	} else {
+		subtitle += strconv.Itoa(c.selectedRow+1) + "/" + strconv.Itoa(len(rows)) + " "
+	}
+	if strings.TrimSpace(c.listFilter) != "" {
+		subtitle += "Filtered:" + strconv.Itoa(len(rows)) + "/" + strconv.Itoa(len(c.structuredRows)) + " "
+	}
+	if c.detailExpanded {
+		subtitle += "[Expanded] "
+	}
+	if c.currentKeyType != "" {
+		subtitle = " " + c.currentKeyType + " " + subtitle
+	}
+	return subtitle
 }
 
 // renderStructuredRows is the unified renderer for all collection types

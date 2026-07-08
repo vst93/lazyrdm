@@ -209,6 +209,17 @@ func (c *PageComponentConsole) KeyBind() *PageComponentConsole {
 		c.scrollOutput(3)
 		return nil
 	})
+	// Page up/down for faster scrolling
+	GuiSetKeysbinding(GlobalApp.Gui, c.name+"_output", []any{gocui.KeyPgup, gocui.KeyCtrlB}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		_, vh := v.Size()
+		c.scrollOutput(-vh)
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, c.name+"_output", []any{gocui.KeyPgdn, gocui.KeyCtrlF}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		_, vh := v.Size()
+		c.scrollOutput(vh)
+		return nil
+	})
 
 	// Tab to switch between input and output
 	GuiSetKeysbinding(GlobalApp.Gui, c.name+"_input", []any{gocui.KeyTab}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
