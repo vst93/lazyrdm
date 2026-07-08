@@ -737,13 +737,18 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	// Layout calculation:
 	// Fixed overhead = 1 (hint) + 1 (sep) + 1 (col header) + 1 (sep) + 1 (detail sep) = 5
 	// Plus 1 line for scroll indicator when rows exceed visible window.
-	// Table gets at least 40% of view, detail gets at most 40% of view.
+	// Table gets at most 55% of view, detail gets at least 30% of view.
 	detailLines := c.getDetailPaneHeight(viewH, rows)
-	// Hard cap detail at 40% of view to preserve table browsing space
-	maxDetail := viewH * 2 / 5
-	if maxDetail < 3 {
-		maxDetail = 3
+	// Ensure detail pane has a reasonable minimum (30% of view)
+	minDetail := viewH * 3 / 10
+	if minDetail < 4 {
+		minDetail = 4
 	}
+	if detailLines < minDetail {
+		detailLines = minDetail
+	}
+	// Also cap detail at 50% so table still has room
+	maxDetail := viewH / 2
 	if detailLines > maxDetail {
 		detailLines = maxDetail
 	}
