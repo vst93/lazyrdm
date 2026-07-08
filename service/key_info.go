@@ -50,6 +50,9 @@ func (c *LTRKeyInfoComponent) LayoutTitle() *LTRKeyInfoComponent {
 }
 
 func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
+	if GlobalDBComponent == nil || GlobalDBComponent.view == nil {
+		return c
+	}
 	theX0, _ := GlobalDBComponent.view.Size()
 	theX0 = theX0 + 2
 	var err error

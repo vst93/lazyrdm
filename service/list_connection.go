@@ -351,23 +351,8 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			return nil
 		}
 		cur := c.currentFlatItem()
-		if cur != nil && !cur.isGroup {
-			// 在当前组内新建连接
-			c.closeView()
-			connectionComponent := InitConnectionEditComponent(types.Connection{
-				ConnectionConfig: types.ConnectionConfig{
-					Group: c.ConnectionList[cur.groupIdx].Name,
-					Port:  6379,
-					SSH: types.ConnectionSSH{
-						Enable:    false,
-						LoginType: "pwd",
-						Port:      22,
-					},
-				},
-			})
-			connectionComponent.Layout()
-		} else if cur != nil && cur.isGroup {
-			// 在当前组内新建连接
+		if cur != nil {
+			// New connection in the current group (works for both group and connection cursor)
 			c.closeView()
 			connectionComponent := InitConnectionEditComponent(types.Connection{
 				ConnectionConfig: types.ConnectionConfig{
@@ -382,7 +367,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 			})
 			connectionComponent.Layout()
 		} else {
-			// 没有选中任何东西，新建组
+			// Nothing selected — new group
 			c.closeView()
 			connectionComponent := InitConnectionEditComponent(types.Connection{
 				Type: "group",

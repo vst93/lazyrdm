@@ -83,6 +83,9 @@ func (c *LTRListKeyComponent) LoadKeys() *LTRListKeyComponent {
 }
 
 func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
+	if GlobalDBComponent == nil || GlobalDBComponent.view == nil {
+		return c
+	}
 	_, theDBComponentH := GlobalDBComponent.view.Size()
 	var err error
 	// 列表

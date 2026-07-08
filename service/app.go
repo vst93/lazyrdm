@@ -117,6 +117,67 @@ func (app *MainApp) ForceUpdate(setViewName string) {
 	GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil })
 }
 
+// layoutCurrentView renders all components for the current view.
+// fullLayout=true: call Layout() on main components (used by LayoutManager/resize).
+// fullLayout=false: call LayoutTitle() only (used by applyViewLayout for tab switch).
+func (app *MainApp) layoutCurrentView(fullLayout bool) {
+	currentViewName := CurrentViewName()
+	if currentViewName == "" {
+		return
+	}
+	switch currentViewName {
+	case "page_help":
+		if GlobalHelpPageComponent != nil {
+			GlobalHelpPageComponent.Layout()
+		}
+		return
+	case "page_server_info":
+		if GlobalServerInfoPageComponent != nil {
+			GlobalServerInfoPageComponent.Layout()
+		}
+		return
+	case "page_console":
+		if GlobalConsoleComponent != nil {
+			GlobalConsoleComponent.Layout()
+		}
+		return
+	case "page_confirm":
+		return
+	case "connection_list":
+		if GlobalConnectionComponent != nil {
+			GlobalConnectionComponent.Layout()
+		}
+		if GlobalTipComponent != nil {
+			GlobalTipComponent.LayComponentTips()
+		}
+		return
+	}
+	// Default: connected state — render DB/Key/Info/Detail
+	if GlobalDBComponent != nil {
+		GlobalDBComponent.Layout()
+	}
+	if GlobalKeyComponent != nil {
+		GlobalKeyComponent.Layout()
+	}
+	if GlobalKeyInfoComponent != nil {
+		if fullLayout {
+			GlobalKeyInfoComponent.Layout()
+		} else {
+			GlobalKeyInfoComponent.LayoutTitle()
+		}
+	}
+	if GlobalKeyInfoDetailComponent != nil {
+		if fullLayout {
+			GlobalKeyInfoDetailComponent.Layout()
+		} else {
+			GlobalKeyInfoDetailComponent.LayoutTitle()
+		}
+	}
+	if GlobalTipComponent != nil {
+		GlobalTipComponent.LayComponentTips()
+	}
+}
+
 func (app *MainApp) applyViewLayout(setViewName string, setCurrent bool) {
 	if setViewName == "" {
 		return
@@ -126,28 +187,7 @@ func (app *MainApp) applyViewLayout(setViewName string, setCurrent bool) {
 			return
 		}
 	}
-	switch setViewName {
-	case "connection_list":
-		if GlobalConnectionComponent != nil {
-			GlobalConnectionComponent.Layout()
-		}
-	default:
-		if GlobalDBComponent != nil {
-			GlobalDBComponent.Layout()
-		}
-		if GlobalKeyComponent != nil {
-			GlobalKeyComponent.Layout()
-		}
-		if GlobalKeyInfoComponent != nil {
-			GlobalKeyInfoComponent.LayoutTitle()
-		}
-		if GlobalKeyInfoDetailComponent != nil {
-			GlobalKeyInfoDetailComponent.LayoutTitle()
-		}
-	}
-	if GlobalTipComponent != nil {
-		GlobalTipComponent.LayComponentTips()
-	}
+	app.layoutCurrentView(false)
 }
 
 func (app *MainApp) LayoutManager(g *gocui.Gui) error {
@@ -168,47 +208,7 @@ func (app *MainApp) LayoutManager(g *gocui.Gui) error {
 		return nil
 	}
 
-	currentViewName := CurrentViewName()
-	if currentViewName == "" {
-		return nil
-	}
-
-	switch currentViewName {
-	case "page_help":
-		if GlobalHelpPageComponent != nil {
-			GlobalHelpPageComponent.Layout()
-		}
-	case "page_server_info":
-		if GlobalServerInfoPageComponent != nil {
-			GlobalServerInfoPageComponent.Layout()
-		}
-	case "page_console":
-		if GlobalConsoleComponent != nil {
-			GlobalConsoleComponent.Layout()
-		}
-	case "page_confirm":
-		return nil
-	case "connection_list":
-		if GlobalConnectionComponent != nil {
-			GlobalConnectionComponent.Layout()
-		}
-	default:
-		if GlobalDBComponent != nil {
-			GlobalDBComponent.Layout()
-		}
-		if GlobalKeyComponent != nil {
-			GlobalKeyComponent.Layout()
-		}
-		if GlobalKeyInfoComponent != nil {
-			GlobalKeyInfoComponent.Layout()
-		}
-		if GlobalKeyInfoDetailComponent != nil {
-			GlobalKeyInfoDetailComponent.Layout()
-		}
-		if GlobalTipComponent != nil {
-			GlobalTipComponent.LayComponentTips()
-		}
-	}
+	app.layoutCurrentView(true)
 	return nil
 }
 
@@ -248,46 +248,7 @@ func (app *MainApp) StartResizeWatcher() {
 }
 
 func (app *MainApp) relayoutCurrentViewOnResize() {
-	currentViewName := CurrentViewName()
-	if currentViewName == "" {
-		return
-	}
-	switch currentViewName {
-	case "page_help":
-		if GlobalHelpPageComponent != nil {
-			GlobalHelpPageComponent.Layout()
-		}
-	case "page_server_info":
-		if GlobalServerInfoPageComponent != nil {
-			GlobalServerInfoPageComponent.Layout()
-		}
-	case "page_console":
-		if GlobalConsoleComponent != nil {
-			GlobalConsoleComponent.Layout()
-		}
-	case "page_confirm":
-		return
-	case "connection_list":
-		if GlobalConnectionComponent != nil {
-			GlobalConnectionComponent.Layout()
-		}
-	default:
-		if GlobalDBComponent != nil {
-			GlobalDBComponent.Layout()
-		}
-		if GlobalKeyComponent != nil {
-			GlobalKeyComponent.Layout()
-		}
-		if GlobalKeyInfoComponent != nil {
-			GlobalKeyInfoComponent.Layout()
-		}
-		if GlobalKeyInfoDetailComponent != nil {
-			GlobalKeyInfoDetailComponent.Layout()
-		}
-		if GlobalTipComponent != nil {
-			GlobalTipComponent.LayComponentTips()
-		}
-	}
+	app.layoutCurrentView(true)
 }
 
 func ExitCurrentConnectionToList() {

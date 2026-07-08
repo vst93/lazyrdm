@@ -72,17 +72,27 @@ func InitKeyInfoDetailComponent() {
 }
 
 func (c *LTRKeyInfoDetailComponent) LayoutTitle() *LTRKeyInfoDetailComponent {
-	if c.view != nil && CurrentViewName() == c.name {
+	if c.view == nil {
+		return c
+	}
+	if CurrentViewName() == c.name {
 		c.view.Title = " [" + c.title + "] "
-		c.lineView.FrameColor = gocui.ColorGreen
+		if c.lineView != nil {
+			c.lineView.FrameColor = gocui.ColorGreen
+		}
 	} else {
 		c.view.Title = " " + c.title + " "
-		c.lineView.FrameColor = gocui.ColorDefault
+		if c.lineView != nil {
+			c.lineView.FrameColor = gocui.ColorDefault
+		}
 	}
 	return c
 }
 
 func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
+	if GlobalDBComponent == nil || GlobalDBComponent.view == nil {
+		return c
+	}
 	theX0, _ := GlobalDBComponent.view.Size()
 	theX0 = theX0 + 2
 	var err error
