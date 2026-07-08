@@ -1389,23 +1389,24 @@ func (c *LTRKeyInfoDetailComponent) openTypeOperationDialog(operation, prefillVa
 }
 
 // openCreateKeyDialog opens a dialog for creating a new Redis key with
-// selectable type (string/list/hash/set/zset/stream), key name, and value.
+// selectable type (string/list/hash/set/zset/stream). Only string type
+// accepts an initial value; collection types are created with a placeholder
+// item that can be edited afterwards via <e>/<a>.
 func (c *LTRKeyInfoDetailComponent) openCreateKeyDialog() {
 	keyTypes := []string{"string", "list", "hash", "set", "zset", "stream"}
 	schema := keyOpDialogSchema{
 		Title:       "Create Key",
-		Description:  "Enter key name, select type, and provide initial value",
+		Description:  "Enter key name and select type",
 		ReturnView:  GlobalKeyComponent.name,
 		Fields: []keyOpDialogField{
 			{Label: "Key Name", Placeholder: "new:key", Value: "new:key"},
 			{Label: "Type", SelectOpts: keyTypes, Value: "string"},
-			{Label: "Value", Placeholder: "(empty for string, JSON for collections)"},
 		},
 	}
-	schema.BuildJSON = func(values map[string]string) (string, error) {
+	_ = c.showKeyOpDialog(schema, func(values map[string]string) error {
 		keyName := strings.TrimSpace(values["Key Name"])
 		if keyName == "" {
-			return "", fmt.Errorf("key name is required")
+			return fmt.Errorf("key name is required")
 		}
 		keyType := strings.TrimSpace(values["Type"])
 		if keyType == "" {
@@ -1418,74 +1419,10 @@ func (c *LTRKeyInfoDetailComponent) openCreateKeyDialog() {
 			Key:    keyName,
 		})
 		if keySummary.Success {
-			return "", fmt.Errorf("key already exists: %s", keyName)
+			return fmt.Errorf("key already exists: %s", keyName)
 		}
-
-		// Parse value based on type
-		valStr := values["Value"]
-		var value any
-		if keyType == "string" {
-			value = valStr
-		} else if keyType == "stream" {
-			// Stream always uses the placeholder, ignore user input
-			value = map[string]any{"id": "*", "field": "field", "value": ""}
-		} else if valStr == "" {
-			// Empty collection: create with single empty placeholder item
-			switch keyType {
-			case "list":
-				value = []any{""}
-			case "hash":
-				value = []map[string]any{{"field": "field", "value": ""}}
-			case "set":
-				value = []string{"member"}
-			case "zset":
-				value = []map[string]any{{"value": "member", "score": 0}}
-			}
-		} else {
-			// Try to parse as JSON for collection types
-			parsed, err := parseEditorValueByKeyType(keyType, valStr)
-			if err != nil {
-				return "", fmt.Errorf("invalid value: %s", err.Error())
-			}
-			value = parsed
-		}
-
-		// Build result as a JSON command (not sent to Redis here; sent in onSubmit)
-		obj := map[string]any{"keyName": keyName, "keyType": keyType, "value": value}
-		buf, err := json.Marshal(obj)
-		return string(buf), err
-	}
-	_ = c.showKeyOpDialog(schema, func(values map[string]string) error {
-		// Re-parse values and actually create the key
-		keyName := strings.TrimSpace(values["Key Name"])
-		keyType := strings.TrimSpace(values["Type"])
-		if keyType == "" {
-			keyType = "string"
-		}
-		valStr := values["Value"]
-		var value any
-		if keyType == "string" {
-			value = valStr
-		} else if keyType == "stream" {
-			value = map[string]any{"id": "*", "field": "field", "value": ""}
-		} else if valStr == "" {
-			switch keyType {
-			case "list":
-				value = []any{""}
-			case "hash":
-				value = []map[string]any{{"field": "field", "value": ""}}
-			case "set":
-				value = []string{"member"}
-			case "zset":
-				value = []map[string]any{{"value": "member", "score": 0}}
-			}
-		} else {
-			parsed, err := parseEditorValueByKeyType(keyType, valStr)
-			if err != nil {
-				return fmt.Errorf("invalid value: %s", err.Error())
-			}
-			value = parsed
-		}
+		// Build placeholder value by type
+		value := buildCreateKeyValue(keyType)
 		res := services.Browser().SetKeyValue(
 			types.SetKeyParam{
 				Server:  GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
@@ -1511,6 +1448,27 @@ func (c *LTRKeyInfoDetailComponent) openCreateKeyDialog() {
 		GlobalTipComponent.LayoutTemporary("Created key: "+keyName+" ("+keyType+")", 3, TipTypeSuccess)
 		return nil
 	})
+}
+
+// buildCreateKeyValue returns a minimal placeholder value for each key type.
+// string -> empty string, collections -> single placeholder element.
+func buildCreateKeyValue(keyType string) any {
+	switch keyType {
+	case "string":
+		return ""
+	case "list":
+		return []any{""}
+	case "hash":
+		return []map[string]any{{"field": "field", "value": ""}}
+	case "set":
+		return []string{"member"}
+	case "zset":
+		return []map[string]any{{"value": "member", "score": 0}}
+	case "stream":
+		return map[string]any{"id": "*", "field": "field", "value": ""}
+	default:
+		return ""
+	}
 }
 
 func (c *LTRKeyInfoDetailComponent) buildKeyOpDialogSchema(keyType, operation, prefillValue string) (keyOpDialogSchema, error) {
