@@ -57,6 +57,7 @@ type keyOpDialogField struct {
 	Label       string
 	Placeholder string
 	Value       string
+	SelectOpts  []string // if non-nil, render as a select (←/→ toggle) instead of text input
 }
 
 type keyOpDialogSchema struct {
@@ -1411,9 +1412,9 @@ func (c *LTRKeyInfoDetailComponent) buildKeyOpDialogSchema(keyType, operation, p
 		case "add":
 			base.Title = "List Add"
 			base.Description = "Add new item to list"
-			base.Fields = []keyOpDialogField{{Label: "Position(head/tail)", Placeholder: "tail", Value: "tail"}, {Label: "Value", Placeholder: "item", Value: valueDefault}}
+			base.Fields = []keyOpDialogField{{Label: "Position", SelectOpts: []string{"tail", "head"}, Value: "tail"}, {Label: "Value", Placeholder: "item", Value: valueDefault}}
 			base.BuildJSON = func(values map[string]string) (string, error) {
-				position := strings.TrimSpace(values["Position(head/tail)"])
+				position := strings.TrimSpace(values["Position"])
 				if position == "" {
 					position = "tail"
 				}
@@ -1690,10 +1691,29 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	dlg.Clear()
 	dlg.Wrap = true
 	dlg.Write([]byte(schema.Description + "\n"))
-	dlg.Write([]byte("Tab/↑/↓ switch | Enter submit | Esc cancel\n"))
+	dlg.Write([]byte("Tab/↑/↓ switch | ←/→ toggle | Enter submit | Esc cancel\n"))
 
 	fieldNames := make([]string, 0, len(schema.Fields))
 	fieldLabelToViewName := make(map[string]string, len(schema.Fields))
+	// fieldSelectIdx[i] = current option index for select fields, -1 for text fields
+	fieldSelectIdx := make([]int, len(schema.Fields))
+	fieldSelectOpts := make([][]string, len(schema.Fields))
+
+	// renderSelectField renders a select field view with the current option highlighted
+	renderSelectField := func(fv *gocui.View, opts []string, curIdx int) {
+		fv.Clear()
+		for j, opt := range opts {
+			if j == curIdx {
+				fv.Write([]byte(NewColorString(" ["+opt+"] ", "black", "green", "bold")))
+			} else {
+				fv.Write([]byte(" " + opt + " "))
+			}
+			if j < len(opts)-1 {
+				fv.Write([]byte("/"))
+			}
+		}
+	}
+
 	for i, field := range schema.Fields {
 		fieldViewName := fieldPrefix + strconv.Itoa(i)
 		// Each field starts 3 rows apart: top border, content, bottom border
@@ -1706,15 +1726,30 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		fv.Title = " " + field.Label + " "
 		fv.TitleColor = gocui.ColorCyan
 		fv.Clear()
-		// Don't write placeholder into the buffer — it would become the
-		// submitted value. Only actual field.Value goes into the buffer.
-		val := strings.TrimSpace(field.Value)
-		if val != "" {
-			fv.Write([]byte(val))
+
+		if len(field.SelectOpts) > 0 {
+			// Select field: non-editable, show all options with current highlighted
+			fieldSelectOpts[i] = field.SelectOpts
+			fieldSelectIdx[i] = 0
+			val := strings.TrimSpace(field.Value)
+			for j, opt := range field.SelectOpts {
+				if opt == val {
+					fieldSelectIdx[i] = j
+					break
+				}
+			}
+			fv.Editable = false
+			renderSelectField(fv, field.SelectOpts, fieldSelectIdx[i])
+		} else {
+			// Text input field
+			val := strings.TrimSpace(field.Value)
+			if val != "" {
+				fv.Write([]byte(val))
+			}
+			bound := val
+			fv.Editable = true
+			fv.Editor = &EditorInput{BindValString: &bound}
 		}
-		bound := val
-		fv.Editable = true
-		fv.Editor = &EditorInput{BindValString: &bound}
 		fieldNames = append(fieldNames, fieldViewName)
 		fieldLabelToViewName[field.Label] = fieldViewName
 	}
@@ -1736,10 +1771,15 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 			if i == currentIdx {
 				view.BgColor = themeSelBg
 				GlobalApp.Gui.SetCurrentView(name)
-				GlobalApp.Gui.Cursor = true
-				// Move cursor to end of text
-				buf := view.Buffer()
-				view.SetCursor(len([]rune(strings.TrimRight(buf, "\n"))), 0)
+				if len(fieldSelectOpts[i]) > 0 {
+					// Select field: no cursor needed
+					GlobalApp.Gui.Cursor = false
+				} else {
+					// Text field: show cursor at end of text
+					GlobalApp.Gui.Cursor = true
+					buf := view.Buffer()
+					view.SetCursor(len([]rune(strings.TrimRight(buf, "\n"))), 0)
+				}
 			} else {
 				view.BgColor = gocui.ColorBlack
 			}
@@ -1766,7 +1806,24 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	submit := func() {
 		values := make(map[string]string, len(fieldLabelToViewName))
 		for label, name := range fieldLabelToViewName {
-			if v, err := GlobalApp.Gui.View(name); err == nil {
+			// Find the field index to check if it's a select field
+			fieldIdx := -1
+			for fi, fn := range fieldNames {
+				if fn == name {
+					fieldIdx = fi
+					break
+				}
+			}
+			if fieldIdx >= 0 && len(fieldSelectOpts[fieldIdx]) > 0 {
+				// Select field: read from the tracked index
+				opts := fieldSelectOpts[fieldIdx]
+				idx := fieldSelectIdx[fieldIdx]
+				if idx >= 0 && idx < len(opts) {
+					values[label] = opts[idx]
+				} else {
+					values[label] = ""
+				}
+			} else if v, err := GlobalApp.Gui.View(name); err == nil {
 				values[label] = strings.TrimSpace(v.Buffer())
 			} else {
 				values[label] = ""
@@ -1791,7 +1848,7 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 			return nil
 		})
 		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-			// Skip submit if we're in the middle of a paste (pasted \n → KeyEnter)
+			// Skip submit if we're in the middle of a paste (pasted \n -> KeyEnter)
 			if isPasting() {
 				return nil
 			}
@@ -1805,9 +1862,24 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		})
 	}
 
-	// Field-specific keybindings: Ctrl+U clear, Ctrl+Y copy
-	for _, fieldName := range fieldNames {
+	// Field-specific keybindings
+	for fieldI, fieldName := range fieldNames {
 		fn := fieldName
+		fi := fieldI
+		// Select fields: ←/→ to toggle option
+		if len(fieldSelectOpts[fi]) > 0 {
+			GuiSetKeysbinding(GlobalApp.Gui, fn, []any{gocui.KeyArrowRight, gocui.KeyArrowLeft, 'h', 'l'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+				opts := fieldSelectOpts[fi]
+				if len(opts) == 0 {
+					return nil
+				}
+				fieldSelectIdx[fi] = (fieldSelectIdx[fi] + 1) % len(opts)
+				renderSelectField(v, opts, fieldSelectIdx[fi])
+				return nil
+			})
+			continue // skip text-field bindings for select fields
+		}
+		// Text fields: Ctrl+U clear, Ctrl+Y copy
 		GuiSetKeysbinding(GlobalApp.Gui, fn, []any{gocui.KeyCtrlU}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 			v.Clear()
 			v.SetCursor(0, 0)
@@ -1830,7 +1902,7 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	}
 
 	// Register tip for dialog views
-	dialogTip := "Confirm: <Enter> | Cancel: <Esc> | Switch: <Tab> | Paste: <Ctrl+V> | Clear: <Ctrl+U> | Copy: <Ctrl+Y>"
+	dialogTip := "Confirm: <Enter> | Cancel: <Esc> | Switch: <Tab> | Toggle: <←/→> | Paste: <Ctrl+V> | Clear: <Ctrl+U> | Copy: <Ctrl+Y>"
 	GlobalTipComponent.list[dialogName] = dialogTip
 
 	focusField(0)
