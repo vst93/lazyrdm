@@ -233,10 +233,22 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 			return nil
 		}
 		GlobalKeyInfoComponent.keyName = fmt.Sprintf("%s", GlobalKeyComponent.keys[GlobalKeyComponent.Current])
-		// PrintLn(GlobalKeyInfoComponent.keyName)
 		GlobalKeyInfoComponent.Layout()
 		GlobalKeyInfoDetailComponent.viewOriginY = 0
 		GlobalKeyInfoDetailComponent.Layout()
+		return nil
+	})
+
+	// 'g' loads key and jumps focus to detail pane
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'g'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if GlobalKeyComponent.Current < 0 || GlobalKeyComponent.Current > len(GlobalKeyComponent.keys)-1 {
+			return nil
+		}
+		GlobalKeyInfoComponent.keyName = fmt.Sprintf("%s", GlobalKeyComponent.keys[GlobalKeyComponent.Current])
+		GlobalKeyInfoComponent.Layout()
+		GlobalKeyInfoDetailComponent.viewOriginY = 0
+		GlobalKeyInfoDetailComponent.Layout()
+		GlobalApp.ForceUpdate(GlobalKeyInfoDetailComponent.name)
 		return nil
 	})
 
@@ -385,6 +397,7 @@ func (c *LTRListKeyComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Select", "↑/↓/j/k"},
 		{"Open Key", "<Enter>/l/→"},
+		{"Open+Jump", "<g>"},
 		{"Search", "<s>"},
 		{"Type Filter", "<T>"},
 		{"Refresh", "<r>"},
