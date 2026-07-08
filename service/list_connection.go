@@ -303,7 +303,7 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 
 func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowDown, 'j'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowDown, 'j', gocui.MouseWheelDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isConnecting {
 			return nil
 		}
@@ -320,7 +320,7 @@ func (c *LTRConnectionComponent) KeyBind() *LTRConnectionComponent {
 		return nil
 	})
 
-	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowUp, 'k'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.Name, []any{gocui.KeyArrowUp, 'k', gocui.MouseWheelUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isConnecting {
 			return nil
 		}
