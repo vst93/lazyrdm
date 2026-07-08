@@ -275,7 +275,7 @@ func ExitCurrentConnectionToList() {
 		"key_value_format", "search_key",
 		listFilterViewName,
 		"key_op_dialog", "key_op_dialog_mask",
-		"key_op_dialog_field_0", "key_op_dialog_field_1",
+		"key_op_dialog_field_0", "key_op_dialog_field_1", "key_op_dialog_field_2",
 	}
 	for _, viewName := range auxiliaryViews {
 		GlobalApp.Gui.DeleteView(viewName)

@@ -86,7 +86,7 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	}
 
 	viewWidth := inputWidth + 8 // 左右各 4 格留白
-	viewHeight := 7
+	viewHeight := 8
 
 	theX0 := (GlobalApp.maxX - viewWidth) / 2
 	if theX0 < 1 {
@@ -113,24 +113,25 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	v.TitleColor = gocui.ColorWhite
 	v.Clear()
 
-	// 内容布局（y 从 0 开始）:
-	// y=0: label
-	// y=1: 输入框行（独立 view 覆盖）
-	// y=2: 分隔线
-	// y=3: footer
+	// Content layout (each line is 1 terminal row):
+	//   y=0: label text
+	//   y=1: blank gap
+	//   y=2: input field top border (drawn by separate frameless input view at y=2)
+	//   y=3: input field bottom padding
+	//   y=4: separator
+	//   y=5: footer
 	v.Write([]byte("  " + c.label + "\n"))
-	// y=1 输入框占位
-	v.Write([]byte("\n"))
-	// 分隔线
+	v.Write([]byte("\n")) // y=1 gap
+	v.Write([]byte("\n")) // y=2 input row (covered by inputView)
+	v.Write([]byte("\n")) // y=3 padding
 	sepLen := dialogBodyWidth - 4
 	if sepLen < 10 {
 		sepLen = 10
 	}
 	sep := strings.Repeat("─", sepLen)
-	v.Write([]byte("  " + sep + "\n"))
-	// footer
+	v.Write([]byte("  " + sep + "\n")) // y=4 separator
 	footerText := "  [Enter] OK  [Esc] Cancel"
-	v.Write([]byte(padRightDisplayWidth(footerText, dialogBodyWidth) + "\n"))
+	v.Write([]byte(padRightDisplayWidth(footerText, dialogBodyWidth) + "\n")) // y=5 footer
 
 	// ── 输入框（独立 view）──
 	inputViewName := c.name + "_field"
@@ -140,9 +141,10 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 		inputX0 = theX0 + 3
 		inputX1 = theX1 - 3
 	}
-	// dialog frame 占 1 行，y=1 是内容第 2 行 -> 绝对 y = theY0 + 2
-	inputY0 := theY0 + 2
-	inputY1 := inputY0 + 2 // y1-y0=2 -> 内容 1 行
+	// Input field overlay: positioned at dialog content row y=2 (the input row)
+	// The dialog frame takes 1 line, so absolute Y = theY0 + 1 (frame) + 2 (content offset) = theY0 + 3
+	inputY0 := theY0 + 3
+	inputY1 := inputY0 + 1 // 1 row tall (frameless, just the editable line)
 
 	iv, _ := SetViewSafe(inputViewName, inputX0, inputY0, inputX1, inputY1, 0)
 	iv.Title = ""

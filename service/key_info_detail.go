@@ -1640,7 +1640,9 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	if width < 36 {
 		width = 36
 	}
-	height := len(schema.Fields)*2 + 6
+	// Each field is a bordered view: top border + 1 content row + bottom border = 3 rows.
+	// Layout: title(1) + description(1) + hints(1) + fields(N*3) + bottom spacer(1) + bottom border(1) = N*3 + 5
+	height := len(schema.Fields)*3 + 5
 	if height > GlobalApp.maxY-2 {
 		height = GlobalApp.maxY - 2
 	}
@@ -1666,8 +1668,9 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	fieldLabelToViewName := make(map[string]string, len(schema.Fields))
 	for i, field := range schema.Fields {
 		fieldViewName := fieldPrefix + strconv.Itoa(i)
-		fy0 := y0 + 3 + i*2
-		fy1 := fy0 + 2
+		// Each field starts 3 rows apart: top border, content, bottom border
+		fy0 := y0 + 3 + i*3
+		fy1 := fy0 + 2 // 3 rows total (border + content + border)
 		fv, ferr := SetViewSafe(fieldViewName, x0+2, fy0, x1-2, fy1, 0)
 		if ferr != nil && ferr != gocui.ErrUnknownView {
 			return ferr
