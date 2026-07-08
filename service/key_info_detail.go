@@ -1482,7 +1482,7 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	dlg.Clear()
 	dlg.Wrap = true
 	dlg.Write([]byte(schema.Description + "\n"))
-	dlg.Write([]byte("Tab/↑/↓ switch fields | Esc cancel | Enter submit (on dialog bg)\n"))
+	dlg.Write([]byte("Tab/↑/↓ switch | Enter submit | Esc cancel | Ctrl+V paste\n"))
 
 	fieldNames := make([]string, 0, len(schema.Fields))
 	fieldLabelToViewName := make(map[string]string, len(schema.Fields))
@@ -1567,7 +1567,7 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		c.Layout()
 	}
 
-	bindNavKeys := func(viewName string, isField bool) {
+	bindNavKeys := func(viewName string) {
 		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyTab, gocui.KeyArrowDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 			focusField(currentIdx + 1)
 			return nil
@@ -1576,15 +1576,10 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 			focusField(currentIdx - 1)
 			return nil
 		})
-		// Enter/Esc only on dialog and mask, NOT on field views.
-		// This prevents pasted newlines (\n → KeyEnter) from triggering submit.
-		// Users press Enter on the dialog background or mask to submit.
-		if !isField {
-			GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-				submit()
-				return nil
-			})
-		}
+		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			submit()
+			return nil
+		})
 		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 			closeDialog()
 			GlobalTipComponent.LayoutTemporary("Operation cancelled", 3, TipTypeWarning)
@@ -1592,10 +1587,10 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		})
 	}
 
-	bindNavKeys(dialogName, false)
-	bindNavKeys(maskName, false)
+	bindNavKeys(dialogName)
+	bindNavKeys(maskName)
 	for _, fieldName := range fieldNames {
-		bindNavKeys(fieldName, true)
+		bindNavKeys(fieldName)
 	}
 
 	focusField(0)

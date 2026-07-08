@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"github.com/awesome-gocui/gocui"
 	"golang.org/x/term"
 )
@@ -330,17 +331,20 @@ type EditorInput struct {
 }
 
 func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
-	// Allow Ctrl+V (paste), Ctrl+A (select all), Ctrl+K (delete to end)
-	// These come with mod != ModNone, so handle them before the early return.
-	switch {
-	case key == gocui.KeyCtrlV:
-		// Terminal paste: gocui delivers pasted text as individual character
-		// events with ModNone, so Ctrl+V itself is just the trigger.
-		// On terminals with bracketed paste, the paste content arrives as
-		// normal character events, so we don't need special handling here.
-		// Just fall through to allow the character if any.
-		if ch != 0 && ch != '\n' && ch != '\r' {
-			v.EditWrite(ch)
+	// Handle Ctrl+V (paste from clipboard) — read clipboard, strip newlines,
+	// insert as text. This avoids terminal paste issues where \n triggers
+	// KeyEnter keybindings.
+	if key == gocui.KeyCtrlV {
+		text, err := clipboard.ReadAll()
+		if err != nil || text == "" {
+			return
+		}
+		// Replace newlines with spaces so it stays on one line
+		text = strings.ReplaceAll(text, "\r\n", " ")
+		text = strings.ReplaceAll(text, "\n", " ")
+		text = strings.ReplaceAll(text, "\r", " ")
+		for _, r := range text {
+			v.EditWrite(r)
 		}
 		e.syncBound(v)
 		return
