@@ -164,9 +164,17 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 	theY0 := 0
 	theX1 := GlobalApp.maxX - 1
 	theY1 := GlobalApp.maxY - 2
-	if GlobalApp.maxX > GlobalApp.maxY && (theY1*15/10) <= theX1 {
-		theX0 = (GlobalApp.maxX - GlobalApp.maxY) / 2
-		theX1 = theX0 + GlobalApp.maxY - 1
+	// Center a panel that's wider than tall, capped at 80% of screen width
+	if GlobalApp.maxX > 60 {
+		panelW := GlobalApp.maxX * 8 / 10
+		if panelW > 100 {
+			panelW = 100
+		}
+		if panelW < 50 {
+			panelW = 50
+		}
+		theX0 = (GlobalApp.maxX - panelW) / 2
+		theX1 = theX0 + panelW - 1
 	}
 	if theX1 <= theX0 {
 		theX1 = theX0 + 1
@@ -210,6 +218,10 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 	builder := strings.Builder{}
 	totalLine := 0
 	cursorLine := 0
+	viewW, _ := v.Size()
+	if viewW < 20 {
+		viewW = 60
+	}
 	for i, item := range c.flatItems {
 		var line string
 		if item.isGroup {
@@ -219,18 +231,22 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 			}
 			line = fmt.Sprintf("%s %s (%d)\n", arrow, item.groupName, item.connCount)
 		} else {
-			line = formatConnectionLine(item.conn, item.connIdx, item.connCount)
+			line = formatConnectionLine(item.conn, item.connIdx, item.connCount, viewW)
 		}
 
 		if i == c.flatCursor {
-			builder.WriteString(NewColorString(line, "black", "cyan", "bold"))
+			// Pad the line content (before \n) to full view width so the
+			// cyan background covers the entire row.
+			trimmed := strings.TrimRight(line, "\n")
+			padded := padRightDisplayWidth(trimmed, viewW)
+			builder.WriteString(NewColorString(padded, "black", "cyan", "bold"))
+			builder.WriteString("\n")
 			cursorLine = totalLine
 		} else {
 			if item.isGroup {
 				builder.WriteString(NewColorString(line, "cyan", "", "bold"))
 			} else {
-				// Dim the connection name slightly, highlight metadata
-				builder.WriteString(formatConnectionLineColored(item.conn, item.connIdx, item.connCount))
+				builder.WriteString(formatConnectionLineColored(item.conn, item.connIdx, item.connCount, viewW))
 			}
 		}
 		totalLine++
@@ -238,13 +254,17 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 
 	// Show empty state if no items
 	if len(c.flatItems) == 0 {
-		builder.WriteString(NewColorString(" No connections yet.\n\n", "yellow", "", "bold"))
-		builder.WriteString(" Press ")
+		builder.WriteString("\n\n")
+		builder.WriteString(NewColorString("  ╭───────────────────────────────────╮\n", "cyan", "", ""))
+		builder.WriteString(NewColorString("  │       No connections configured     │\n", "cyan", "", ""))
+		builder.WriteString(NewColorString("  ╰───────────────────────────────────╯\n", "cyan", "", ""))
+		builder.WriteString("\n")
+		builder.WriteString("  Press ")
 		builder.WriteString(NewColorString("<n>", "cyan", "", "bold"))
-		builder.WriteString(" to create a new connection,\n")
-		builder.WriteString(" or ")
+		builder.WriteString(" to create a new connection\n")
+		builder.WriteString("  Press ")
 		builder.WriteString(NewColorString("<I>", "cyan", "", "bold"))
-		builder.WriteString(" to import from a Tiny RDM export ZIP.\n")
+		builder.WriteString(" to import from a Tiny RDM export ZIP\n")
 	}
 
 	// 自动滚动
@@ -644,92 +664,73 @@ func (c *LTRConnectionComponent) syncLegacyIndices() {
 }
 
 // formatConnectionLine returns a plain-text line for a connection entry.
-func formatConnectionLine(conn *types.Connection, connIdx, total int) string {
+// layout: "  ├─ Name    addr    [tcp]  [SSH]"
+func formatConnectionLine(conn *types.Connection, connIdx, total, viewW int) string {
 	if conn == nil {
-		return fmt.Sprintf("  %s\n", "")
+		return "\n"
 	}
-	// Build the address string
-	addr := ""
-	if conn.Network == "unix" {
-		if conn.Sock != "" {
-			addr = conn.Sock
-		}
-	} else {
-		if conn.Addr != "" {
-			addr = fmt.Sprintf("%s:%d", conn.Addr, conn.Port)
-		}
-	}
-
-	// Tree connector
+	addr := connAddr(conn)
 	connector := "├"
 	if connIdx == total-1 {
 		connector = "└"
 	}
-
-	// Build the line: "  ├ Name    addr    [tcp|unix]  [SSH]"
 	line := fmt.Sprintf("  %s─ %s", connector, conn.Name)
 	if addr != "" {
 		line += "    " + addr
 	}
-
-	// Network indicator
 	netType := conn.Network
 	if netType == "" {
 		netType = "tcp"
 	}
 	line += "  [" + netType + "]"
-
-	// SSH indicator
 	if conn.SSH.Enable {
 		line += "  [SSH]"
 	}
-
 	line += "\n"
 	return line
 }
 
 // formatConnectionLineColored returns a colored line for a non-selected connection entry.
-// Connection name in default, address in cyan, network/SSH in yellow.
-func formatConnectionLineColored(conn *types.Connection, connIdx, total int) string {
+func formatConnectionLineColored(conn *types.Connection, connIdx, total, viewW int) string {
 	if conn == nil {
 		return ""
 	}
-	// Build the address string
-	addr := ""
-	if conn.Network == "unix" {
-		if conn.Sock != "" {
-			addr = conn.Sock
-		}
-	} else {
-		if conn.Addr != "" {
-			addr = fmt.Sprintf("%s:%d", conn.Addr, conn.Port)
-		}
-	}
-
-	// Tree connector
+	addr := connAddr(conn)
 	connector := "├"
 	if connIdx == total-1 {
 		connector = "└"
 	}
-
-	// Build with colors: connector + name (default), addr (cyan), tags (yellow)
 	result := fmt.Sprintf("  %s─ %s", connector, conn.Name)
 	if addr != "" {
 		result += "    " + NewColorString(addr, "cyan", "", "")
 	}
-
 	netType := conn.Network
 	if netType == "" {
 		netType = "tcp"
 	}
 	result += "  " + NewColorString("["+netType+"]", "yellow", "", "")
-
 	if conn.SSH.Enable {
 		result += "  " + NewColorString("[SSH]", "yellow", "", "bold")
 	}
-
 	result += "\n"
 	return result
+}
+
+// connAddr returns the address string for a connection (host:port or socket path).
+func connAddr(conn *types.Connection) string {
+	if conn == nil {
+		return ""
+	}
+	if conn.Network == "unix" {
+		if conn.Sock != "" {
+			return conn.Sock
+		}
+		return ""
+	}
+	if conn.Addr != "" {
+		return fmt.Sprintf("%s:%d", conn.Addr, conn.Port)
+	}
+	return ""
 }
 
 func (c *LTRConnectionComponent) KeyMapTip() string {
