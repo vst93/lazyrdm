@@ -1482,10 +1482,10 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	dlg.Clear()
 	dlg.Wrap = true
 	dlg.Write([]byte(schema.Description + "\n"))
-	dlg.Write([]byte("Tab/Up/Down switch fields | Enter submit | Esc cancel\n"))
+	dlg.Write([]byte("Tab/↑/↓ switch fields | Esc cancel | Enter submit (on dialog bg)\n"))
 
 	fieldNames := make([]string, 0, len(schema.Fields))
-	fieldValues := make(map[string]*string, len(schema.Fields))
+	fieldLabelToViewName := make(map[string]string, len(schema.Fields))
 	for i, field := range schema.Fields {
 		fieldViewName := fieldPrefix + strconv.Itoa(i)
 		fy0 := y0 + 3 + i*3
@@ -1497,16 +1497,17 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		fv.Title = " " + field.Label + " "
 		fv.TitleColor = gocui.ColorCyan
 		fv.Clear()
+		// Don't write placeholder into the buffer — it would become the
+		// submitted value. Only actual field.Value goes into the buffer.
 		val := strings.TrimSpace(field.Value)
-		if val == "" {
-			val = field.Placeholder
+		if val != "" {
+			fv.Write([]byte(val))
 		}
-		fv.Write([]byte(val))
 		bound := val
 		fv.Editable = true
 		fv.Editor = &EditorInput{BindValString: &bound}
 		fieldNames = append(fieldNames, fieldViewName)
-		fieldValues[field.Label] = &bound
+		fieldLabelToViewName[field.Label] = fieldViewName
 	}
 
 	currentIdx := 0
@@ -1549,9 +1550,13 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	}
 
 	submit := func() {
-		values := make(map[string]string, len(fieldValues))
-		for label, ptr := range fieldValues {
-			values[label] = strings.TrimSpace(*ptr)
+		values := make(map[string]string, len(fieldLabelToViewName))
+		for label, name := range fieldLabelToViewName {
+			if v, err := GlobalApp.Gui.View(name); err == nil {
+				values[label] = strings.TrimSpace(v.Buffer())
+			} else {
+				values[label] = ""
+			}
 		}
 		if err := onSubmit(values); err != nil {
 			GlobalTipComponent.LayoutTemporary("Apply failed: "+err.Error(), 4, TipTypeError)
@@ -1562,19 +1567,24 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		c.Layout()
 	}
 
-	bindNavKeys := func(viewName string) {
-		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyTab, gocui.KeyArrowDown, 'j'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	bindNavKeys := func(viewName string, isField bool) {
+		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyTab, gocui.KeyArrowDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 			focusField(currentIdx + 1)
 			return nil
 		})
-		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyArrowUp, 'k'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyArrowUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 			focusField(currentIdx - 1)
 			return nil
 		})
-		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-			submit()
-			return nil
-		})
+		// Enter/Esc only on dialog and mask, NOT on field views.
+		// This prevents pasted newlines (\n → KeyEnter) from triggering submit.
+		// Users press Enter on the dialog background or mask to submit.
+		if !isField {
+			GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+				submit()
+				return nil
+			})
+		}
 		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 			closeDialog()
 			GlobalTipComponent.LayoutTemporary("Operation cancelled", 3, TipTypeWarning)
@@ -1582,10 +1592,10 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		})
 	}
 
-	bindNavKeys(dialogName)
-	bindNavKeys(maskName)
+	bindNavKeys(dialogName, false)
+	bindNavKeys(maskName, false)
 	for _, fieldName := range fieldNames {
-		bindNavKeys(fieldName)
+		bindNavKeys(fieldName, true)
 	}
 
 	focusField(0)
