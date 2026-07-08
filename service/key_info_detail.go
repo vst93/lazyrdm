@@ -1462,7 +1462,7 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	if width < 36 {
 		width = 36
 	}
-	height := len(schema.Fields)*3 + 8
+	height := len(schema.Fields)*2 + 6
 	if height > GlobalApp.maxY-2 {
 		height = GlobalApp.maxY - 2
 	}
@@ -1482,13 +1482,13 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	dlg.Clear()
 	dlg.Wrap = true
 	dlg.Write([]byte(schema.Description + "\n"))
-	dlg.Write([]byte("Tab/↑/↓ switch | Enter submit | Esc cancel | Ctrl+V paste\n"))
+	dlg.Write([]byte("Tab/↑/↓ switch | Enter submit | Esc cancel | Ctrl+V paste | Ctrl+U clear | Ctrl+Y copy\n"))
 
 	fieldNames := make([]string, 0, len(schema.Fields))
 	fieldLabelToViewName := make(map[string]string, len(schema.Fields))
 	for i, field := range schema.Fields {
 		fieldViewName := fieldPrefix + strconv.Itoa(i)
-		fy0 := y0 + 3 + i*3
+		fy0 := y0 + 3 + i*2
 		fy1 := fy0 + 2
 		fv, ferr := SetViewSafe(fieldViewName, x0+2, fy0, x1-2, fy1, 0)
 		if ferr != nil && ferr != gocui.ErrUnknownView {
@@ -1587,6 +1587,24 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyEsc}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 			closeDialog()
 			GlobalTipComponent.LayoutTemporary("Operation cancelled", 3, TipTypeWarning)
+			return nil
+		})
+	}
+
+	// Field-specific keybindings: Ctrl+U clear, Ctrl+Y copy
+	for _, fieldName := range fieldNames {
+		fn := fieldName
+		GuiSetKeysbinding(GlobalApp.Gui, fn, []any{gocui.KeyCtrlU}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			v.Clear()
+			v.SetCursor(0, 0)
+			return nil
+		})
+		GuiSetKeysbinding(GlobalApp.Gui, fn, []any{gocui.KeyCtrlY}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			text := strings.TrimRight(v.Buffer(), "\n")
+			if text != "" {
+				clipboard.WriteAll(text)
+				GlobalTipComponent.LayoutTemporary("Copied to clipboard", 2, TipTypeSuccess)
+			}
 			return nil
 		})
 	}

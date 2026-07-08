@@ -94,7 +94,7 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	}
 
 	// spacer between message and buttons
-	footerSpacerLines := viewHeight - len(messageLines) - 6
+	footerSpacerLines := viewHeight - len(messageLines) - 5
 	if footerSpacerLines < 1 {
 		footerSpacerLines = 1
 	}
@@ -247,9 +247,9 @@ func (c *PageComponentConfirm) calculateDialogSize(messageLines []string) (int, 
 		}
 	}
 
-	viewHeight := len(messageLines) + 8
-	if viewHeight < 11 {
-		viewHeight = 11
+	viewHeight := len(messageLines) + 7
+	if viewHeight < 9 {
+		viewHeight = 9
 	}
 	maxAllowedHeight := GlobalApp.maxY - 2
 	if viewHeight > maxAllowedHeight {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/awesome-gocui/gocui"
 	"github.com/gdamore/tcell/v2"
 )
@@ -86,7 +87,7 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	}
 
 	viewWidth := inputWidth + 8 // 左右各 4 格留白
-	viewHeight := 11
+	viewHeight := 7
 
 	theX0 := (GlobalApp.maxX - viewWidth) / 2
 	if theX0 < 1 {
@@ -114,20 +115,12 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	v.Clear()
 
 	// 内容布局（y 从 0 开始）:
-	// y=0: 空
-	// y=1: label
-	// y=2: 空
-	// y=3: 输入框行（独立 view 覆盖）
-	// y=4: 空
-	// y=5: 分隔线
-	// y=6: 空
-	// y=7: footer
-	v.Write([]byte("\n"))
-	labelLine := "  " + c.label
-	v.Write([]byte(padRightDisplayWidth(labelLine, dialogBodyWidth) + "\n"))
-	v.Write([]byte("\n"))
-	// y=3 输入框占位
-	v.Write([]byte("\n"))
+	// y=0: label
+	// y=1: 输入框行（独立 view 覆盖）
+	// y=2: 分隔线
+	// y=3: footer
+	v.Write([]byte("  " + c.label + "\n"))
+	// y=1 输入框占位
 	v.Write([]byte("\n"))
 	// 分隔线
 	sepLen := dialogBodyWidth - 4
@@ -136,9 +129,8 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	}
 	sep := strings.Repeat("─", sepLen)
 	v.Write([]byte("  " + sep + "\n"))
-	v.Write([]byte("\n"))
 	// footer
-	footerText := "  [Enter] 确认    [Esc] 取消"
+	footerText := "  [Enter] OK  [Esc] Cancel  [Ctrl+U] Clear  [Ctrl+V] Paste"
 	v.Write([]byte(padRightDisplayWidth(footerText, dialogBodyWidth) + "\n"))
 
 	// ── 输入框（独立 view）──
@@ -149,9 +141,9 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 		inputX0 = theX0 + 3
 		inputX1 = theX1 - 3
 	}
-	// dialog frame 占 1 行，y=3 是内容第 4 行 → 绝对 y = theY0 + 4
-	inputY0 := theY0 + 4
-	inputY1 := inputY0 + 2 // y1-y0=2 → 内容 1 行
+	// dialog frame 占 1 行，y=1 是内容第 2 行 -> 绝对 y = theY0 + 2
+	inputY0 := theY0 + 2
+	inputY1 := inputY0 + 2 // y1-y0=2 -> 内容 1 行
 
 	iv, _ := SetViewSafe(inputViewName, inputX0, inputY0, inputX1, inputY1, 0)
 	iv.Title = ""
@@ -222,6 +214,22 @@ func (c *PageComponentInput) KeyBind() *PageComponentInput {
 		submit()
 		return nil
 	})
+	// Ctrl+U: clear input field
+	GuiSetKeysbinding(GlobalApp.Gui, inputViewName, []any{gocui.KeyCtrlU}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		v.Clear()
+		c.resultText = ""
+		v.SetCursor(0, 0)
+		return nil
+	})
+	// Ctrl+Y: copy input content to clipboard
+	GuiSetKeysbinding(GlobalApp.Gui, inputViewName, []any{gocui.KeyCtrlY}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		text := strings.TrimRight(v.Buffer(), "\n")
+		if text != "" {
+			clipboard.WriteAll(text)
+			GlobalTipComponent.LayoutTemporary("Copied to clipboard", 2, TipTypeSuccess)
+		}
+		return nil
+	})
 
 	for _, vn := range []string{c.maskName, c.name} {
 		GuiSetKeysbinding(GlobalApp.Gui, vn, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
@@ -275,6 +283,9 @@ func (c *PageComponentInput) KeyMapTips() string {
 	keyMap := []KeyMapStruct{
 		{"Confirm", "<Enter>"},
 		{"Cancel", "<Esc>"},
+		{"Clear", "<Ctrl+U>"},
+		{"Paste", "<Ctrl+V>"},
+		{"Copy", "<Ctrl+Y>"},
 	}
 	ret := ""
 	for i, v := range keyMap {
