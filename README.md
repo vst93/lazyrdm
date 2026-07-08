@@ -1,69 +1,109 @@
 # lazyrdm
 
-## 介绍
-**lazyrdm** 是一个终端形式下的 redis 管理工具，也可以理解为 tiny-rdm 的终端界面🙂。
-
-项目地址： https://github.com/vst93/lazyrdm
+[English](#english) | [中文](#中文)
 
 ![screenshot.png](https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/screenshot.png)
 
-### 特性
-- 基于 go 语言开发，跨平台支持，意味着支持 **Termux** 下使用
-- 底层服务直接引用开源项目 tiny-rdm 项目( https://github.com/tiny-craft/tiny-rdm )，意味着如果你正在使用 tiny-rdm 管理 redis ，那么 lazyrdm 可以直接使用连接配置，同时两边的调整同步（因为读取和使用的同一个配置文件）
-- 使用 gocui ( https://github.com/awesome-gocui/gocui ) 绘制界面
+---
 
+## English
 
-## 说明
-- 已完成基本的功能使用
-- 由于 https://github.com/awesome-gocui/gocui 和 https://github.com/jroimartin/gocui 都基本停止维护，复杂交互难以实现
-- windows 系统下建议在有  Windows Terminal 的 windows11 下使用，CMD 下显示效果很差
-- macos 中的 arm 版本未经测试，如果不能使用请反馈，然后尝试 amd 版本
+**lazyrdm** is a terminal-based Redis management tool — think of it as the TUI version of [tiny-rdm](https://github.com/tiny-craft/tiny-rdm) 🙂
 
-### 安装与卸载
-``` bash
-# brew 
-# 安装 
-brew install vst93/tap/lazyrdm
-# 卸载 
-brew uninstall lazyrdm
-
-
-# shell 
-# 安装 
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)"
-
-```
-
---------------------------------------
-
-## English Introduction
-
-**lazyrdm** is a Redis management tool designed for the terminal, which can also be thought of as the command-line interface version of **tiny-rdm** 🙂.
-
-Project Address: https://github.com/vst93/lazyrdm
+**Project:** https://github.com/vst93/lazyrdm
 
 ### Features
-- Developed in Go, with cross-platform support, meaning it is compatible with **Termux**.
-- The underlying service directly utilizes the open-source project **tiny-rdm** (https://github.com/tiny-craft/tiny-rdm). If you are already using **tiny-rdm** to manage Redis, **lazyrdm** can directly use the same connection configurations, and changes will sync between both tools (as they read from and use the same configuration file).
-- The UI is built with **gocui** (https://github.com/awesome-gocui/gocui).
 
-## Notes
-- Basic functionality has been implemented.
-- Due to limited maintenance of both https://github.com/awesome-gocui/gocui and https://github.com/jroimartin/gocui, implementing complex interactions is challenging.
-- On Windows, it is recommended to use **lazyrdm** with **Windows Terminal** on Windows 11 for the best experience, as the display performance in CMD is poor.
-- The ARM version for macOS has not been thoroughly tested. If it does not work, please provide feedback and try the AMD version instead.
+- **Cross-platform** — Built in Go, runs on Linux, macOS, Windows, and **Termux** (Android)
+- **Shared config with tiny-rdm** — Directly uses tiny-rdm's connection profiles; changes sync between both tools
+- **Full Redis type support** — String, List, Hash, Set, ZSet, Stream, and JSON (RedisJSON)
+- **Structured detail view** — Tabular rendering for collection types with inline filtering, row selection, and a detail pane
+- **Format switching** — Toggle between Raw / JSON / Unicode JSON display formats with `<f>`
+- **Key management** — Create keys with selectable type, rename, edit TTL, delete with confirmation
+- **Inline editing** — Add/edit/delete entries in collections via dialog forms (no external editor needed)
+- **Redis console** — Execute commands with history navigation and formatted output
+- **Cross-platform paste** — `Ctrl+V` paste support in all input fields
+- Built with [gocui](https://github.com/awesome-gocui/gocui)
 
-### Install & Uninstall
-``` bash
-# brew 
-# install 
+### Screenshots
+
+The main interface shows:
+- **DB list** — Select databases with key counts
+- **Key list** — Browse, search, filter by type, create and delete keys
+- **Info bar** — Key type, size, length, and TTL
+- **Detail pane** — Value display with format switching, structured tables for collections
+
+### Install
+
+**Homebrew:**
+```bash
 brew install vst93/tap/lazyrdm
-# uninstall 
+```
+
+**Shell script:**
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)"
+```
+
+### Notes
+
+- Windows: use **Windows Terminal** on Windows 11 for best rendering (CMD has poor display)
+- macOS ARM: untested — if it doesn't work, try the AMD64 build
+- Both [gocui](https://github.com/awesome-gocui/gocui) and [jroimartin/gocui](https://github.com/jroimartin/gocui) are essentially unmaintained, so complex interactions are limited
+
+### Uninstall
+
+```bash
+# Homebrew
 brew uninstall lazyrdm
 
+# Manual: remove the binary from your PATH
+```
 
-# shell 
-# install 
+---
+
+## 中文
+
+**lazyrdm** 是一个终端下的 Redis 管理工具，可以理解为 [tiny-rdm](https://github.com/tiny-craft/tiny-rdm) 的终端界面版 🙂
+
+**项目地址：** https://github.com/vst93/lazyrdm
+
+### 特性
+
+- **跨平台** — Go 语言开发，支持 Linux、macOS、Windows，以及 **Termux**（Android）
+- **与 tiny-rdm 共享配置** — 直接读取 tiny-rdm 的连接配置文件，两边修改自动同步
+- **全类型支持** — String、List、Hash、Set、ZSet、Stream、JSON（RedisJSON）
+- **结构化详情** — 集合类型以表格形式展示，支持行内过滤、行选择、详情面板
+- **格式切换** — `<f>` 在 Raw / JSON / Unicode JSON 之间切换显示格式
+- **Key 管理** — 新建 key 可选类型、重命名、修改 TTL、确认删除
+- **内联编辑** — 通过弹窗表单增删改集合元素，无需外部编辑器
+- **Redis 控制台** — 执行命令，支持历史导航和格式化输出
+- **跨平台粘贴** — 所有输入框支持 `Ctrl+V` 粘贴
+- 基于 [gocui](https://github.com/awesome-gocui/gocui) 绘制界面
+
+### 安装
+
+**Homebrew：**
+```bash
+brew install vst93/tap/lazyrdm
+```
+
+**脚本安装：**
+```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)"
+```
 
+### 说明
+
+- Windows 下建议使用 **Windows Terminal**（Windows 11），CMD 显示效果较差
+- macOS ARM 版本未经测试，如不可用请尝试 AMD 版本
+- [gocui](https://github.com/awesome-gocui/gocui) 和 [jroimartin/gocui](https://github.com/jroimartin/gocui) 均已停止维护，复杂交互实现受限
+
+### 卸载
+
+```bash
+# Homebrew
+brew uninstall lazyrdm
+
+# 手动安装：直接删除 PATH 中的二进制文件
 ```
