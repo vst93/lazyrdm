@@ -314,7 +314,9 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 	// Copy field/key name (for hash: field name, for zset: member, etc.)
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'C'}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
+	// Note: gocui strips ModShift from character keys, converting Shift+C to 'C' with ModNone.
+	// So we bind 'C' (uppercase) with ModNone instead of 'c' with ModShift.
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'C'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isStructuredType() {
 			row := c.getSelectedStructuredRow()
 			if row == nil {
@@ -453,17 +455,19 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.renderFromCache()
 		return nil
 	})
-	// Scroll detail pane content with Shift+Up/Down
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp, 'k'}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
+	// Scroll detail pane content with Ctrl+Up/Down (gocui strips ModShift from char keys,
+	// but Ctrl modifier is preserved for non-character keys like arrows).
+	// Actually gocui strips Ctrl too for arrows. Let's use PgUp/PgDn for detail scroll.
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyPgup}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isStructuredType() {
-			c.scrollDetailPane(-1)
+			c.scrollDetailPane(-5)
 			return nil
 		}
 		return nil
 	})
-	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown, 'j'}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyPgdn}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isStructuredType() {
-			c.scrollDetailPane(1)
+			c.scrollDetailPane(5)
 			return nil
 		}
 		return nil
@@ -624,7 +628,7 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Scroll/Select", "↑/↓/j/k"},
 		{"Scroll Page/Jump", "←/->/h/l"},
-		{"Scroll Detail", "Shift+↑/↓"},
+		{"Scroll Detail", "PgUp/PgDn"},
 		{"Expand Detail", "<Enter>"},
 		{"Filter", "</>/<x>"},
 		{"Switch Format", "<f>"},
@@ -675,6 +679,12 @@ func (c *LTRKeyInfoDetailComponent) switchKeyValueFormat() {
 	c.keyValueFormat = keyValueFormatList[nextIndex]
 	c.viewOriginY = 0
 	c.detailScrollY = 0
+	// Update format display view
+	formatStr := " Format: " + c.keyValueFormat + " "
+	if formatSelectView, err := GlobalApp.Gui.View("key_value_format"); err == nil {
+		formatSelectView.Clear()
+		formatSelectView.Write([]byte(formatStr))
+	}
 	if c.structuredMode && len(c.structuredRows) > 0 {
 		c.renderFromCache()
 		return
@@ -1169,10 +1179,10 @@ func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType s
 		b.WriteString("  " + allLines[i] + "\n")
 	}
 	if end < len(allLines) {
-		b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines, Shift+↑/↓ to scroll)", len(allLines)-end), "yellow", "", "") + "\n")
+		b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines, PgUp/PgDn to scroll)", len(allLines)-end), "yellow", "", "") + "\n")
 	}
 	if start > 0 {
-		b.WriteString(NewColorString("  ... (Shift+↑ to scroll up)", "yellow", "", "") + "\n")
+		b.WriteString(NewColorString("  ... (PgUp to scroll up)", "yellow", "", "") + "\n")
 	}
 	return b.String()
 }
