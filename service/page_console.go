@@ -266,7 +266,7 @@ func (c *PageComponentConsole) executeCommand(cmd string) {
 		return
 	}
 
-	// Block dangerous commands with confirmation would be complex; just warn for FLUSH
+	// Block dangerous commands
 	lowerCmd := strings.ToLower(parts[0])
 	if lowerCmd == "flushall" || lowerCmd == "flushdb" || lowerCmd == "shutdown" || lowerCmd == "config" {
 		c.appendOutput("(error) blocked: use the app's built-in feature for this command")
@@ -274,44 +274,50 @@ func (c *PageComponentConsole) executeCommand(cmd string) {
 		return
 	}
 
-	// Build a redis client from connection config
-	connResp := services.Connection().GetConnection(connectionName)
-	if !connResp.Success || connResp.Data == nil {
-		c.appendOutput("(error) connection not found")
-		c.refreshOutput()
-		return
-	}
-	conn, ok := connResp.Data.(*types.Connection)
-	if !ok {
-		c.appendOutput("(error) invalid connection data")
-		c.refreshOutput()
-		return
-	}
-
-	options := buildRedisOptions(conn.ConnectionConfig, GlobalDBComponent.SelectedDB)
-	client := redis.NewClient(options)
-	defer client.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	args := make([]any, len(parts))
-	for i, p := range parts {
-		args[i] = p
-	}
-
-	result, err := client.Do(ctx, args...).Result()
-	if err != nil {
-		if err == redis.Nil {
-			c.appendOutput("(nil)")
-		} else {
-			c.appendOutput("(error) " + err.Error())
-		}
-	} else {
-		c.appendOutput(formatRedisResult(result))
-	}
-	c.appendOutput("")
+	// Show "executing..." hint
+	c.appendOutput("(executing...)")
 	c.refreshOutput()
+
+	// Run command in background goroutine to avoid blocking the UI
+	go func() {
+		connResp := services.Connection().GetConnection(connectionName)
+		if !connResp.Success || connResp.Data == nil {
+			c.replaceLastOutput("(error) connection not found")
+			c.refreshOutputAsync()
+			return
+		}
+		conn, ok := connResp.Data.(*types.Connection)
+		if !ok {
+			c.replaceLastOutput("(error) invalid connection data")
+			c.refreshOutputAsync()
+			return
+		}
+
+		options := buildRedisOptions(conn.ConnectionConfig, GlobalDBComponent.SelectedDB)
+		client := redis.NewClient(options)
+		defer client.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		args := make([]any, len(parts))
+		for i, p := range parts {
+			args[i] = p
+		}
+
+		result, err := client.Do(ctx, args...).Result()
+		if err != nil {
+			if err == redis.Nil {
+				c.replaceLastOutput("(nil)")
+			} else {
+				c.replaceLastOutput("(error) " + err.Error())
+			}
+		} else {
+			c.replaceLastOutput(formatRedisResult(result))
+		}
+		c.appendOutput("")
+		c.refreshOutputAsync()
+	}()
 }
 
 func (c *PageComponentConsole) refreshOutput() {
@@ -322,7 +328,6 @@ func (c *PageComponentConsole) refreshOutput() {
 	for _, line := range c.outputLines {
 		fmt.Fprintln(c.outputView, line)
 	}
-	// Auto-scroll to bottom
 	_, vh := c.outputView.Size()
 	total := len(c.outputLines)
 	if total > vh {
@@ -333,6 +338,23 @@ func (c *PageComponentConsole) refreshOutput() {
 	c.outputView.SetOrigin(0, c.originY)
 	GlobalApp.Gui.SetCurrentView(c.name + "_input")
 	GlobalApp.Gui.Cursor = true
+}
+
+// refreshOutputAsync is the goroutine-safe version of refreshOutput
+func (c *PageComponentConsole) refreshOutputAsync() {
+	GlobalApp.Gui.Update(func(g *gocui.Gui) error {
+		c.refreshOutput()
+		return nil
+	})
+}
+
+// replaceLastOutput replaces the last line in outputLines with new text
+func (c *PageComponentConsole) replaceLastOutput(text string) {
+	if len(c.outputLines) == 0 {
+		c.appendOutput(text)
+		return
+	}
+	c.outputLines[len(c.outputLines)-1] = text
 }
 
 func (c *PageComponentConsole) closeView() {
