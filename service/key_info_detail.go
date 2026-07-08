@@ -1482,7 +1482,7 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	dlg.Clear()
 	dlg.Wrap = true
 	dlg.Write([]byte(schema.Description + "\n"))
-	dlg.Write([]byte("Tab/↑/↓ switch | Enter submit | Esc cancel | Ctrl+V paste | Ctrl+U clear | Ctrl+Y copy\n"))
+	dlg.Write([]byte("Tab/↑/↓ switch | Enter submit | Esc cancel\n"))
 
 	fieldNames := make([]string, 0, len(schema.Fields))
 	fieldLabelToViewName := make(map[string]string, len(schema.Fields))
@@ -1528,11 +1528,14 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 				view.BgColor = themeSelBg
 				GlobalApp.Gui.SetCurrentView(name)
 				GlobalApp.Gui.Cursor = true
-				view.SetCursor(0, 0)
+				// Move cursor to end of text
+				buf := view.Buffer()
+				view.SetCursor(len([]rune(strings.TrimRight(buf, "\n"))), 0)
 			} else {
 				view.BgColor = gocui.ColorBlack
 			}
 		}
+		GlobalTipComponent.LayComponentTips()
 	}
 
 	closeDialog := func() {
@@ -1544,8 +1547,10 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 			GlobalApp.Gui.DeleteView(name)
 			GlobalApp.Gui.DeleteKeybindings(name)
 		}
+		delete(GlobalTipComponent.list, dialogName)
 		GlobalApp.Gui.Cursor = false
 		GlobalApp.Gui.SetCurrentView(c.name)
+		GlobalTipComponent.LayComponentTips()
 		GlobalApp.Gui.Update(func(g *gocui.Gui) error { return nil })
 	}
 
@@ -1614,6 +1619,10 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	for _, fieldName := range fieldNames {
 		bindNavKeys(fieldName)
 	}
+
+	// Register tip for dialog views
+	dialogTip := "Confirm: <Enter> | Cancel: <Esc> | Switch: <Tab> | Paste: <Ctrl+V> | Clear: <Ctrl+U> | Copy: <Ctrl+Y>"
+	GlobalTipComponent.list[dialogName] = dialogTip
 
 	focusField(0)
 	GlobalApp.Gui.SetViewOnTop(maskName)

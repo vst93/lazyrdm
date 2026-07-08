@@ -96,19 +96,35 @@ func (c *LTRTipComponent) tipForView(viewName string) string {
 		}
 	}
 
+	// Dialog views: check list first, then alias map
 	if tip, ok := c.list[viewName]; ok {
 		return tip
 	}
 
 	aliasMap := map[string]string{
-		"key_list_line":    "key_list",
-		"search_key":       "key_list",
-		"key_info_ttl":     "key_info",
-		"key_detail_line":  "key_info_detail",
-		"key_value_format": "key_info_detail",
+		"key_list_line":           "key_list",
+		"search_key":              "key_list",
+		"key_info_ttl":            "key_info",
+		"key_detail_line":         "key_info_detail",
+		"key_value_format":        "key_info_detail",
+		"page_input_field":        "page_input",
+		"page_input_mask":         "page_input",
+		"page_confirm_yes":        "page_confirm",
+		"page_confirm_no":         "page_confirm",
+		"page_confirm_mask":       "page_confirm",
+		"key_op_dialog_mask":      "key_op_dialog",
+		"page_console_input":      "page_console",
+		"page_console_output":     "page_console",
 	}
 	if alias, ok := aliasMap[viewName]; ok {
 		if tip, exists := c.list[alias]; exists {
+			return tip
+		}
+	}
+
+	// key_op_dialog_field_* -> key_op_dialog
+	if strings.HasPrefix(viewName, "key_op_dialog_field") {
+		if tip, exists := c.list["key_op_dialog"]; exists {
 			return tip
 		}
 	}

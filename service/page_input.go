@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -130,7 +129,7 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	sep := strings.Repeat("─", sepLen)
 	v.Write([]byte("  " + sep + "\n"))
 	// footer
-	footerText := "  [Enter] OK  [Esc] Cancel  [Ctrl+U] Clear  [Ctrl+V] Paste"
+	footerText := "  [Enter] OK  [Esc] Cancel"
 	v.Write([]byte(padRightDisplayWidth(footerText, dialogBodyWidth) + "\n"))
 
 	// ── 输入框（独立 view）──
@@ -280,19 +279,5 @@ func (c *PageComponentInput) closeView() {
 }
 
 func (c *PageComponentInput) KeyMapTips() string {
-	keyMap := []KeyMapStruct{
-		{"Confirm", "<Enter>"},
-		{"Cancel", "<Esc>"},
-		{"Clear", "<Ctrl+U>"},
-		{"Paste", "<Ctrl+V>"},
-		{"Copy", "<Ctrl+Y>"},
-	}
-	ret := ""
-	for i, v := range keyMap {
-		if i > 0 {
-			ret += " | "
-		}
-		ret += fmt.Sprintf("%s: %s", v.Description, v.Key)
-	}
-	return ret
+	return "Confirm: <Enter> | Cancel: <Esc> | Clear: <Ctrl+U> | Paste: <Ctrl+V> | Copy: <Ctrl+Y>"
 }
