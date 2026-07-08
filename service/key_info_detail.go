@@ -455,10 +455,9 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.renderFromCache()
 		return nil
 	})
-	// Scroll detail pane content with Shift+↑/↓
-	// Note: gocui only strips ModShift from character keys (rune), not from
-	// arrow key codes. So Shift+ArrowUp/Down preserves ModShift and can be
-	// matched with ModShift binding.
+	// Scroll detail pane content with Shift+↑/↓ or PgUp/PgDn
+	// Shift+arrow works on most terminals (gocui preserves ModShift for arrow keys).
+	// PgUp/PgDn added as fallback for terminals where Shift+arrow sends escape sequences.
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isStructuredType() {
 			c.scrollDetailPane(-1)
@@ -469,6 +468,20 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isStructuredType() {
 			c.scrollDetailPane(1)
+			return nil
+		}
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyPgup}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isStructuredType() {
+			c.scrollDetailPane(-3)
+			return nil
+		}
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyPgdn}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isStructuredType() {
+			c.scrollDetailPane(3)
 			return nil
 		}
 		return nil
@@ -629,7 +642,7 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Scroll/Select", "↑/↓/j/k"},
 		{"Scroll Page/Jump", "←/->/h/l"},
-		{"Scroll Detail", "Shift+↑/↓"},
+		{"Scroll Detail", "Shift+↑/↓ or PgUp/PgDn"},
 		{"Expand Detail", "<Enter>"},
 		{"Filter", "</>/<x>"},
 		{"Switch Format", "<f>"},
@@ -1186,10 +1199,10 @@ func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType s
 		b.WriteString("  " + allLines[i] + "\n")
 	}
 	if end < len(allLines) {
-		b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines, Shift+↑/↓ to scroll)", len(allLines)-end), "yellow", "", "") + "\n")
+		b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines, Shift+↑/↓ or PgUp/PgDn to scroll)", len(allLines)-end), "yellow", "", "") + "\n")
 	}
 	if start > 0 {
-		b.WriteString(NewColorString("  ... (Shift+↑ to scroll up)", "yellow", "", "") + "\n")
+		b.WriteString(NewColorString("  ... (PgUp to scroll up)", "yellow", "", "") + "\n")
 	}
 	return b.String()
 }

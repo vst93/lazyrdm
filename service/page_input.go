@@ -86,7 +86,10 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	}
 
 	viewWidth := inputWidth + 8 // 左右各 4 格留白
-	viewHeight := 8
+	// Layout (top frame + 7 content rows + bottom frame = 9):
+	//   y=0: label     y=1: gap     y=2: input row
+	//   y=3: padding   y=4: gap     y=5: separator    y=6: footer
+	viewHeight := 9
 
 	theX0 := (GlobalApp.maxX - viewWidth) / 2
 	if theX0 < 1 {
@@ -113,25 +116,27 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	v.TitleColor = gocui.ColorWhite
 	v.Clear()
 
-	// Content layout (each line is 1 terminal row):
+	// Content layout (7 content rows inside frame):
 	//   y=0: label text
 	//   y=1: blank gap
-	//   y=2: input field top border (drawn by separate frameless input view at y=2)
-	//   y=3: input field bottom padding
-	//   y=4: separator
-	//   y=5: footer
-	v.Write([]byte("  " + c.label + "\n"))
-	v.Write([]byte("\n")) // y=1 gap
-	v.Write([]byte("\n")) // y=2 input row (covered by inputView)
-	v.Write([]byte("\n")) // y=3 padding
+	//   y=2: input field row (covered by frameless inputView)
+	//   y=3: input view padding (covered by inputView, not visible)
+	//   y=4: blank gap
+	//   y=5: separator
+	//   y=6: footer
+	v.Write([]byte("  " + c.label + "\n"))  // y=0
+	v.Write([]byte("\n"))                     // y=1 gap
+	v.Write([]byte("\n"))                     // y=2 input row (covered)
+	v.Write([]byte("\n"))                     // y=3 input view padding (covered)
+	v.Write([]byte("\n"))                     // y=4 gap
 	sepLen := dialogBodyWidth - 4
 	if sepLen < 10 {
 		sepLen = 10
 	}
 	sep := strings.Repeat("─", sepLen)
-	v.Write([]byte("  " + sep + "\n")) // y=4 separator
+	v.Write([]byte("  " + sep + "\n"))       // y=5 separator
 	footerText := "  [Enter] OK  [Esc] Cancel"
-	v.Write([]byte(padRightDisplayWidth(footerText, dialogBodyWidth) + "\n")) // y=5 footer
+	v.Write([]byte(padRightDisplayWidth(footerText, dialogBodyWidth) + "\n")) // y=6 footer
 
 	// ── 输入框（独立 view）──
 	inputViewName := c.name + "_field"
@@ -141,10 +146,13 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 		inputX0 = theX0 + 3
 		inputX1 = theX1 - 3
 	}
-	// Input field overlay: positioned at dialog content row y=2 (the input row)
-	// The dialog frame takes 1 line, so absolute Y = theY0 + 1 (frame) + 2 (content offset) = theY0 + 3
+	// Input field overlay at content row y=2.
+	// Absolute Y = theY0 + 1(frame) + 2(content offset) = theY0 + 3.
+	// y1-y0=2 gives 1 internal content row (gocui frameless Size()=y1-y0-1).
+	// The view physically occupies rows [theY0+3, theY0+5], covering content y=2 and y=3 (padding).
+	// Separator at y=5 (theY0+6) and footer at y=6 (theY0+7) are NOT covered.
 	inputY0 := theY0 + 3
-	inputY1 := inputY0 + 1 // 1 row tall (frameless, just the editable line)
+	inputY1 := inputY0 + 2 // y1-y0=2 -> 1 content row
 
 	iv, _ := SetViewSafe(inputViewName, inputX0, inputY0, inputX1, inputY1, 0)
 	iv.Title = ""
