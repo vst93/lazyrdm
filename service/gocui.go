@@ -126,12 +126,15 @@ func GuiSetKeysbinding(g *gocui.Gui, viewname any, keys []any, mod gocui.Modifie
 	}
 	for _, key := range keys {
 		wrappedHandler := func(g *gocui.Gui, v *gocui.View) error {
-			overlayView := activeOverlayViewName(g)
-			if overlayView != "" && !canHandleOverlayViewBinding(viewnameStr, overlayView) {
-				if _, err := g.SetCurrentView(overlayView); err != nil {
+			// Global keybindings (viewname="") should never be blocked by overlays
+			if viewnameStr != "" {
+				overlayView := activeOverlayViewName(g)
+				if overlayView != "" && !canHandleOverlayViewBinding(viewnameStr, overlayView) {
+					if _, err := g.SetCurrentView(overlayView); err != nil {
+						return nil
+					}
 					return nil
 				}
-				return nil
 			}
 			return handler(g, v)
 		}

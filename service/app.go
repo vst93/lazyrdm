@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"tinyrdm/backend/services"
+	"tinyrdm/backend/types"
 
 	"github.com/awesome-gocui/gocui"
 )
@@ -301,18 +302,27 @@ func ExitCurrentConnectionToList() {
 
 	services.Browser().CloseConnection(connectionName)
 
+	// Clean up all views from the current connection session
 	for _, viewName := range GlobalApp.ViewNameList {
 		GlobalApp.Gui.DeleteView(viewName)
 		GlobalApp.Gui.DeleteKeybindings(viewName)
 	}
 
-	auxiliaryViews := []string{"key_list_line", "key_info_ttl", "key_detail_line", "key_value_format", "search_key"}
+	// Clean up auxiliary and overlay views that may persist
+	auxiliaryViews := []string{
+		"key_list_line", "key_info_ttl", "key_detail_line",
+		"key_value_format", "search_key",
+		listFilterViewName,
+		"key_op_dialog", "key_op_dialog_mask",
+		"key_op_dialog_field_0", "key_op_dialog_field_1",
+	}
 	for _, viewName := range auxiliaryViews {
 		GlobalApp.Gui.DeleteView(viewName)
 		GlobalApp.Gui.DeleteKeybindings(viewName)
 	}
 
 	GlobalApp.ViewNameList = []string{}
+	GlobalConnectionComponent.ConnectionListSelectedConnectionInfo = types.Connection{}
 	InitConnectionComponent()
 	GlobalTipComponent.LayoutTemporary("Disconnected. Switched to connection list.", 2, TipTypeSuccess)
 }
