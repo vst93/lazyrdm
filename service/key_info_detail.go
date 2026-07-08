@@ -970,10 +970,27 @@ func (c *LTRKeyInfoDetailComponent) getDetailPaneHeight(viewH int, rows []keyDet
 		}
 		return valLines + 1
 	}
-	// collapsed: show 1-2 preview lines
-	// Fast check: just look for newline or long value without truncating
-	if strings.Contains(selected.Value, "\n") || len(selected.Value) > 200 {
-		return 3
+	// collapsed: check how many lines the formatted value would have
+	val := selected.Value
+	if c.keyValueFormat == "JSON" && validator.IsJSON(val) {
+		if pretty, err := PrettyString(val); err == nil {
+			val = pretty
+		}
+	} else if c.keyValueFormat == "Unicode JSON" && validator.IsJSON(val) {
+		if unicode, err := UnicodeSequenceToString(val); err == nil {
+			val = unicode
+		}
+		if pretty, err := PrettyString(val); err == nil {
+			val = pretty
+		}
+	}
+	lineCount := strings.Count(val, "\n") + 1
+	if lineCount > 1 {
+		// Multi-line value (e.g. formatted JSON): show up to 4 lines + 1 label
+		if lineCount > 4 {
+			return 5 // 4 lines + "... N more lines"
+		}
+		return lineCount + 1
 	}
 	return 2
 }
@@ -1033,9 +1050,21 @@ func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType s
 			b.WriteString("  " + truncateByDisplayWidth(line, viewW-2) + "\n")
 		}
 	} else {
-		preview := strings.ReplaceAll(val, "\n", " ⏎ ")
-		preview = strings.ReplaceAll(preview, "\r", "")
-		b.WriteString("  " + truncateByDisplayWidth(preview, viewW-2) + "\n")
+		// Collapsed: show up to maxLines-1 lines of the formatted value.
+		// If the value has newlines (e.g. pretty-printed JSON), show them
+		// line by line instead of cramming everything into one line.
+		lines := strings.Split(val, "\n")
+		showLines := len(lines)
+		if showLines > maxLines-1 {
+			showLines = maxLines - 1
+		}
+		for i := 0; i < showLines; i++ {
+			line := strings.ReplaceAll(lines[i], "\r", "")
+			b.WriteString("  " + truncateByDisplayWidth(line, viewW-2) + "\n")
+		}
+		if len(lines) > showLines {
+			b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines, Enter to expand)", len(lines)-showLines), "yellow", "", "") + "\n")
+		}
 	}
 	return b.String()
 }
