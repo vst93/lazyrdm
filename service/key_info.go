@@ -66,7 +66,22 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 		printString := ""
 		if keySummary.Success {
 			keySummaryData := keySummary.Data.(types.KeySummary)
-			printString = NewTypeWord(keySummaryData.Type, "full") + " " + c.keyName
+			typeWord := NewTypeWord(keySummaryData.Type, "full")
+			// Build info line: Type  KeyName  [size/length]
+			printString = typeWord + " " + c.keyName
+			sizeStr := ""
+			if keySummaryData.Length > 0 {
+				sizeStr = fmt.Sprintf("len=%d", keySummaryData.Length)
+			}
+			if keySummaryData.Size > 0 {
+				if sizeStr != "" {
+					sizeStr += ", "
+				}
+				sizeStr += fmt.Sprintf("size=%d", keySummaryData.Size)
+			}
+			if sizeStr != "" {
+				printString += "  [" + sizeStr + "]"
+			}
 			theTTL = keySummaryData.TTL
 		}
 		c.keyView.Clear()
@@ -286,6 +301,38 @@ func (c *LTRKeyInfoComponent) KeyBind() *LTRKeyInfoComponent {
 		return nil
 	})
 
+	// 删除 key
+	GuiSetKeysbindingConfirm(GlobalApp.Gui, c.name, []any{'d'}, "Delete this key permanently?", func() {
+		if strings.TrimSpace(c.keyName) == "" {
+			GlobalTipComponent.LayoutTemporary("No key selected", 2, TipTypeWarning)
+			return
+		}
+		res := services.Browser().DeleteKey(
+			GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+			GlobalDBComponent.SelectedDB,
+			c.keyName,
+			true,
+		)
+		if res.Success {
+			// Remove from key list
+			for i, k := range GlobalKeyComponent.keys {
+				if fmt.Sprintf("%s", k) == c.keyName {
+					GlobalKeyComponent.keys = append(GlobalKeyComponent.keys[:i], GlobalKeyComponent.keys[i+1:]...)
+					break
+				}
+			}
+			GlobalKeyInfoComponent.keyName = ""
+			GlobalTipComponent.LayoutTemporary("Deleted key", 2, TipTypeSuccess)
+			GlobalKeyComponent.Layout()
+			GlobalKeyInfoComponent.Layout()
+			GlobalKeyInfoDetailComponent.Layout()
+		} else {
+			GlobalTipComponent.LayoutTemporary("Delete failed: "+res.Msg, 4, TipTypeError)
+		}
+	}, func() {
+		GlobalTipComponent.LayoutTemporary("Delete key cancelled", 2, TipTypeWarning)
+	})
+
 	return c
 }
 
@@ -293,6 +340,7 @@ func (c *LTRKeyInfoComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Rename", "<e>"},
 		{"Edit TTL", "<t>"},
+		{"Delete Key", "<d>"},
 		{"Copy", "<c>"},
 		{"Paste Rename", "<p>"},
 		{"Paste TTL", "<x>"},

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"tinyrdm/backend/services"
@@ -2348,13 +2349,10 @@ func (c *LTRKeyInfoDetailComponent) renderStreamDetail(value any) (string, bool)
 	}
 	c.structuredRows = make([]keyDetailRow, 0, len(items))
 	for i, item := range items {
+		// Stream values are map[string]any — flatten to "field: value" pairs
 		displayVal := item.DisplayValue
 		if strings.TrimSpace(displayVal) == "" {
-			if vb, err := json.Marshal(item.Value); err == nil {
-				displayVal = string(vb)
-			} else {
-				displayVal = fmt.Sprintf("%v", item.Value)
-			}
+			displayVal = formatStreamValue(item.Value)
 		}
 		c.structuredRows = append(c.structuredRows, keyDetailRow{
 			Index: i,
@@ -2365,6 +2363,29 @@ func (c *LTRKeyInfoDetailComponent) renderStreamDetail(value any) (string, bool)
 	c.applyListFilter()
 	c.normalizeSelectedRow()
 	return c.renderStructuredRows(), true
+}
+
+// formatStreamValue converts a stream entry's value (map[string]any) into a
+// readable "field: value" multi-line string. This is much more useful than
+// the raw JSON blob that was previously shown.
+func formatStreamValue(val map[string]any) string {
+	if len(val) == 0 {
+		return "(empty)"
+	}
+	var b strings.Builder
+	keys := make([]string, 0, len(val))
+	for k := range val {
+		keys = append(keys, k)
+	}
+	// Sort keys for stable display
+	sort.Strings(keys)
+	for i, k := range keys {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(k + ": " + fmt.Sprintf("%v", val[k]))
+	}
+	return b.String()
 }
 
 func decodeTypedEntries(value any, out any) bool {

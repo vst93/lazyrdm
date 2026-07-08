@@ -67,6 +67,9 @@ func activeOverlayViewName(g *gocui.Gui) string {
 	if _, err := g.View("page_console_output"); err == nil {
 		return "page_console_output"
 	}
+	if _, err := g.View("page_console_input"); err == nil {
+		return "page_console_input"
+	}
 	if _, err := g.View("key_op_dialog"); err == nil {
 		return "key_op_dialog"
 	}
@@ -94,6 +97,9 @@ func canHandleOverlayViewBinding(bindingView string, overlayView string) bool {
 		return strings.HasPrefix(bindingView, "page_input")
 	}
 	if overlayView == "page_console_output" {
+		return strings.HasPrefix(bindingView, "page_console")
+	}
+	if overlayView == "page_console_input" {
 		return strings.HasPrefix(bindingView, "page_console")
 	}
 	if overlayView == "page_help" || overlayView == "page_server_info" {

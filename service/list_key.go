@@ -13,17 +13,18 @@ import (
 )
 
 type LTRListKeyComponent struct {
-	name          string
-	title         string
-	viewMaxY      int
-	view          *gocui.View
-	Current       int
-	keys          []any
-	MaxKeys       int64
-	IsEnd         bool
-	searchKeyword string
-	searchView    *gocui.View
-	lineView      *gocui.View
+	name            string
+	title           string
+	viewMaxY        int
+	view            *gocui.View
+	Current         int
+	keys            []any
+	MaxKeys         int64
+	IsEnd           bool
+	searchKeyword   string
+	keyTypeFilter   string // "", "string", "list", "hash", "set", "zset", "stream"
+	searchView      *gocui.View
+	lineView        *gocui.View
 }
 
 func InitKeyComponent() {
@@ -62,7 +63,7 @@ func (c *LTRListKeyComponent) LoadKeys() *LTRListKeyComponent {
 		GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
 		GlobalDBComponent.SelectedDB,
 		theSearchKeyword,
-		"",
+		c.keyTypeFilter,
 		false,
 	)
 	if !keysInfo.Success {
@@ -100,7 +101,10 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	} else {
 		subtitle := " " + strconv.Itoa(len(c.keys)) + "/" + strconv.FormatInt(c.MaxKeys, 10)
 		if strings.TrimSpace(c.searchKeyword) != "" {
-			subtitle += " | filtered"
+			subtitle += " | filter:" + c.searchKeyword
+		}
+		if strings.TrimSpace(c.keyTypeFilter) != "" {
+			subtitle += " | type:" + c.keyTypeFilter
 		}
 		c.view.Subtitle = subtitle + " "
 	}
@@ -314,6 +318,27 @@ func (c *LTRListKeyComponent) KeyBind() *LTRListKeyComponent {
 		GlobalTipComponent.LayoutTemporary("Search update cancelled", 2, TipTypeWarning)
 	}, nil)
 
+	// 按类型过滤 (cycle: all → string → list → hash → set → zset → stream → all)
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'T'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		types := []string{"", "string", "list", "hash", "set", "zset", "stream"}
+		currentIdx := 0
+		for i, t := range types {
+			if t == c.keyTypeFilter {
+				currentIdx = i
+				break
+			}
+		}
+		nextIdx := (currentIdx + 1) % len(types)
+		c.keyTypeFilter = types[nextIdx]
+		if c.keyTypeFilter == "" {
+			GlobalTipComponent.LayoutTemporary("Type filter: all types", 2, TipTypeSuccess)
+		} else {
+			GlobalTipComponent.LayoutTemporary("Type filter: "+c.keyTypeFilter, 2, TipTypeSuccess)
+		}
+		c.RefreshList()
+		return nil
+	})
+
 	return c
 }
 
@@ -332,6 +357,7 @@ func (c *LTRListKeyComponent) KeyMapTip() string {
 		{"Select", "↑/↓/j/k"},
 		{"Open Key", "<Enter>/l/→"},
 		{"Search", "<s>"},
+		{"Type Filter", "<T>"},
 		{"Refresh", "<r>"},
 		{"Add", "<a>"},
 		{"Delete", "<d>"},

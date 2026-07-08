@@ -14,14 +14,16 @@ import (
 )
 
 type PageComponentConsole struct {
-	name        string
-	returnView  string
-	view        *gocui.View
-	inputView   *gocui.View
-	outputView  *gocui.View
-	outputLines []string
-	originY     int
-	inputText   string
+	name          string
+	returnView    string
+	view          *gocui.View
+	inputView     *gocui.View
+	outputView    *gocui.View
+	outputLines   []string
+	originY       int
+	inputText     string
+	history       []string
+	historyCursor int // -1 = not browsing, >=0 = position in history
 }
 
 var GlobalConsoleComponent *PageComponentConsole
@@ -144,10 +146,49 @@ func (c *PageComponentConsole) KeyBind() *PageComponentConsole {
 		if cmd == "" {
 			return nil
 		}
+		// Save to history (avoid duplicate of last entry)
+		if len(c.history) == 0 || c.history[len(c.history)-1] != cmd {
+			c.history = append(c.history, cmd)
+		}
+		c.historyCursor = -1
 		c.inputText = ""
 		v.Clear()
 		v.SetCursor(0, 0)
 		c.executeCommand(cmd)
+		return nil
+	})
+
+	// Command history navigation
+	GuiSetKeysbinding(GlobalApp.Gui, c.name+"_input", []any{gocui.KeyArrowUp}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if len(c.history) == 0 {
+			return nil
+		}
+		if c.historyCursor < 0 {
+			c.historyCursor = len(c.history) - 1
+		} else if c.historyCursor > 0 {
+			c.historyCursor--
+		}
+		c.inputText = c.history[c.historyCursor]
+		v.Clear()
+		v.Write([]byte(c.inputText))
+		v.SetCursor(len([]rune(c.inputText)), 0)
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, c.name+"_input", []any{gocui.KeyArrowDown}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.historyCursor < 0 {
+			return nil
+		}
+		if c.historyCursor < len(c.history)-1 {
+			c.historyCursor++
+			c.inputText = c.history[c.historyCursor]
+		} else {
+			// Past the end: clear input
+			c.historyCursor = -1
+			c.inputText = ""
+		}
+		v.Clear()
+		v.Write([]byte(c.inputText))
+		v.SetCursor(len([]rune(c.inputText)), 0)
 		return nil
 	})
 
