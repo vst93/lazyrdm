@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -391,8 +392,10 @@ func (c *PageComponentConsole) closeView() {
 func (c *PageComponentConsole) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Execute", "<Enter>"},
+		{"History", "↑/↓"},
 		{"Switch I/O", "<Tab>"},
 		{"Scroll", "↑/↓/j/k"},
+		{"Page", "PgUp/PgDn"},
 		{"Close", "<Esc>/q"},
 	}
 	ret := ""
@@ -464,18 +467,21 @@ func formatRedisResult(result any) string {
 		}
 		return "(false)"
 	case []any:
+		if len(val) == 0 {
+			return "(empty array)"
+		}
 		var b strings.Builder
 		for i, item := range val {
 			if i > 0 {
 				b.WriteString("\n")
 			}
 			b.WriteString(fmt.Sprintf("%d) %s", i+1, formatRedisResult(item)))
-		}
-		if len(val) == 0 {
-			return "(empty array)"
 		}
 		return b.String()
 	case []string:
+		if len(val) == 0 {
+			return "(empty array)"
+		}
 		var b strings.Builder
 		for i, item := range val {
 			if i > 0 {
@@ -483,8 +489,22 @@ func formatRedisResult(result any) string {
 			}
 			b.WriteString(fmt.Sprintf("%d) %s", i+1, formatRedisResult(item)))
 		}
+		return b.String()
+	case map[string]any:
 		if len(val) == 0 {
-			return "(empty array)"
+			return "(empty hash)"
+		}
+		var b strings.Builder
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for i, k := range keys {
+			if i > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(fmt.Sprintf("%d) %q => %s", i+1, k, formatRedisResult(val[k])))
 		}
 		return b.String()
 	default:
