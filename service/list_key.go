@@ -13,18 +13,18 @@ import (
 )
 
 type LTRListKeyComponent struct {
-	name            string
-	title           string
-	viewMaxY        int
-	view            *gocui.View
-	Current         int
-	keys            []any
-	MaxKeys         int64
-	IsEnd           bool
-	searchKeyword   string
-	keyTypeFilter   string // "", "string", "list", "hash", "set", "zset", "stream"
-	searchView      *gocui.View
-	lineView        *gocui.View
+	name          string
+	title         string
+	viewMaxY      int
+	view          *gocui.View
+	Current       int
+	keys          []any
+	MaxKeys       int64
+	IsEnd         bool
+	searchKeyword string
+	keyTypeFilter string // "", "string", "list", "hash", "set", "zset", "stream"
+	searchView    *gocui.View
+	lineView      *gocui.View
 }
 
 func InitKeyComponent() {
@@ -50,14 +50,14 @@ func (c *LTRListKeyComponent) LoadKeys() *LTRListKeyComponent {
 	theSearchKeyword := ""
 	if c.searchKeyword != "" && c.searchKeyword != "*" {
 		theSearchKeyword = c.searchKeyword
-		if theSearchKeyword[0:1] != "*" {
+		kwRunes := []rune(theSearchKeyword)
+		if string(kwRunes[0]) != "*" {
 			theSearchKeyword = "*" + theSearchKeyword
 		}
-		// 判断theSearchKeyword 末尾是不是 *
-		if theSearchKeyword[len(theSearchKeyword)-1:] != "*" {
+		kwRunes = []rune(theSearchKeyword)
+		if string(kwRunes[len(kwRunes)-1]) != "*" {
 			theSearchKeyword = theSearchKeyword + "*"
 		}
-		// PrintLn(theSearchKeyword)
 	}
 	keysInfo := services.Browser().LoadNextKeys(
 		GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,

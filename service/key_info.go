@@ -32,12 +32,19 @@ func InitKeyInfoComponent() {
 }
 
 func (c *LTRKeyInfoComponent) LayoutTitle() *LTRKeyInfoComponent {
-	if c.keyView != nil && CurrentViewName() == c.name {
+	if c.keyView == nil {
+		return c
+	}
+	if CurrentViewName() == c.name {
 		c.keyView.Title = " [" + c.title + "] "
-		c.keyViewTTL.FrameColor = gocui.ColorGreen
+		if c.keyViewTTL != nil {
+			c.keyViewTTL.FrameColor = gocui.ColorGreen
+		}
 	} else {
 		c.keyView.Title = " " + c.title + " "
-		c.keyViewTTL.FrameColor = gocui.ColorDefault
+		if c.keyViewTTL != nil {
+			c.keyViewTTL.FrameColor = gocui.ColorDefault
+		}
 	}
 	return c
 }

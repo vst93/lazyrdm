@@ -576,11 +576,28 @@ func (c *LTRConnectionComponent) connectCurrent() {
 		connectionInfo := services.Browser().OpenConnection(c.ConnectionListSelectedConnectionInfo.Name)
 		GlobalApp.Gui.Update(func(g *gocui.Gui) error {
 			if connectionInfo.Success {
+				data, ok := connectionInfo.Data.(map[string]any)
+				if !ok {
+					GlobalTipComponent.LayoutTemporary("Invalid connection response", 5, TipTypeError)
+					g.SetCurrentView(c.Name)
+					c.isConnecting = false
+					return nil
+				}
+				dbs, ok := data["db"].([]types.ConnectionDB)
+				if !ok {
+					GlobalTipComponent.LayoutTemporary("Invalid DB list in response", 5, TipTypeError)
+					g.SetCurrentView(c.Name)
+					c.isConnecting = false
+					return nil
+				}
+				view, _ := data["view"].(int)
+				lastDB, _ := data["lastDB"].(int)
+				version, _ := data["version"].(string)
 				GlobalTipComponent.LayoutTemporary("Connected successfully", 2, TipTypeSuccess)
-				c.dbs = connectionInfo.Data.(map[string]any)["db"].([]types.ConnectionDB)
-				c.view = connectionInfo.Data.(map[string]any)["view"].(int)
-				c.lastDB = connectionInfo.Data.(map[string]any)["lastDB"].(int)
-				c.version = connectionInfo.Data.(map[string]any)["version"].(string)
+				c.dbs = dbs
+				c.view = view
+				c.lastDB = lastDB
+				c.version = version
 				g.DeleteView(c.Name)
 				g.DeleteKeybindings(c.Name)
 				GlobalApp.ViewNameList = []string{}

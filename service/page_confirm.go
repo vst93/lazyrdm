@@ -33,15 +33,15 @@ func NewPageComponentConfirm(title string, text string, callbackYes func(), call
 		text = "Are you sure?"
 	}
 	ret := &PageComponentConfirm{
-		name:        "page_confirm",
-		maskName:    "page_confirm_mask",
-		yesBtnName:  "page_confirm_yes",
-		noBtnName:   "page_confirm_no",
-		title:       title,
-		text:        text,
-		returnView:  returnView,
-		callbackYes: callbackYes,
-		callbackNo:  callbackNo,
+		name:         "page_confirm",
+		maskName:     "page_confirm_mask",
+		yesBtnName:   "page_confirm_yes",
+		noBtnName:    "page_confirm_no",
+		title:        title,
+		text:         text,
+		returnView:   returnView,
+		callbackYes:  callbackYes,
+		callbackNo:   callbackNo,
 		mouseHoverYn: true, // default hover on Yes
 	}
 	ret.Layout()

@@ -31,9 +31,10 @@ func main() {
 	}
 
 	// 设置三方包的日志输出为 /dev/null
-	devNull, _ := os.OpenFile(os.DevNull, os.O_WRONLY, 0666)
-	defer devNull.Close()
-	log.SetOutput(devNull)
+	if devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0666); err == nil {
+		defer devNull.Close()
+		log.SetOutput(devNull)
+	}
 
 	g, err := gocui.NewGui(gocui.OutputNormal, false)
 	g.Mouse = true

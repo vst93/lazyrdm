@@ -17,23 +17,23 @@ import (
 )
 
 type LTRKeyInfoDetailComponent struct {
-	name            string
-	title           string
-	view            *gocui.View
-	keyValueFormat  string
-	viewOriginY     int // view origin y
-	keyValueMaxY    int // value real total height
-	CopyString      string
-	lineView        *gocui.View
-	selectedRow     int
-	structuredRows  []keyDetailRow
-	structuredMode  bool
-	currentKeyType  string
-	listFilter      string
-	listFiltered    []keyDetailRow
-	listFilterEdit  string
-	scrollOffset    int // scroll offset for structured row window
-	detailExpanded  bool // whether the detail pane is expanded (full value)
+	name           string
+	title          string
+	view           *gocui.View
+	keyValueFormat string
+	viewOriginY    int // view origin y
+	keyValueMaxY   int // value real total height
+	CopyString     string
+	lineView       *gocui.View
+	selectedRow    int
+	structuredRows []keyDetailRow
+	structuredMode bool
+	currentKeyType string
+	listFilter     string
+	listFiltered   []keyDetailRow
+	listFilterEdit string
+	scrollOffset   int  // scroll offset for structured row window
+	detailExpanded bool // whether the detail pane is expanded (full value)
 }
 
 const listFilterViewName = "key_detail_list_filter"
@@ -678,8 +678,8 @@ func (c *LTRKeyInfoDetailComponent) renderFromCache() {
 
 // renderStructuredRows is the unified renderer for all collection types
 // (list/hash/set/zset/stream). It produces a two-section layout:
-//   1. A columnar table with windowed scrolling showing all rows
-//   2. A detail pane showing the full value of the selected row
+//  1. A columnar table with windowed scrolling showing all rows
+//  2. A detail pane showing the full value of the selected row
 //
 // Column widths are dynamically computed from the available terminal width.
 func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
