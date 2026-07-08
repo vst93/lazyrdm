@@ -709,19 +709,7 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	var b strings.Builder
 	kt := c.currentKeyType
 
-	// Header line 1: type badge + count + filter status + scroll indicator
-	badge := NewTypeWord(kt)
-	totalCount := len(c.structuredRows)
-	shownCount := len(rows)
-	headerLine := " " + badge + " "
-	if strings.TrimSpace(c.listFilter) != "" {
-		headerLine += NewColorString("Filter: \""+c.listFilter+"\" → "+strconv.Itoa(shownCount)+"/"+strconv.Itoa(totalCount), "yellow", "", "bold") + " "
-	} else {
-		headerLine += NewColorString(strconv.Itoa(totalCount)+" items", "white", "", "bold") + " "
-	}
-	b.WriteString(truncateByDisplayWidth(headerLine, viewW) + "\n")
-
-	// Header line 2: key hints (full, not truncated)
+	// Single header line: key hints (type/count info is already in the view subtitle)
 	hintLine := NewColorString("</>filter  <Enter>expand  <a>add  <e>edit  <d>del  <x>clear  <f>fmt  <c>copy  <r>refresh", "cyan", "", "")
 	b.WriteString(truncateByDisplayWidth(" "+hintLine, viewW) + "\n")
 
@@ -746,23 +734,24 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	b.WriteString(c.renderColumnHeader(cols))
 	b.WriteString(sep + "\n")
 
-	// Calculate layout: fixed overhead = 2 (header lines) + 2 (col header + sep) + 1 (detail sep)
+	// Layout calculation:
+	// Fixed overhead = 1 (hint) + 1 (sep) + 1 (col header) + 1 (sep) + 1 (detail sep) = 5
 	// Plus 1 line for scroll indicator when rows exceed visible window.
-	// Reserve at least 40% of view for the table, at least 3 lines for detail
+	// Table gets at least 40% of view, detail gets at most 40% of view.
 	detailLines := c.getDetailPaneHeight(viewH, rows)
-	tableHeight := viewH - 5 - detailLines
+	// Hard cap detail at 40% of view to preserve table browsing space
+	maxDetail := viewH * 2 / 5
+	if maxDetail < 3 {
+		maxDetail = 3
+	}
+	if detailLines > maxDetail {
+		detailLines = maxDetail
+	}
+	overhead := 5
+	tableHeight := viewH - overhead - detailLines
 	// Account for scroll indicator line
 	if len(rows) > tableHeight {
 		tableHeight--
-	}
-	// Ensure detail pane doesn't eat more than 50% of the view
-	maxDetail := viewH / 2
-	if detailLines > maxDetail {
-		detailLines = maxDetail
-		tableHeight = viewH - 5 - detailLines
-		if len(rows) > tableHeight {
-			tableHeight--
-		}
 	}
 	if tableHeight < 3 {
 		tableHeight = 3
@@ -792,7 +781,6 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 			scrollInfo = fmt.Sprintf(" [%d-%d/%d ↕]", start+1, end, len(rows))
 		}
 		scrollInfo = NewColorString(scrollInfo, "yellow", "", "")
-		// Right-pad the line to fill width
 		padLen := viewW - DisplayWidth(scrollInfo)
 		if padLen > 0 {
 			scrollInfo += strings.Repeat(" ", padLen)
