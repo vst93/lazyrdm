@@ -205,6 +205,9 @@ func (c *PageComponentInput) KeyBind() *PageComponentInput {
 	}
 
 	GuiSetKeysbinding(GlobalApp.Gui, inputViewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if isPasting() {
+			return nil
+		}
 		submit()
 		return nil
 	})
@@ -213,6 +216,9 @@ func (c *PageComponentInput) KeyBind() *PageComponentInput {
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, inputViewName, []any{gocui.KeyCtrlJ}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if isPasting() {
+			return nil
+		}
 		submit()
 		return nil
 	})

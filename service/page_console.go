@@ -143,6 +143,9 @@ func (c *PageComponentConsole) KeyBind() *PageComponentConsole {
 
 	// Execute command
 	GuiSetKeysbinding(GlobalApp.Gui, c.name+"_input", []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if isPasting() {
+			return nil
+		}
 		cmd := strings.TrimSpace(c.inputText)
 		if cmd == "" {
 			return nil

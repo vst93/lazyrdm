@@ -1577,6 +1577,10 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 			return nil
 		})
 		GuiSetKeysbinding(GlobalApp.Gui, viewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			// Skip submit if we're in the middle of a paste (pasted \n → KeyEnter)
+			if isPasting() {
+				return nil
+			}
 			submit()
 			return nil
 		})

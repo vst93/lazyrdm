@@ -450,6 +450,9 @@ func (c *LTRConnectionEditComponent) KeyBind() *LTRConnectionEditComponent {
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, c.viewList, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if isPasting() {
+			return nil
+		}
 		switch c.viewNowCurrent {
 		case c.name + "_enter":
 			if c.ConnectionConfig.Name == "" {

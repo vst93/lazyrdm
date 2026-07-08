@@ -4,12 +4,46 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/atotto/clipboard"
 	"github.com/awesome-gocui/gocui"
 	"golang.org/x/term"
 )
+
+// pasteDetector detects terminal-level paste (bracketed paste or rapid input)
+// to prevent pasted newlines from triggering KeyEnter keybindings.
+var (
+	pasteMu       sync.Mutex
+	lastCharTime  time.Time
+	charBurstCount int
+)
+
+// markCharInput is called on every character input to an editable view.
+// If characters arrive in rapid succession (< 10ms apart), we consider it a paste.
+func markCharInput() {
+	pasteMu.Lock()
+	defer pasteMu.Unlock()
+	now := time.Now()
+	if now.Sub(lastCharTime) < 10*time.Millisecond {
+		charBurstCount++
+	} else {
+		charBurstCount = 1
+	}
+	lastCharTime = now
+}
+
+// isPasting returns true if we're likely in the middle of a paste operation
+// (3+ chars received in rapid succession within the last 50ms).
+func isPasting() bool {
+	pasteMu.Lock()
+	defer pasteMu.Unlock()
+	if charBurstCount < 3 {
+		return false
+	}
+	return time.Since(lastCharTime) < 50*time.Millisecond
+}
 
 func confirmTitleFromTip(defaultTitle string, tip string) string {
 	text := strings.ToLower(strings.TrimSpace(tip))
@@ -332,14 +366,14 @@ type EditorInput struct {
 
 func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	// Handle Ctrl+V (paste from clipboard) — read clipboard, strip newlines,
-	// insert as text. This avoids terminal paste issues where \n triggers
-	// KeyEnter keybindings.
+	// insert as text. Works on all platforms via atotto/clipboard:
+	// macOS: pbpaste, Linux: xclip/xsel/wl-paste, Android: termux-clipboard-get,
+	// Windows: powershell Get-Clipboard.
 	if key == gocui.KeyCtrlV {
 		text, err := clipboard.ReadAll()
 		if err != nil || text == "" {
 			return
 		}
-		// Replace newlines with spaces so it stays on one line
 		text = strings.ReplaceAll(text, "\r\n", " ")
 		text = strings.ReplaceAll(text, "\n", " ")
 		text = strings.ReplaceAll(text, "\r", " ")
@@ -353,6 +387,12 @@ func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 	if mod != gocui.ModNone {
 		return
 	}
+
+	// Track character input for paste detection
+	if ch != 0 {
+		markCharInput()
+	}
+
 	switch {
 	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
 		v.EditDelete(true)
@@ -395,6 +435,16 @@ func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		}
 	case key == gocui.KeyTab:
 		v.EditWrite('	')
+	case key == gocui.KeyEnter:
+		// During paste, Enter (from pasted \n) should write a space, not submit.
+		// The keybinding handler checks isPasting() before calling submit.
+		// If we reach here, the keybinding didn't match (or was skipped),
+		// so treat \n as a space to keep text on one line.
+		if isPasting() {
+			v.EditWrite(' ')
+		}
+		// Normal Enter: do nothing here — the keybinding handler calls submit()
+		// before the editor runs (gocui executes keybindings first).
 	default:
 		// 允许所有可打印字符，不做 IsNormalChar 过滤
 		if ch != 0 && ch != '\n' && ch != '\r' {
