@@ -574,22 +574,25 @@ func (c *LTRConnectionComponent) connectCurrent() {
 	c.ConnectionListSelectedConnectionInfo = conn
 	go func() {
 		connectionInfo := services.Browser().OpenConnection(c.ConnectionListSelectedConnectionInfo.Name)
-		if connectionInfo.Success {
-			GlobalTipComponent.LayoutTemporary("Connected successfully", 2, TipTypeSuccess)
-			c.dbs = connectionInfo.Data.(map[string]any)["db"].([]types.ConnectionDB)
-			c.view = connectionInfo.Data.(map[string]any)["view"].(int)
-			c.lastDB = connectionInfo.Data.(map[string]any)["lastDB"].(int)
-			c.version = connectionInfo.Data.(map[string]any)["version"].(string)
-			GlobalApp.Gui.DeleteView(c.Name)
-			GlobalApp.Gui.DeleteKeybindings(c.Name)
-			GlobalApp.ViewNameList = []string{}
-			c.closeView()
-			InitDBComponent()
-		} else {
-			GlobalTipComponent.LayoutTemporary("Failed to connect", 5, TipTypeError)
-			GlobalApp.Gui.SetCurrentView(c.Name)
-		}
-		c.isConnecting = false
+		GlobalApp.Gui.Update(func(g *gocui.Gui) error {
+			if connectionInfo.Success {
+				GlobalTipComponent.LayoutTemporary("Connected successfully", 2, TipTypeSuccess)
+				c.dbs = connectionInfo.Data.(map[string]any)["db"].([]types.ConnectionDB)
+				c.view = connectionInfo.Data.(map[string]any)["view"].(int)
+				c.lastDB = connectionInfo.Data.(map[string]any)["lastDB"].(int)
+				c.version = connectionInfo.Data.(map[string]any)["version"].(string)
+				g.DeleteView(c.Name)
+				g.DeleteKeybindings(c.Name)
+				GlobalApp.ViewNameList = []string{}
+				c.closeView()
+				InitDBComponent()
+			} else {
+				GlobalTipComponent.LayoutTemporary("Failed to connect", 5, TipTypeError)
+				g.SetCurrentView(c.Name)
+			}
+			c.isConnecting = false
+			return nil
+		})
 	}()
 }
 

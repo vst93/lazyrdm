@@ -19,7 +19,6 @@ import (
 type LTRKeyInfoDetailComponent struct {
 	name            string
 	title           string
-	LayoutMaxY      int
 	view            *gocui.View
 	keyValueFormat  string
 	viewOriginY     int // view origin y
@@ -65,7 +64,6 @@ func InitKeyInfoDetailComponent() {
 	GlobalKeyInfoDetailComponent = &LTRKeyInfoDetailComponent{
 		name:           "key_info_detail",
 		title:          "Detail",
-		LayoutMaxY:     0,
 		keyValueFormat: "Raw",
 	}
 	GlobalKeyInfoDetailComponent.Layout().KeyBind()
@@ -96,74 +94,73 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	lineViewWidthStr := "1"
 	// show key detail
 	c.view, err = SetViewSafe(c.name, theX0+1, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
+	if err != nil && err != gocui.ErrUnknownView {
+		return c
+	}
 	c.view.TitleColor = gocui.ColorCyan
 	c.view.FrameRunes = frameSolid
-	if err == nil || err != gocui.ErrUnknownView {
-		c.keyValueMaxY = 0
-		c.view.Wrap = true
-		if CurrentViewName() == c.name {
-			c.view.Title = " [" + c.title + "] "
+	c.keyValueMaxY = 0
+	c.view.Wrap = true
+	if CurrentViewName() == c.name {
+		c.view.Title = " [" + c.title + "] "
+	} else {
+		c.view.Title = " " + c.title + " "
+	}
+	keyDetail := services.Browser().GetKeyDetail(types.KeyDetailParam{
+		Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+		DB:     GlobalDBComponent.SelectedDB,
+		Key:    GlobalKeyInfoComponent.keyName,
+	})
+	if keyDetail.Success {
+		keyDetailData := keyDetail.Data.(types.KeyDetail)
+		theVal = c.buildDisplayValue(keyDetailData)
+		if c.structuredMode {
+			c.view.Wrap = false
+			c.keyValueMaxY = len(strings.Split(theVal, "\n"))
 		} else {
-			c.view.Title = " " + c.title + " "
-		}
-		keyDetail := services.Browser().GetKeyDetail(types.KeyDetailParam{
-			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
-			DB:     GlobalDBComponent.SelectedDB,
-			Key:    GlobalKeyInfoComponent.keyName,
-		})
-		if keyDetail.Success {
-			keyDetailData := keyDetail.Data.(types.KeyDetail)
-			theVal = c.buildDisplayValue(keyDetailData)
-			// structured mode: no wrap, no line numbers, full width
-			if c.structuredMode {
-				c.view.Wrap = false
-				c.keyValueMaxY = len(strings.Split(theVal, "\n"))
-			} else {
-				theValSlice := strings.Split(theVal, "\n")
-				maxLine = len(theValSlice) - 1
-				if maxLine < 0 {
-					maxLine = 0
-				}
-				lineViewWidth = len(strconv.Itoa(maxLine))
-				lineViewWidthStr = strconv.Itoa(lineViewWidth)
-				// reset view x0 for line number gutter
-				c.view, _ = SetViewSafe(c.name, theX0+1+lineViewWidth, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
-				c.view.TitleColor = gocui.ColorCyan
-				c.view.Wrap = true
-				if CurrentViewName() == c.name {
-					c.view.Title = " [" + c.title + "] "
-				} else {
-					c.view.Title = " " + c.title + " "
-				}
-				theViewX, _ := c.view.Size()
-				for k, line := range theValSlice {
-					if k == maxLine {
-						break
-					}
-					lineLen := DisplayWidth(line)
-					if lineLen > theViewX {
-						theRealHeight := lineLen / theViewX
-						if lineLen%theViewX > 0 {
-							theRealHeight++
-						}
-						c.keyValueMaxY += theRealHeight
-						for i := 0; i < theRealHeight; i++ {
-							if i == 0 {
-								lineStr += fmt.Sprintf("%"+lineViewWidthStr+"d", lineStrNo) + "\n"
-							} else {
-								lineStr += "\n"
-							}
-						}
-					} else {
-						c.keyValueMaxY++
-						lineStr += fmt.Sprintf("%"+lineViewWidthStr+"d", lineStrNo) + "\n"
-					}
-					lineStrNo++
-				}
+			theValSlice := strings.Split(theVal, "\n")
+			maxLine = len(theValSlice) - 1
+			if maxLine < 0 {
+				maxLine = 0
 			}
-		} else {
-			theVal = fmt.Sprintln("")
+			lineViewWidth = len(strconv.Itoa(maxLine))
+			lineViewWidthStr = strconv.Itoa(lineViewWidth)
+			c.view, _ = SetViewSafe(c.name, theX0+1+lineViewWidth, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
+			c.view.TitleColor = gocui.ColorCyan
+			c.view.Wrap = true
+			if CurrentViewName() == c.name {
+				c.view.Title = " [" + c.title + "] "
+			} else {
+				c.view.Title = " " + c.title + " "
+			}
+			theViewX, _ := c.view.Size()
+			for k, line := range theValSlice {
+				if k == maxLine {
+					break
+				}
+				lineLen := DisplayWidth(line)
+				if lineLen > theViewX {
+					theRealHeight := lineLen / theViewX
+					if lineLen%theViewX > 0 {
+						theRealHeight++
+					}
+					c.keyValueMaxY += theRealHeight
+					for i := 0; i < theRealHeight; i++ {
+						if i == 0 {
+							lineStr += fmt.Sprintf("%"+lineViewWidthStr+"d", lineStrNo) + "\n"
+						} else {
+							lineStr += "\n"
+						}
+					}
+				} else {
+					c.keyValueMaxY++
+					lineStr += fmt.Sprintf("%"+lineViewWidthStr+"d", lineStrNo) + "\n"
+				}
+				lineStrNo++
+			}
 		}
+	} else {
+		theVal = fmt.Sprintln("")
 	}
 	if maxLine > 0 {
 		subtitle := ""

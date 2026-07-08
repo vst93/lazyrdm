@@ -283,22 +283,42 @@ func GuiSetKeysbindingConfirmWithVIEditor(g *gocui.Gui, viewname string, keys []
 	})
 }
 
-// 密码编辑器，把每个字符替换为 '*'
-type EditorPassword struct{}
+// 密码编辑器，把每个字符替换为 '*'，同时维护真实密码文本
+type EditorPassword struct {
+	BindValString *string
+}
 
 func (e *EditorPassword) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	if mod != gocui.ModNone {
 		return
 	}
+	current := ""
+	if e.BindValString != nil {
+		current = *e.BindValString
+	}
+	cx, _ := v.Cursor()
+	runes := []rune(current)
 	switch {
 	case ch != 0 && ch != '\n' && ch != '\r':
 		v.EditWrite('*')
+		// Insert the real character at cursor position
+		if cx >= len(runes) {
+			runes = append(runes, ch)
+		} else {
+			runes = append(runes[:cx], append([]rune{ch}, runes[cx:]...)...)
+		}
 	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
 		v.EditDelete(true)
+		if cx > 0 && cx <= len(runes) {
+			runes = append(runes[:cx-1], runes[cx:]...)
+		}
 	case key == gocui.KeyArrowLeft:
 		v.MoveCursor(-1, 0)
 	case key == gocui.KeyArrowRight:
 		v.MoveCursor(1, 0)
+	}
+	if e.BindValString != nil {
+		*e.BindValString = string(runes)
 	}
 }
 

@@ -93,7 +93,7 @@ func (fs *FileSelector) renderFiles(v *gocui.View) {
 		theItem := f.Name()
 		if i == fs.selectedIdx {
 			prefix = ">"
-			theItem = NewColorString(theItem, "white", "green", "blod")
+			theItem = NewColorString(theItem, "white", "green", "bold")
 
 		}
 

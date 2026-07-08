@@ -163,7 +163,7 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	iv.SelBgColor = themeInputBg
 	iv.SelFgColor = themeInputFg
 	if c.maskInput {
-		iv.Editor = &EditorPassword{}
+		iv.Editor = &EditorPassword{BindValString: &c.resultText}
 	} else {
 		iv.Editor = &EditorInput{BindValString: &c.resultText}
 	}

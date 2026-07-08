@@ -49,44 +49,43 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	var theTTL int64
 	// show key info
 	c.keyView, err = SetViewSafe(c.name, theX0, 0, GlobalApp.maxX-1, 2, 0)
+	if err != nil && err != gocui.ErrUnknownView {
+		return c
+	}
 	c.keyView.TitleColor = gocui.ColorCyan
 	c.keyView.FrameRunes = frameSolid
-	if err == nil || err != gocui.ErrUnknownView {
-		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
-			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
-			DB:     GlobalDBComponent.SelectedDB,
-			Key:    c.keyName,
-		})
-		// c.keyView.Title = " " + c.title + " "
-		if CurrentViewName() == c.name {
-			c.keyView.Title = " [" + c.title + "] "
-		} else {
-			c.keyView.Title = " " + c.title + " "
-		}
-		printString := ""
-		if keySummary.Success {
-			keySummaryData := keySummary.Data.(types.KeySummary)
-			typeWord := NewTypeWord(keySummaryData.Type, "full")
-			// Build info line: Type  KeyName  [size/length]
-			printString = typeWord + " " + c.keyName
-			sizeStr := ""
-			if keySummaryData.Length > 0 {
-				sizeStr = fmt.Sprintf("len=%d", keySummaryData.Length)
-			}
-			if keySummaryData.Size > 0 {
-				if sizeStr != "" {
-					sizeStr += ", "
-				}
-				sizeStr += fmt.Sprintf("size=%d", keySummaryData.Size)
-			}
-			if sizeStr != "" {
-				printString += "  [" + sizeStr + "]"
-			}
-			theTTL = keySummaryData.TTL
-		}
-		c.keyView.Clear()
-		c.keyView.Write([]byte(printString))
+	keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
+		Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
+		DB:     GlobalDBComponent.SelectedDB,
+		Key:    c.keyName,
+	})
+	if CurrentViewName() == c.name {
+		c.keyView.Title = " [" + c.title + "] "
+	} else {
+		c.keyView.Title = " " + c.title + " "
 	}
+	printString := ""
+	if keySummary.Success {
+		keySummaryData := keySummary.Data.(types.KeySummary)
+		typeWord := NewTypeWord(keySummaryData.Type, "full")
+		printString = typeWord + " " + c.keyName
+		sizeStr := ""
+		if keySummaryData.Length > 0 {
+			sizeStr = fmt.Sprintf("len=%d", keySummaryData.Length)
+		}
+		if keySummaryData.Size > 0 {
+			if sizeStr != "" {
+				sizeStr += ", "
+			}
+			sizeStr += fmt.Sprintf("size=%d", keySummaryData.Size)
+		}
+		if sizeStr != "" {
+			printString += "  [" + sizeStr + "]"
+		}
+		theTTL = keySummaryData.TTL
+	}
+	c.keyView.Clear()
+	c.keyView.Write([]byte(printString))
 
 	theTTLStr := ""
 	theTTLStrType := 0

@@ -148,8 +148,12 @@ func (c *PageComponentHelp) closeView() {
 		}
 	}
 
+	// Fallback: try db_list first (connected state), then connection_list
+	if _, err := GlobalApp.Gui.SetCurrentView("db_list"); err == nil {
+		GlobalTipComponent.LayComponentTips()
+		return
+	}
 	if _, err := GlobalApp.Gui.SetCurrentView("connection_list"); err == nil {
-		GlobalTipComponent.LayoutTemporary("Returned to connection list", 2, TipTypeWarning)
 		GlobalTipComponent.LayComponentTips()
 	}
 }
