@@ -1003,7 +1003,24 @@ func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType s
 	}
 	b.WriteString(truncateByDisplayWidth(label, viewW) + "\n")
 
+	// Apply format to value (JSON/Unicode JSON) if applicable
 	val := row.Value
+	if c.keyValueFormat == "JSON" && validator.IsJSON(val) {
+		pretty, err := PrettyString(val)
+		if err == nil {
+			val = pretty
+		}
+	} else if c.keyValueFormat == "Unicode JSON" && validator.IsJSON(val) {
+		unicode, err := UnicodeSequenceToString(val)
+		if err == nil {
+			val = unicode
+		}
+		pretty, err := PrettyString(val)
+		if err == nil {
+			val = pretty
+		}
+	}
+
 	if c.detailExpanded {
 		lines := strings.Split(val, "\n")
 		for i, line := range lines {
@@ -1013,7 +1030,7 @@ func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType s
 				b.WriteString("\n")
 				break
 			}
-			b.WriteString("  " + line + "\n")
+			b.WriteString("  " + truncateByDisplayWidth(line, viewW-2) + "\n")
 		}
 	} else {
 		preview := strings.ReplaceAll(val, "\n", " ⏎ ")
@@ -1164,25 +1181,22 @@ func (c *LTRKeyInfoDetailComponent) openTypeOperationDialog(operation, prefillVa
 func (c *LTRKeyInfoDetailComponent) buildKeyOpDialogSchema(keyType, operation, prefillValue string) (keyOpDialogSchema, error) {
 	base := keyOpDialogSchema{}
 	selected := c.getSelectedStructuredRow()
-	valueDefault := strings.TrimSpace(prefillValue)
-	if strings.TrimSpace(valueDefault) == "" {
-		if selected != nil && strings.TrimSpace(selected.Value) != "" {
-			valueDefault = selected.Value
-		} else {
-			valueDefault = "value"
+	// For "add" operations: use empty defaults (don't prefill from selected row)
+	// For "update" operations: prefill from the selected row
+	valueDefault := ""
+	fieldDefault := ""
+	indexDefault := "0"
+	scoreDefault := "1"
+	if operation == "update" && selected != nil {
+		valueDefault = selected.Value
+		fieldDefault = selected.Field
+		indexDefault = strconv.Itoa(selected.Index)
+		if selected.Score != "" {
+			scoreDefault = selected.Score
 		}
 	}
-	fieldDefault := "field"
-	if selected != nil && strings.TrimSpace(selected.Field) != "" {
-		fieldDefault = selected.Field
-	}
-	indexDefault := "0"
-	if selected != nil && selected.Index >= 0 {
-		indexDefault = strconv.Itoa(selected.Index)
-	}
-	scoreDefault := "1"
-	if selected != nil && strings.TrimSpace(selected.Score) != "" {
-		scoreDefault = selected.Score
+	if strings.TrimSpace(prefillValue) != "" {
+		valueDefault = prefillValue
 	}
 
 	switch keyType {

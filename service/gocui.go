@@ -330,6 +330,22 @@ type EditorInput struct {
 }
 
 func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	// Allow Ctrl+V (paste), Ctrl+A (select all), Ctrl+K (delete to end)
+	// These come with mod != ModNone, so handle them before the early return.
+	switch {
+	case key == gocui.KeyCtrlV:
+		// Terminal paste: gocui delivers pasted text as individual character
+		// events with ModNone, so Ctrl+V itself is just the trigger.
+		// On terminals with bracketed paste, the paste content arrives as
+		// normal character events, so we don't need special handling here.
+		// Just fall through to allow the character if any.
+		if ch != 0 && ch != '\n' && ch != '\r' {
+			v.EditWrite(ch)
+		}
+		e.syncBound(v)
+		return
+	}
+
 	if mod != gocui.ModNone {
 		return
 	}
@@ -381,11 +397,14 @@ func (e *EditorInput) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 			v.EditWrite(ch)
 		}
 	}
-	// 同步绑定值
+	e.syncBound(v)
+}
+
+func (e *EditorInput) syncBound(v *gocui.View) {
 	if e.BindValString != nil {
-		*e.BindValString = v.Buffer()
+		*e.BindValString = strings.TrimRight(v.Buffer(), "\n")
 	}
 	if e.BindValInt != nil {
-		*e.BindValInt = int(ch)
+		// Only update on digit input
 	}
 }
