@@ -455,9 +455,10 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		c.renderFromCache()
 		return nil
 	})
-	// Scroll detail pane content with Shift+↑/↓ or PgUp/PgDn
-	// Shift+arrow works on most terminals (gocui preserves ModShift for arrow keys).
-	// PgUp/PgDn added as fallback for terminals where Shift+arrow sends escape sequences.
+	// Scroll detail pane content with Shift+↑/↓, Shift+wheel, or PgUp/PgDn
+	// Shift+arrow/wheel works on most terminals (gocui preserves ModShift for
+	// non-character keys like arrows and mouse events).
+	// PgUp/PgDn as fallback for terminals where Shift+arrow sends escape sequences.
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isStructuredType() {
 			c.scrollDetailPane(-1)
@@ -466,6 +467,20 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isStructuredType() {
+			c.scrollDetailPane(1)
+			return nil
+		}
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.MouseWheelUp}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isStructuredType() {
+			c.scrollDetailPane(-1)
+			return nil
+		}
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.MouseWheelDown}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
 		if c.isStructuredType() {
 			c.scrollDetailPane(1)
 			return nil
@@ -642,7 +657,7 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 	keyMap := []KeyMapStruct{
 		{"Scroll/Select", "↑/↓/j/k"},
 		{"Scroll Page/Jump", "←/->/h/l"},
-		{"Scroll Detail", "Shift+↑/↓ or PgUp/PgDn"},
+		{"Scroll Detail", "Shift+↑/↓/wheel or PgUp/PgDn"},
 		{"Expand Detail", "<Enter>"},
 		{"Filter", "</>/<x>"},
 		{"Switch Format", "<f>"},

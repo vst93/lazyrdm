@@ -28,6 +28,7 @@ type flatItem struct {
 	connName  string
 	connCount int
 	expanded  bool
+	conn      *types.Connection // pointer to connection config (nil for group header)
 }
 
 type LTRConnectionComponent struct {
@@ -120,12 +121,16 @@ func (c *LTRConnectionComponent) rebuildFlatItems() {
 			expanded:  expanded,
 		})
 		if expanded {
-			for j, conn := range group.Connections {
+			connTotal := len(group.Connections)
+			for j := range group.Connections {
+				conn := &c.ConnectionList[i].Connections[j]
 				c.flatItems = append(c.flatItems, flatItem{
-					groupIdx: i,
-					connIdx:  j,
-					isGroup:  false,
-					connName: conn.Name,
+					groupIdx:  i,
+					connIdx:   j,
+					isGroup:   false,
+					connName:  conn.Name,
+					connCount: connTotal,
+					conn:      conn,
 				})
 			}
 		}
@@ -186,12 +191,20 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 	cur := c.currentFlatItem()
 	if cur != nil {
 		if cur.isGroup {
-			v.Subtitle = " Group: " + cur.groupName + " (" + fmt.Sprintf("%d", cur.connCount) + ") | Enter: expand/collapse | e/n/d: edit/new/delete "
+			v.Subtitle = " Group: " + cur.groupName + " (" + fmt.Sprintf("%d connections", cur.connCount) + ") "
 		} else {
-			v.Subtitle = " Connection: " + cur.connName + " | Enter: connect | e/n/d: edit/new/delete "
+			sub := " Connection: " + cur.connName
+			if cur.conn != nil {
+				if cur.conn.Network == "unix" && cur.conn.Sock != "" {
+					sub += " | " + cur.conn.Sock
+				} else if cur.conn.Addr != "" {
+					sub += " | " + fmt.Sprintf("%s:%d", cur.conn.Addr, cur.conn.Port)
+				}
+			}
+			v.Subtitle = sub + " "
 		}
 	} else {
-		v.Subtitle = " No connections | n: new group "
+		v.Subtitle = " No connections | n: new "
 	}
 
 	builder := strings.Builder{}
@@ -204,9 +217,9 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 			if item.expanded {
 				arrow = "▾"
 			}
-			line = fmt.Sprintf("%s [%s] (%d)\n", arrow, item.groupName, item.connCount)
+			line = fmt.Sprintf("%s %s (%d)\n", arrow, item.groupName, item.connCount)
 		} else {
-			line = fmt.Sprintf("    %s\n", item.connName)
+			line = formatConnectionLine(item.conn, item.connIdx, item.connCount)
 		}
 
 		if i == c.flatCursor {
@@ -216,10 +229,22 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 			if item.isGroup {
 				builder.WriteString(NewColorString(line, "cyan", "", "bold"))
 			} else {
-				builder.WriteString(line)
+				// Dim the connection name slightly, highlight metadata
+				builder.WriteString(formatConnectionLineColored(item.conn, item.connIdx, item.connCount))
 			}
 		}
 		totalLine++
+	}
+
+	// Show empty state if no items
+	if len(c.flatItems) == 0 {
+		builder.WriteString(NewColorString(" No connections yet.\n\n", "yellow", "", "bold"))
+		builder.WriteString(" Press ")
+		builder.WriteString(NewColorString("<n>", "cyan", "", "bold"))
+		builder.WriteString(" to create a new connection,\n")
+		builder.WriteString(" or ")
+		builder.WriteString(NewColorString("<I>", "cyan", "", "bold"))
+		builder.WriteString(" to import from a Tiny RDM export ZIP.\n")
 	}
 
 	// 自动滚动
@@ -616,6 +641,95 @@ func (c *LTRConnectionComponent) syncLegacyIndices() {
 		c.ConnectionListCurrentGroupIndex = cur.groupIdx
 		c.ConnectionListSelectedConnectionIndex = cur.connIdx
 	}
+}
+
+// formatConnectionLine returns a plain-text line for a connection entry.
+func formatConnectionLine(conn *types.Connection, connIdx, total int) string {
+	if conn == nil {
+		return fmt.Sprintf("  %s\n", "")
+	}
+	// Build the address string
+	addr := ""
+	if conn.Network == "unix" {
+		if conn.Sock != "" {
+			addr = conn.Sock
+		}
+	} else {
+		if conn.Addr != "" {
+			addr = fmt.Sprintf("%s:%d", conn.Addr, conn.Port)
+		}
+	}
+
+	// Tree connector
+	connector := "├"
+	if connIdx == total-1 {
+		connector = "└"
+	}
+
+	// Build the line: "  ├ Name    addr    [tcp|unix]  [SSH]"
+	line := fmt.Sprintf("  %s─ %s", connector, conn.Name)
+	if addr != "" {
+		line += "    " + addr
+	}
+
+	// Network indicator
+	netType := conn.Network
+	if netType == "" {
+		netType = "tcp"
+	}
+	line += "  [" + netType + "]"
+
+	// SSH indicator
+	if conn.SSH.Enable {
+		line += "  [SSH]"
+	}
+
+	line += "\n"
+	return line
+}
+
+// formatConnectionLineColored returns a colored line for a non-selected connection entry.
+// Connection name in default, address in cyan, network/SSH in yellow.
+func formatConnectionLineColored(conn *types.Connection, connIdx, total int) string {
+	if conn == nil {
+		return ""
+	}
+	// Build the address string
+	addr := ""
+	if conn.Network == "unix" {
+		if conn.Sock != "" {
+			addr = conn.Sock
+		}
+	} else {
+		if conn.Addr != "" {
+			addr = fmt.Sprintf("%s:%d", conn.Addr, conn.Port)
+		}
+	}
+
+	// Tree connector
+	connector := "├"
+	if connIdx == total-1 {
+		connector = "└"
+	}
+
+	// Build with colors: connector + name (default), addr (cyan), tags (yellow)
+	result := fmt.Sprintf("  %s─ %s", connector, conn.Name)
+	if addr != "" {
+		result += "    " + NewColorString(addr, "cyan", "", "")
+	}
+
+	netType := conn.Network
+	if netType == "" {
+		netType = "tcp"
+	}
+	result += "  " + NewColorString("["+netType+"]", "yellow", "", "")
+
+	if conn.SSH.Enable {
+		result += "  " + NewColorString("[SSH]", "yellow", "", "bold")
+	}
+
+	result += "\n"
+	return result
 }
 
 func (c *LTRConnectionComponent) KeyMapTip() string {
