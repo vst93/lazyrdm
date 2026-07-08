@@ -7,7 +7,8 @@ import (
 	"strings"
 )
 
-const APP_VERSION = "v1.1"
+// Version is set at build time via -ldflags. Defaults to "dev" for local builds.
+var Version = "dev"
 
 type githubRelease struct {
 	TagName string `json:"tag_name"`
@@ -32,7 +33,7 @@ func CheckOutNewVersion() (bool, string) {
 	}
 	// 移除版本号前的 'v' 如果存在
 	latestVersion := strings.TrimPrefix(release.TagName, "v")
-	currentVersion := strings.TrimPrefix(APP_VERSION, "v")
+	currentVersion := strings.TrimPrefix(Version, "v")
 	// 字符串转小数
 	latestVersionFloat, _ := strconv.ParseFloat(latestVersion, 64)
 	currentVersionFloat, _ := strconv.ParseFloat(currentVersion, 64)

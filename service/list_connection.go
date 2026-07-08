@@ -187,7 +187,7 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		if err != gocui.ErrUnknownView {
 			return c
 		}
-		v.Title = " " + c.title + " "
+		v.Title = " " + c.title + " v" + Version + " "
 		v.Editable = false
 		v.Frame = true
 		v.FrameRunes = frameSolid

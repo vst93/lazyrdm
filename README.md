@@ -42,7 +42,31 @@ brew install vst93/tap/lazyrdm
 
 **Shell script:**
 ```bash
+# Install latest release
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)"
+
+# Uninstall
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)" uninstall
+
+# Check version
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)" version
+```
+
+**Build from source:**
+```bash
+git clone https://github.com/vst93/lazyrdm.git
+cd lazyrdm
+go build -o lazyrdm .
+# Version will be "dev" for local builds
+```
+
+### Version Display
+
+The version number is shown in the connection list title bar. Release binaries have the version injected at build time (e.g. `v1.2`). Local development builds show `vdev`.
+
+Check version from command line:
+```bash
+lazyrdm --version
 ```
 
 ### Notes
@@ -90,7 +114,31 @@ brew install vst93/tap/lazyrdm
 
 **脚本安装：**
 ```bash
+# 安装最新版本
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)"
+
+# 卸载
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)" uninstall
+
+# 查看版本信息
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)" version
+```
+
+**源码编译：**
+```bash
+git clone https://github.com/vst93/lazyrdm.git
+cd lazyrdm
+go build -o lazyrdm .
+# 本地编译版本号显示为 dev
+```
+
+### 版本说明
+
+版本号显示在连接列表标题栏。Release 版本在编译时注入版本号（如 `v1.2`），本地开发编译显示 `vdev`。
+
+命令行查看版本：
+```bash
+lazyrdm --version
 ```
 
 ### 说明
@@ -105,5 +153,6 @@ brew install vst93/tap/lazyrdm
 # Homebrew
 brew uninstall lazyrdm
 
-# 手动安装：直接删除 PATH 中的二进制文件
+# 脚本卸载
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vst93/lazyrdm/refs/heads/master/cmd/install.sh)" uninstall
 ```

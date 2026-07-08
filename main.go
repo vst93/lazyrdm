@@ -21,7 +21,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion || *showVersionShort {
-		fmt.Println(service.APP_VERSION)
+		fmt.Println(service.Version)
 		return
 	}
 

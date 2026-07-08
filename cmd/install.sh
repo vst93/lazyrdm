@@ -7,10 +7,18 @@ REPO="https://github.com/vst93/lazyrdm"
 BINARY_NAME="lazyrdm"
 TEMP_DIR=$(mktemp -d)
 
-# 使用GitHub API获取最新的发行版信息（里边有最新的版本号标识）
+# 支持的子命令: install (default), uninstall, version
+ACTION="${1:-install}"
+
+# 使用GitHub API获取最新的发行版信息
 response=$(curl -s https://api.github.com/repos/vst93/$BINARY_NAME/releases/latest)
-# 提取下载链接 （tag_name属性即为版本号属性 cut命令获取版本号属性的值 awk命令把版本号中的v字符删除）
+# 提取版本号 (tag_name)
 VERSION=$(echo "$response" | grep 'tag_name' | cut -d'"' -f4)
+
+if [ -z "$VERSION" ]; then
+    echo "错误: 无法获取最新版本号，请检查网络连接"
+    exit 1
+fi
 
 # 确定安装目录
 determine_install_dir() {
@@ -300,6 +308,42 @@ install_binary() {
     fi
 }
 
+# 卸载
+uninstall() {
+    echo "正在卸载 $BINARY_NAME..."
+
+    local removed=false
+    for dir in /usr/local/bin "$HOME/.local/bin" "$HOME/bin" "${HOME%/*}/usr/local/bin"; do
+        local bin="$dir/$BINARY_NAME"
+        if [ -f "$bin" ]; then
+            echo "找到: $bin"
+            if [ -w "$dir" ]; then
+                rm -f "$bin"
+            else
+                sudo rm -f "$bin"
+            fi
+            echo "已删除: $bin"
+            removed=true
+        fi
+    done
+
+    if [ "$removed" = false ]; then
+        echo "未找到 $BINARY_NAME，可能未安装"
+        exit 1
+    fi
+    echo "卸载完成"
+}
+
+# 显示远程最新版本
+show_version() {
+    local installed="未安装"
+    if command -v "$BINARY_NAME" &> /dev/null; then
+        installed=$("$BINARY_NAME" --version 2>/dev/null || echo "未知")
+    fi
+    echo "最新版本: $VERSION"
+    echo "已安装版本: $installed"
+}
+
 # 主安装流程
 main() {
     echo "开始安装 $BINARY_NAME $VERSION"
@@ -350,5 +394,22 @@ main() {
     install_binary "$zip_file" "$INSTALL_DIR"
 }
 
-# 运行主函数
-main "$@"
+# 运行
+case "$ACTION" in
+    uninstall|remove)
+        uninstall
+        ;;
+    version|-v|--version)
+        show_version
+        ;;
+    install|"")
+        main "$@"
+        ;;
+    *)
+        echo "用法: $0 [install|uninstall|version]"
+        echo "  install   安装最新版本 (默认)"
+        echo "  uninstall 卸载"
+        echo "  version   查看版本信息"
+        exit 1
+        ;;
+esac
