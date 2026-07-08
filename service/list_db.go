@@ -65,6 +65,7 @@ func (c *LTRListDBComponent) Layout() *LTRListDBComponent {
 
 	c.view.Editable = false
 	c.view.Frame = true
+	c.view.FrameRunes = frameSolid
 	c.view.TitleColor = gocui.ColorCyan
 	_, c.LayoutMaxH = c.view.Size()
 

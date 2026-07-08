@@ -92,6 +92,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 	}
 	c.view.Editable = false
 	c.view.Frame = true
+	c.view.FrameRunes = frameSolid
 	c.view.TitleColor = gocui.ColorCyan
 	c.view.Title = " Key List "
 	if GlobalDBComponent.SelectedDB < 0 {
@@ -175,7 +176,7 @@ func (c *LTRListKeyComponent) Layout() *LTRListKeyComponent {
 		c.lineView.Write([]byte(lineStr))
 		c.lineView.SetOrigin(0, 0)
 	}
-	c.lineView.FrameRunes = []rune{'─', '│', '┌', '─', '└', '─'}
+	c.lineView.FrameRunes = frameHalfTL
 
 	// reset view x0 and x1
 	c.view, _ = SetViewSafe(c.name, 1+lineViewWidth, theDBComponentH+2, GlobalApp.maxX*2/10, GlobalApp.maxY-2, 0)

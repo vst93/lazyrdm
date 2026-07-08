@@ -50,6 +50,7 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 	// show key info
 	c.keyView, err = SetViewSafe(c.name, theX0, 0, GlobalApp.maxX-1, 2, 0)
 	c.keyView.TitleColor = gocui.ColorCyan
+	c.keyView.FrameRunes = frameSolid
 	if err == nil || err != gocui.ErrUnknownView {
 		keySummary := services.Browser().GetKeySummary(types.KeySummaryParam{
 			Server: GlobalConnectionComponent.ConnectionListSelectedConnectionInfo.Name,
@@ -95,7 +96,7 @@ func (c *LTRKeyInfoComponent) Layout() *LTRKeyInfoComponent {
 			c.keyViewTTL.Write([]byte(NewColorString(theTTLStr+SPACE_STRING, "black", "green", "bold")))
 		}
 	}
-	c.keyViewTTL.FrameRunes = []rune{'─', '│', '─', '┐', '─', '┘'}
+	c.keyViewTTL.FrameRunes = frameHalfTR
 	// c.keyViewTTL.Frame = false
 	if CurrentViewName() == c.name && GlobalTipComponent != nil {
 		GlobalTipComponent.Layout(c.KeyMapTip())

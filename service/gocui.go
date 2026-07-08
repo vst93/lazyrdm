@@ -90,16 +90,19 @@ func canHandleOverlayViewBinding(bindingView string, overlayView string) bool {
 			bindingView == "page_confirm_yes" ||
 			bindingView == "page_confirm_no"
 	}
-	if overlayView == "page_input" && (bindingView == "page_input_mask" || bindingView == "page_input_field" || bindingView == "page_input_footer") {
-		return true
+	if overlayView == "page_input" {
+		return strings.HasPrefix(bindingView, "page_input")
+	}
+	if overlayView == "page_console_output" {
+		return strings.HasPrefix(bindingView, "page_console")
+	}
+	if overlayView == "page_help" || overlayView == "page_server_info" {
+		return false
 	}
 	if overlayView == "key_op_dialog" {
-		// allow the dialog mask, field views, and the dialog itself to handle keys
-		return bindingView == "key_op_dialog_mask" ||
-			strings.HasPrefix(bindingView, "key_op_dialog_field_")
-	}
-	if overlayView == listFilterViewName {
-		return bindingView == "key_info_detail"
+		return bindingView == "key_op_dialog" ||
+			bindingView == "key_op_dialog_mask" ||
+			strings.HasPrefix(bindingView, "key_op_dialog_field")
 	}
 	return false
 }

@@ -109,6 +109,7 @@ func (c *PageComponentInput) Layout() *PageComponentInput {
 	v.FgColor = themeDialogFg
 	v.BgColor = themeDialogBg
 	v.FrameColor = themeFrameDialog
+	v.FrameRunes = frameDouble
 	v.TitleColor = gocui.ColorWhite
 	v.Clear()
 

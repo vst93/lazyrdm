@@ -177,6 +177,7 @@ func (c *LTRConnectionComponent) Layout() *LTRConnectionComponent {
 		v.Title = " " + c.title + " "
 		v.Editable = false
 		v.Frame = true
+		v.FrameRunes = frameSolid
 		v.TitleColor = gocui.ColorCyan
 		_, c.LayoutMaxY = v.Size()
 	}

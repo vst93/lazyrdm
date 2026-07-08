@@ -82,6 +82,7 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	v.Highlight = false
 	v.FgColor = themeDialogFg
 	v.FrameColor = themeFrameDialog
+	v.FrameRunes = frameDouble
 	v.TitleColor = gocui.ColorWhite
 
 	v.Clear()
@@ -127,6 +128,7 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	yesV.Wrap = false
 	yesV.Editable = false
 	yesV.Highlight = false
+	yesV.FrameRunes = frameSolid
 	yesV.TitleColor = gocui.ColorWhite
 
 	// No button
@@ -140,6 +142,7 @@ func (c *PageComponentConfirm) Layout() *PageComponentConfirm {
 	noV.Wrap = false
 	noV.Editable = false
 	noV.Highlight = false
+	noV.FrameRunes = frameSolid
 	noV.TitleColor = gocui.ColorWhite
 
 	c.renderButtons()

@@ -215,6 +215,7 @@ func (c *LTRTipComponent) layoutTemporaryTip() {
 	}
 	c.temporaryView.Editable = false
 	c.temporaryView.Frame = true
+	c.temporaryView.FrameRunes = frameDashed
 	c.temporaryView.Wrap = false
 	c.temporaryView.Title = " Notice "
 	c.temporaryView.TitleColor = gocui.ColorWhite

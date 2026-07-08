@@ -99,6 +99,7 @@ func (c *PageComponentConsole) Layout() *PageComponentConsole {
 	ov.Wrap = true
 	ov.Editable = false
 	ov.Frame = true
+	ov.FrameRunes = frameSolid
 	ov.TitleColor = gocui.ColorCyan
 	ov.Clear()
 	for _, line := range c.outputLines {
@@ -116,6 +117,7 @@ func (c *PageComponentConsole) Layout() *PageComponentConsole {
 	iv.Wrap = false
 	iv.Editable = true
 	iv.Frame = true
+	iv.FrameRunes = frameDashed
 	iv.TitleColor = gocui.ColorCyan
 	iv.Editor = &EditorInput{BindValString: &c.inputText}
 	iv.Clear()

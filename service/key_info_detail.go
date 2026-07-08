@@ -96,6 +96,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 	// show key detail
 	c.view, err = SetViewSafe(c.name, theX0+1, 3, GlobalApp.maxX-1, GlobalApp.maxY-2, 0)
 	c.view.TitleColor = gocui.ColorCyan
+	c.view.FrameRunes = frameSolid
 	if err == nil || err != gocui.ErrUnknownView {
 		c.keyValueMaxY = 0
 		c.view.Wrap = true
@@ -224,7 +225,7 @@ func (c *LTRKeyInfoDetailComponent) Layout() *LTRKeyInfoDetailComponent {
 		}
 		c.lineView.SetOrigin(0, 0)
 	}
-	c.lineView.FrameRunes = []rune{'─', '│', '┌', '─', '└', '─'}
+	c.lineView.FrameRunes = frameHalfTL
 	if c.structuredMode {
 		c.lineView.Frame = false
 	} else {
@@ -349,6 +350,7 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		fv.Editor = &EditorInput{BindValString: &c.listFilterEdit}
 		fv.BgColor = themeIndicatorBg
 		fv.Frame = true
+		fv.FrameRunes = frameDashed
 		fv.Title = " Filter (Enter=apply Esc=cancel) "
 		fv.TitleColor = gocui.ColorCyan
 		fv.Clear()
@@ -1387,6 +1389,8 @@ func (c *LTRKeyInfoDetailComponent) showKeyOpDialog(schema keyOpDialogSchema, on
 	}
 	dlg.Title = " " + schema.Title + " "
 	dlg.TitleColor = gocui.ColorWhite
+	dlg.FrameColor = themeFrameDialog
+	dlg.FrameRunes = frameDouble
 	dlg.Clear()
 	dlg.Wrap = true
 	dlg.Write([]byte(schema.Description + "\n"))

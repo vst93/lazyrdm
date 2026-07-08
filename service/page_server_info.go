@@ -122,6 +122,8 @@ func (c *PageComponentServerInfo) Layout() *PageComponentServerInfo {
 	v.Wrap = false
 	v.Editable = false
 	v.Frame = true
+	v.FrameColor = themeFrameDialog
+	v.FrameRunes = frameDouble
 	v.TitleColor = gocui.ColorWhite
 	v.Clear()
 	v.Write([]byte(c.text))

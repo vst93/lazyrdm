@@ -60,6 +60,7 @@ func (fs *FileSelector) Layout(g *gocui.Gui) error {
 		v.Title = " File Selector"
 		v.Wrap = true
 		v.Frame = true
+		v.FrameRunes = frameSolid
 		v.TitleColor = gocui.ColorCyan
 		fmt.Fprintf(v, "Current path: %s", fs.currentDir)
 	}
