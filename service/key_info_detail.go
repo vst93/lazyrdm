@@ -34,7 +34,13 @@ type LTRKeyInfoDetailComponent struct {
 	listFilterEdit  string
 	scrollOffset    int // scroll offset for structured row window
 	detailExpanded  bool // whether the detail pane is expanded (full value)
-	filterDirty     bool // true when filter changed and needs re-applying
+	filterDirty      bool // true when filter changed and needs re-applying
+	cachedHintLine   string // cached hint line to avoid NewColorString on every scroll
+	cachedCols       []columnDef
+	cachedKeyType    string
+	cachedViewW      int
+	cachedColHeader  string // cached column header line
+	cachedSep        string // cached separator line
 }
 
 const listFilterViewName = "key_detail_list_filter"
@@ -710,11 +716,17 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 	kt := c.currentKeyType
 
 	// Single header line: key hints (type/count info is already in the view subtitle)
-	hintLine := NewColorString("</>filter  <Enter>expand  <a>add  <e>edit  <d>del  <x>clear  <f>fmt  <c>copy  <r>refresh", "cyan", "", "")
-	b.WriteString(truncateByDisplayWidth(" "+hintLine, viewW) + "\n")
+	// Cached string — this is called on every scroll event
+	if c.cachedHintLine == "" {
+		c.cachedHintLine = " " + NewColorString("</>filter  <Enter>expand  <a>add  <e>edit  <d>del  <x>clear  <f>fmt  <c>copy  <r>refresh", "cyan", "", "")
+	}
+	b.WriteString(truncateByDisplayWidth(c.cachedHintLine, viewW) + "\n")
 
 	// separator
-	sep := strings.Repeat("─", viewW)
+	if c.cachedSep == "" {
+		c.cachedSep = strings.Repeat("─", viewW)
+	}
+	sep := c.cachedSep
 	b.WriteString(sep + "\n")
 
 	if len(c.structuredRows) == 0 {
@@ -727,12 +739,19 @@ func (c *LTRKeyInfoDetailComponent) renderStructuredRows() string {
 		return b.String()
 	}
 
-	// Determine column layout based on key type
-	cols := c.getColumnLayout(kt, viewW)
+	// Determine column layout based on key type (cached — only changes when keyType or viewW changes)
+	if c.cachedCols == nil || c.cachedKeyType != kt || c.cachedViewW != viewW {
+		c.cachedCols = c.getColumnLayout(kt, viewW)
+		c.cachedKeyType = kt
+		c.cachedViewW = viewW
+		c.cachedColHeader = c.renderColumnHeader(c.cachedCols)
+		c.cachedSep = strings.Repeat("─", viewW)
+	}
+	cols := c.cachedCols
 
-	// column header — dim cyan
-	b.WriteString(c.renderColumnHeader(cols))
-	b.WriteString(sep + "\n")
+	// column header — dim cyan (cached)
+	b.WriteString(c.cachedColHeader)
+	b.WriteString(c.cachedSep + "\n")
 
 	// Layout calculation:
 	// Fixed overhead = 1 (hint) + 1 (sep) + 1 (col header) + 1 (sep) + 1 (detail sep) = 5
@@ -892,7 +911,7 @@ func (c *LTRKeyInfoDetailComponent) getColumnLayout(keyType string, viewW int) [
 
 func (c *LTRKeyInfoDetailComponent) renderColumnHeader(cols []columnDef) string {
 	var b strings.Builder
-	b.WriteString("  ") // prefix space
+	b.WriteString("  ")
 	for i, col := range cols {
 		if i > 0 {
 			b.WriteString(" ")
@@ -906,7 +925,6 @@ func (c *LTRKeyInfoDetailComponent) renderColumnHeader(cols []columnDef) string 
 
 func (c *LTRKeyInfoDetailComponent) renderRowLine(selected bool, idx int, row keyDetailRow, cols []columnDef) string {
 	var b strings.Builder
-	// Selection indicator: "▶" for selected, " " for unselected
 	if selected {
 		b.WriteString(NewColorString("▶", "green", "", "bold"))
 	} else {
@@ -920,13 +938,14 @@ func (c *LTRKeyInfoDetailComponent) renderRowLine(selected bool, idx int, row ke
 		val := col.getValue(row, idx)
 		val = strings.ReplaceAll(val, "\n", " ⏎ ")
 		val = strings.ReplaceAll(val, "\r", "")
-		val = truncateByDisplayWidth(val, col.width)
-		padded := padRightDisplayWidth(val, col.width)
 		if selected {
-			// Highlight selected row with cyan background
+			// Selected row: truncate + pad + color
+			val = truncateByDisplayWidth(val, col.width)
+			padded := padRightDisplayWidth(val, col.width)
 			b.WriteString(NewColorString(padded, "black", "cyan", "bold"))
 		} else {
-			b.WriteString(padded)
+			// Unselected row: just truncate, no padding needed (saves DisplayWidth calls)
+			b.WriteString(truncateByDisplayWidth(val, col.width))
 		}
 	}
 	b.WriteString("\n")
@@ -941,8 +960,8 @@ func (c *LTRKeyInfoDetailComponent) getDetailPaneHeight(viewH int, rows []keyDet
 		c.selectedRow = 0
 	}
 	selected := rows[c.selectedRow]
-	valLines := len(strings.Split(selected.Value, "\n"))
 	if c.detailExpanded {
+		valLines := len(strings.Split(selected.Value, "\n"))
 		if valLines > viewH/2 {
 			return viewH / 2
 		}
@@ -952,8 +971,8 @@ func (c *LTRKeyInfoDetailComponent) getDetailPaneHeight(viewH int, rows []keyDet
 		return valLines + 1
 	}
 	// collapsed: show 1-2 preview lines
-	preview := truncateByDisplayWidth(strings.ReplaceAll(selected.Value, "\n", " ⏎ "), 200)
-	if DisplayWidth(preview) > 200 || strings.Contains(selected.Value, "\n") {
+	// Fast check: just look for newline or long value without truncating
+	if strings.Contains(selected.Value, "\n") || len(selected.Value) > 200 {
 		return 3
 	}
 	return 2
@@ -2261,6 +2280,10 @@ func (c *LTRKeyInfoDetailComponent) buildDisplayValue(detail types.KeyDetail) st
 	c.scrollOffset = 0
 	c.detailExpanded = false
 	c.filterDirty = true
+	c.cachedHintLine = ""
+	c.cachedCols = nil
+	c.cachedColHeader = ""
+	c.cachedSep = ""
 	if keyType == "string" {
 		theVal := fmt.Sprintln(detail.Value)
 		if c.keyValueFormat == "JSON" && validator.IsJSON(theVal) {
