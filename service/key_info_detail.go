@@ -33,6 +33,7 @@ type LTRKeyInfoDetailComponent struct {
 	listFiltered    []keyDetailRow
 	listFilterEdit  string
 	scrollOffset    int // scroll offset for structured row window
+	detailScrollY   int // scroll offset for detail pane content
 	detailExpanded  bool // whether the detail pane is expanded (full value)
 	filterDirty      bool // true when filter changed and needs re-applying
 	cachedHintLine   string // cached hint line to avoid NewColorString on every scroll
@@ -403,7 +404,23 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			return nil
 		}
 		c.detailExpanded = !c.detailExpanded
+		c.detailScrollY = 0
 		c.renderFromCache()
+		return nil
+	})
+	// Scroll detail pane content with Shift+Up/Down
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowUp, gocui.MouseWheelUp, 'k'}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isStructuredType() {
+			c.scrollDetailPane(-1)
+			return nil
+		}
+		return nil
+	})
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{gocui.KeyArrowDown, gocui.MouseWheelDown, 'j'}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isStructuredType() {
+			c.scrollDetailPane(1)
+			return nil
+		}
 		return nil
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, listFilterViewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
@@ -561,7 +578,8 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 
 	keyMap := []KeyMapStruct{
 		{"Scroll/Select", "↑/↓/j/k"},
-		{"Scroll Page/Jump", "←/→/h/l"},
+		{"Scroll Page/Jump", "←/->/h/l"},
+		{"Scroll Detail", "Shift+↑/↓"},
 		{"Expand Detail", "<Enter>"},
 		{"Filter", "</>/<x>"},
 		{"Switch Format", "<f>"},
@@ -645,6 +663,7 @@ func (c *LTRKeyInfoDetailComponent) moveDetailRowSelection(step int) {
 	}
 	c.selectedRow += step
 	c.normalizeSelectedRow()
+	c.detailScrollY = 0
 	if c.structuredMode && len(c.structuredRows) > 0 {
 		c.renderFromCache()
 		return
@@ -960,17 +979,8 @@ func (c *LTRKeyInfoDetailComponent) getDetailPaneHeight(viewH int, rows []keyDet
 		c.selectedRow = 0
 	}
 	selected := rows[c.selectedRow]
-	if c.detailExpanded {
-		valLines := len(strings.Split(selected.Value, "\n"))
-		if valLines > viewH/2 {
-			return viewH / 2
-		}
-		if valLines < 3 {
-			return 4
-		}
-		return valLines + 1
-	}
-	// collapsed: check how many lines the formatted value would have
+
+	// Apply format to count lines (same logic as renderDetailPane)
 	val := selected.Value
 	if c.keyValueFormat == "JSON" && validator.IsJSON(val) {
 		if pretty, err := PrettyString(val); err == nil {
@@ -984,15 +994,49 @@ func (c *LTRKeyInfoDetailComponent) getDetailPaneHeight(viewH int, rows []keyDet
 			val = pretty
 		}
 	}
-	lineCount := strings.Count(val, "\n") + 1
-	if lineCount > 1 {
-		// Multi-line value (e.g. formatted JSON): show up to 4 lines + 1 label
-		if lineCount > 4 {
-			return 5 // 4 lines + "... N more lines"
+
+	// Count display lines after wrapping
+	viewW := 60
+	if c.view != nil {
+		viewW, _ = c.view.Size()
+	}
+	wrapW := viewW - 2
+	if wrapW < 10 {
+		wrapW = 10
+	}
+	lineCount := 0
+	for _, line := range strings.Split(val, "\n") {
+		line = strings.ReplaceAll(line, "\r", "")
+		if line == "" {
+			lineCount++
+		} else {
+			lineCount += len(wrapText(line, wrapW))
+		}
+	}
+
+	if c.detailExpanded {
+		if lineCount > viewH/2 {
+			return viewH / 2
+		}
+		if lineCount < 3 {
+			return 4
 		}
 		return lineCount + 1
 	}
-	return 2
+
+	// collapsed: show up to 4 lines + 1 label
+	if lineCount > 4 {
+		return 5
+	}
+	return lineCount + 1
+}
+
+func (c *LTRKeyInfoDetailComponent) scrollDetailPane(n int) {
+	c.detailScrollY += n
+	if c.detailScrollY < 0 {
+		c.detailScrollY = 0
+	}
+	c.renderFromCache()
 }
 
 func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType string, viewW int, maxLines int) string {
@@ -1005,7 +1049,7 @@ func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType s
 	case "hash":
 		label = NewColorString("Field: ", "cyan", "", "") + row.Field
 	case "zset":
-		label = NewColorString("Score: ", "cyan", "", "") + row.Score + NewColorString("  Value: ", "cyan", "", "") + truncateByDisplayWidth(row.Value, 40)
+		label = NewColorString("Score: ", "cyan", "", "") + row.Score
 	case "stream":
 		label = NewColorString("ID: ", "cyan", "", "") + row.Field
 	case "set":
@@ -1023,50 +1067,87 @@ func (c *LTRKeyInfoDetailComponent) renderDetailPane(row keyDetailRow, keyType s
 	// Apply format to value (JSON/Unicode JSON) if applicable
 	val := row.Value
 	if c.keyValueFormat == "JSON" && validator.IsJSON(val) {
-		pretty, err := PrettyString(val)
-		if err == nil {
+		if pretty, err := PrettyString(val); err == nil {
 			val = pretty
 		}
 	} else if c.keyValueFormat == "Unicode JSON" && validator.IsJSON(val) {
-		unicode, err := UnicodeSequenceToString(val)
-		if err == nil {
+		if unicode, err := UnicodeSequenceToString(val); err == nil {
 			val = unicode
 		}
-		pretty, err := PrettyString(val)
-		if err == nil {
+		if pretty, err := PrettyString(val); err == nil {
 			val = pretty
 		}
 	}
 
-	if c.detailExpanded {
-		lines := strings.Split(val, "\n")
-		for i, line := range lines {
-			if i >= maxLines-1 {
-				remaining := len(lines) - i
-				b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines)", remaining), "yellow", "", ""))
-				b.WriteString("\n")
-				break
-			}
-			b.WriteString("  " + truncateByDisplayWidth(line, viewW-2) + "\n")
+	// Wrap long lines to viewW-2 columns, producing a flat list of display lines
+	wrapW := viewW - 2
+	if wrapW < 10 {
+		wrapW = 10
+	}
+	var allLines []string
+	for _, rawLine := range strings.Split(val, "\n") {
+		rawLine = strings.ReplaceAll(rawLine, "\r", "")
+		if rawLine == "" {
+			allLines = append(allLines, "")
+			continue
 		}
-	} else {
-		// Collapsed: show up to maxLines-1 lines of the formatted value.
-		// If the value has newlines (e.g. pretty-printed JSON), show them
-		// line by line instead of cramming everything into one line.
-		lines := strings.Split(val, "\n")
-		showLines := len(lines)
-		if showLines > maxLines-1 {
-			showLines = maxLines - 1
-		}
-		for i := 0; i < showLines; i++ {
-			line := strings.ReplaceAll(lines[i], "\r", "")
-			b.WriteString("  " + truncateByDisplayWidth(line, viewW-2) + "\n")
-		}
-		if len(lines) > showLines {
-			b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines, Enter to expand)", len(lines)-showLines), "yellow", "", "") + "\n")
-		}
+		wrapped := wrapText(rawLine, wrapW)
+		allLines = append(allLines, wrapped...)
+	}
+
+	// Apply scroll offset for detail pane
+	start := c.detailScrollY
+	if start > 0 && start >= len(allLines) {
+		start = len(allLines) - 1
+	}
+	if start < 0 {
+		start = 0
+	}
+
+	// Show up to maxLines-1 lines (1 line reserved for label)
+	available := maxLines - 1
+	if available < 1 {
+		available = 1
+	}
+	end := start + available
+	if end > len(allLines) {
+		end = len(allLines)
+	}
+
+	for i := start; i < end; i++ {
+		b.WriteString("  " + allLines[i] + "\n")
+	}
+	if end < len(allLines) {
+		b.WriteString(NewColorString(fmt.Sprintf("  ... (%d more lines, Shift+↑/↓ to scroll)", len(allLines)-end), "yellow", "", "") + "\n")
+	}
+	if start > 0 {
+		b.WriteString(NewColorString("  ... (Shift+↑ to scroll up)", "yellow", "", "") + "\n")
 	}
 	return b.String()
+}
+
+// wrapText splits a string into lines no wider than maxWidth (by display width).
+func wrapText(s string, maxWidth int) []string {
+	if DisplayWidth(s) <= maxWidth {
+		return []string{s}
+	}
+	var result []string
+	runes := []rune(s)
+	currentWidth := 0
+	start := 0
+	for i, r := range runes {
+		rw := DisplayWidth(string(r))
+		if currentWidth+rw > maxWidth && i > start {
+			result = append(result, string(runes[start:i]))
+			start = i
+			currentWidth = 0
+		}
+		currentWidth += rw
+	}
+	if start < len(runes) {
+		result = append(result, string(runes[start:]))
+	}
+	return result
 }
 
 func (c *LTRKeyInfoDetailComponent) adjustScrollOffset(totalRows, visibleHeight int) {
