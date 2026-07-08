@@ -292,6 +292,18 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 
 	//copy
 	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'c'}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isStructuredType() {
+			// Structured type: copy selected row's value
+			row := c.getSelectedStructuredRow()
+			if row == nil {
+				GlobalTipComponent.LayoutTemporary("No row selected", 2, TipTypeWarning)
+				return nil
+			}
+			clipboard.WriteAll(row.Value)
+			GlobalTipComponent.LayoutTemporary("Copied value to clipboard", 3, TipTypeSuccess)
+			return nil
+		}
+		// String type: copy full value
 		theVal := c.CopyString
 		if theVal == "" {
 			GlobalTipComponent.LayoutTemporary("No value to copy", 2, TipTypeWarning)
@@ -299,6 +311,39 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		}
 		clipboard.WriteAll(theVal)
 		GlobalTipComponent.LayoutTemporary("Copied value to clipboard", 3, TipTypeSuccess)
+		return nil
+	})
+	// Copy field/key name (for hash: field name, for zset: member, etc.)
+	GuiSetKeysbinding(GlobalApp.Gui, c.name, []any{'C'}, gocui.ModShift, func(g *gocui.Gui, v *gocui.View) error {
+		if c.isStructuredType() {
+			row := c.getSelectedStructuredRow()
+			if row == nil {
+				GlobalTipComponent.LayoutTemporary("No row selected", 2, TipTypeWarning)
+				return nil
+			}
+			// Copy field/key depending on type
+			copyText := ""
+			keyType, _ := c.getCurrentSetKeyType()
+			switch keyType {
+			case "hash":
+				copyText = row.Field
+			case "zset":
+				copyText = row.Value // member value
+			case "list":
+				copyText = strconv.Itoa(row.Index)
+			case "set":
+				copyText = row.Value
+			case "stream":
+				copyText = row.Field
+			}
+			if copyText == "" {
+				GlobalTipComponent.LayoutTemporary("Nothing to copy", 2, TipTypeWarning)
+				return nil
+			}
+			clipboard.WriteAll(copyText)
+			GlobalTipComponent.LayoutTemporary("Copied key to clipboard", 3, TipTypeSuccess)
+			return nil
+		}
 		return nil
 	})
 	// scroll
@@ -585,7 +630,8 @@ func (c *LTRKeyInfoDetailComponent) KeyMapTip() string {
 		{"Switch Format", "<f>"},
 		{editDesc, "<e>"},
 		{addDesc + "/" + deleteDesc, "<a>/<d>"},
-		{"Copy", "<c>"},
+		{"Copy Value", "<c>"},
+		{"Copy Key", "<C>"},
 		{"Paste", "<p>"},
 		{"Refresh", "<r>"},
 		{"Pane", "<Tab>"},
@@ -628,6 +674,11 @@ func (c *LTRKeyInfoDetailComponent) switchKeyValueFormat() {
 	}
 	c.keyValueFormat = keyValueFormatList[nextIndex]
 	c.viewOriginY = 0
+	c.detailScrollY = 0
+	if c.structuredMode && len(c.structuredRows) > 0 {
+		c.renderFromCache()
+		return
+	}
 	c.Layout()
 }
 
