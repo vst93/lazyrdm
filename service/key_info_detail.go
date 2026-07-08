@@ -17,23 +17,24 @@ import (
 )
 
 type LTRKeyInfoDetailComponent struct {
-	name           string
-	title          string
-	view           *gocui.View
-	keyValueFormat string
-	viewOriginY    int // view origin y
-	keyValueMaxY   int // value real total height
-	CopyString     string
-	lineView       *gocui.View
-	selectedRow    int
-	structuredRows []keyDetailRow
-	structuredMode bool
-	currentKeyType string
-	listFilter     string
-	listFiltered   []keyDetailRow
-	listFilterEdit string
-	scrollOffset   int  // scroll offset for structured row window
-	detailExpanded bool // whether the detail pane is expanded (full value)
+	name            string
+	title           string
+	view            *gocui.View
+	keyValueFormat  string
+	viewOriginY     int // view origin y
+	keyValueMaxY    int // value real total height
+	CopyString      string
+	lineView        *gocui.View
+	selectedRow     int
+	structuredRows  []keyDetailRow
+	structuredMode  bool
+	currentKeyType  string
+	listFilter      string
+	listFiltered    []keyDetailRow
+	listFilterEdit  string
+	scrollOffset    int // scroll offset for structured row window
+	detailExpanded  bool // whether the detail pane is expanded (full value)
+	filterDirty     bool // true when filter changed and needs re-applying
 }
 
 const listFilterViewName = "key_detail_list_filter"
@@ -333,8 +334,17 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 			return nil
 		}
 		c.listFilterEdit = c.listFilter
-		// Ensure the filter view exists via Layout, then switch to edit mode
-		c.Layout()
+		// Ensure the filter view exists without triggering a Redis API round-trip.
+		// Previously this called c.Layout() which re-fetches GetKeyDetail from Redis.
+		c.renderFromCache()
+		// Create/position the filter view
+		if GlobalDBComponent != nil && GlobalDBComponent.view != nil {
+			dbW, _ := GlobalDBComponent.view.Size()
+			formatStr := " Format: " + c.keyValueFormat + " "
+			c.layoutListFilterView(dbW+2, len(formatStr))
+		} else {
+			c.layoutListFilterView(0, 0)
+		}
 		fv, ferr := GlobalApp.Gui.View(listFilterViewName)
 		if ferr != nil {
 			GlobalTipComponent.LayoutTemporary("Open filter input failed", 3, TipTypeError)
@@ -365,7 +375,9 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 		}
 		c.listFilter = ""
 		c.listFilterEdit = ""
+		c.filterDirty = true
 		c.applyListFilter()
+		c.filterDirty = false
 		c.selectedRow = 0
 		c.scrollOffset = 0
 		if fv, ferr := GlobalApp.Gui.View(listFilterViewName); ferr == nil {
@@ -390,7 +402,9 @@ func (c *LTRKeyInfoDetailComponent) KeyBind() {
 	})
 	GuiSetKeysbinding(GlobalApp.Gui, listFilterViewName, []any{gocui.KeyEnter}, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.listFilter = strings.TrimSpace(c.listFilterEdit)
+		c.filterDirty = true
 		c.applyListFilter()
+		c.filterDirty = false
 		c.selectedRow = 0
 		c.scrollOffset = 0
 		// Restore filter view to non-editable display state
@@ -621,14 +635,10 @@ func (c *LTRKeyInfoDetailComponent) getSelectedStructuredRow() *keyDetailRow {
 func (c *LTRKeyInfoDetailComponent) moveDetailRowSelection(step int) {
 	rows := c.getActiveSelectionRows()
 	if len(rows) == 0 {
-		GlobalTipComponent.LayoutTemporary("No row to select", 2, TipTypeWarning)
 		return
 	}
 	c.selectedRow += step
 	c.normalizeSelectedRow()
-	// For structured (list) mode, re-render from cached rows without re-fetching
-	// from Redis. This is critical for trackpad scroll smoothness — every scroll
-	// event would otherwise trigger a GetKeyDetail API round-trip.
 	if c.structuredMode && len(c.structuredRows) > 0 {
 		c.renderFromCache()
 		return
@@ -641,7 +651,11 @@ func (c *LTRKeyInfoDetailComponent) renderFromCache() {
 		c.Layout()
 		return
 	}
-	c.applyListFilter()
+	// Only re-apply filter if it changed since last render
+	if c.filterDirty {
+		c.applyListFilter()
+		c.filterDirty = false
+	}
 	c.normalizeSelectedRow()
 	theVal := c.renderStructuredRows()
 	c.view.Subtitle = c.buildStructuredSubtitle()
@@ -649,9 +663,6 @@ func (c *LTRKeyInfoDetailComponent) renderFromCache() {
 	c.CopyString = theVal
 	c.view.Write([]byte(theVal))
 	c.view.SetOrigin(0, c.viewOriginY)
-	if CurrentViewName() == c.name && GlobalTipComponent != nil {
-		GlobalTipComponent.Layout(c.KeyMapTip())
-	}
 }
 
 // buildStructuredSubtitle generates the subtitle string for structured detail mode.
@@ -2220,6 +2231,7 @@ func (c *LTRKeyInfoDetailComponent) buildDisplayValue(detail types.KeyDetail) st
 	c.structuredRows = nil
 	c.scrollOffset = 0
 	c.detailExpanded = false
+	c.filterDirty = true
 	if keyType == "string" {
 		theVal := fmt.Sprintln(detail.Value)
 		if c.keyValueFormat == "JSON" && validator.IsJSON(theVal) {
